@@ -13,6 +13,9 @@ __pycache__/
 # saved dialogs cache
 saved_dialogs/
 
+#local code dump
+project_dump.txt
+
 # Distribution / packaging
 .Python
 build/
