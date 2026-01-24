@@ -32,7 +32,18 @@ class UIHandlers:
     def get_dialog_list_for_dropdown(self):
         """Получает список чатов для обновления dropdown"""
         dialogs = self.dialog_service.get_dialog_list()
-        chat_names = [f"{d['name']} ({d['id']})" for d in dialogs]
+        
+        # Очищаем названия от переносов строк и лишних символов
+        chat_names = []
+        for d in dialogs:
+            # Очищаем название от переносов строк
+            clean_name = d['name'].replace('\n', ' ').replace('\r', ' ')
+            # Убираем лишние пробелы
+            clean_name = ' '.join(clean_name.split())
+            # Обрезаем если слишком длинное
+            if len(clean_name) > 50:
+                clean_name = clean_name[:47] + '...'
+            chat_names.append(f"{clean_name} ({d['id']})")
         
         current_dialog = self.dialog_service.get_current_dialog()
         if current_dialog and chat_names:
@@ -153,7 +164,6 @@ class UIHandlers:
         """Обработчик отправки сообщения"""
         try:
             if not prompt.strip():
-                # Возвращаем ТОЛЬКО 5 значений
                 return [], "", chat_id or "", gr.update(), gr.update()
             
             # Получаем или создаем диалог
@@ -178,12 +188,10 @@ class UIHandlers:
             
             chat_name = self.get_chat_name_from_selection(chat_names[current_index])
             
-            # Возвращаем ТОЛЬКО 5 значений
             return history, "", new_chat_id, gr.update(choices=chat_names, value=chat_names[current_index]), gr.update(label=chat_name)
         
         except Exception as e:
             print(f"Ошибка при отправке сообщения: {e}")
-            # Возвращаем ТОЛЬКО 5 значений
             return [], "", chat_id or "", gr.update(), gr.update()
     
     def init_app_handler(self):
@@ -200,7 +208,17 @@ class UIHandlers:
             
             # Получаем обновленный список чатов для dropdown
             dropdown = self.get_dialog_list_for_dropdown()
-            chat_name = self.get_chat_name_from_selection(dropdown["value"])
+            
+            # Получаем название текущего чата
+            chat_name = "Чат"
+            if chat_id:
+                dialog = self.dialog_service.get_dialog(chat_id)
+                if dialog:
+                    # Очищаем название от переносов строк
+                    chat_name = dialog.name.replace('\n', ' ').replace('\r', ' ')
+                    chat_name = ' '.join(chat_name.split())
+                    if len(chat_name) > 30:
+                        chat_name = chat_name[:27] + '...'
             
             return history, chat_id, dropdown, gr.update(label=chat_name)
         except Exception as e:

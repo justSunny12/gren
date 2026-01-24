@@ -159,7 +159,7 @@ class DialogService:
             self._save_dialog(dialog)
     
     def load_dialogs(self):
-        """Загружает сохраненные диалоги с минимальным логированием"""
+        """Загружает сохраненные диалогов БЕЗ вывода"""
         try:
             if not os.path.exists(self.config.save_dir):
                 os.makedirs(self.config.save_dir, exist_ok=True)
@@ -170,15 +170,13 @@ class DialogService:
                 if f.startswith("dialog_") and f.endswith(".json"):
                     file_path = os.path.join(self.config.save_dir, f)
                     
-                    # Проверяем, не пустой ли файл
                     if os.path.getsize(file_path) == 0:
                         os.remove(file_path)
                         continue
                     
                     dialog_files.append(file_path)
             
-            if dialog_files:
-                print(f"📂 Загружено {len(dialog_files)} диалогов")
+            # УБИРАЕМ: if dialog_files: print(f"📂 Загружено {len(dialog_files)} диалогов")
             
             for file_path in dialog_files:
                 try:
@@ -189,47 +187,36 @@ class DialogService:
                             os.remove(file_path)
                             continue
                         
-                        # Загружаем JSON
                         dialog_data = json.loads(file_content)
                 
-                    # Конвертируем строки datetime обратно в datetime объекты
                     dialog_data["created"] = datetime.fromisoformat(dialog_data["created"])
                     dialog_data["updated"] = datetime.fromisoformat(dialog_data["updated"])
                     
-                    # Конвертируем историю сообщений
                     messages = []
                     for msg_data in dialog_data.get("history", []):
-                        # Конвертируем строку timestamp в datetime
                         msg_data["timestamp"] = datetime.fromisoformat(msg_data["timestamp"])
-                        # Конвертируем строку role в enum
                         msg_data["role"] = MessageRole(msg_data["role"])
                         messages.append(Message(**msg_data))
                     dialog_data["history"] = messages
                     
-                    # Создаем объект Dialog
                     dialog = Dialog(**dialog_data)
                     dialog_id = dialog.id
                     self.dialogs[dialog_id] = dialog
                     
-                    # Обновляем next_dialog_id
                     dialog_num = int(dialog_id)
                     if dialog_num >= self.next_dialog_id:
                         self.next_dialog_id = dialog_num + 1
                     
                 except json.JSONDecodeError:
-                    # Тихо удаляем поврежденный файл
                     os.remove(file_path)
                 except Exception:
-                    # Тихо игнорируем другие ошибки
                     pass
             
-            # Устанавливаем текущий диалог как последний обновленный
             if self.dialogs:
                 dialogs_list = self.get_dialog_list()
                 self.current_dialog_id = dialogs_list[0]["id"]
                 
         except Exception:
-            # Тихо игнорируем общие ошибки
             pass
 
 # Глобальный экземпляр

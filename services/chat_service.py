@@ -1,6 +1,7 @@
 # /services/chat_service.py
 import re
-import torch
+import time  # <-- ДОБАВИТЬ ЭТОТ ИМПОРТ
+import traceback
 from typing import Tuple, List, Dict, Any, Optional
 from models.enums import MessageRole
 
@@ -8,130 +9,147 @@ class ChatService:
     """Сервис для логики чата"""
     
     def __init__(self):
-        # Ленивый импорт container
         from container import container
         self.config = container.get_config()
-        self.model_service = container.get_model_service()
         self.dialog_service = container.get_dialog_service()
-    
-    def initialize_model(self):
-        """Инициализирует модель (ленивая загрузка)"""
-        return self.model_service.initialize()
+        
+        # Получаем model_service через контейнер
+        self.model_service = container.get_model_service()
+        
+        # Определяем тип сервиса для логирования
+        self.service_type = type(self.model_service).__name__
+        print(f"📊 Используется {self.service_type}")
     
     def process_message(self, prompt: str, dialog_id: Optional[str] = None, 
                        max_tokens: Optional[int] = None,
                        temperature: Optional[float] = None) -> Tuple[List[Dict], str, str]:
-        """Обрабатывает входящее сообщение и генерирует ответ"""
-        if not prompt.strip():
-            return [], "⚠️ Введите сообщение", dialog_id or ""
-        
-        # Получаем или создаем диалог
-        if not dialog_id:
-            dialog_id = self.dialog_service.create_dialog()
-        
-        # Получаем модель и токенизатор
-        model, tokenizer, generate_lock = self.initialize_model()
-        
-        # Получаем историю диалога
-        dialog = self.dialog_service.get_dialog(dialog_id)
-        if not dialog:
-            return [], "Ошибка: диалог не найден", dialog_id
-        
-        # Проверяем, первое ли это сообщение
-        is_first_message = len(dialog.history) == 0
-        
-        # Форматируем историю для модели
-        formatted_history = []
-        for msg in dialog.history:
-            formatted_history.append({
-                "role": msg.role.value,
-                "content": msg.content
-            })
-        
-        formatted_history.append({"role": "user", "content": prompt})
-        
-        # Подготавливаем текст для модели
-        text = tokenizer.apply_chat_template(
-            formatted_history,
-            tokenize=False,
-            add_generation_prompt=True
-        )
-        
-        # Получаем параметры генерации
-        gen_params = self.model_service.get_generation_params(
-            max_tokens=max_tokens,
-            temperature=temperature
-        )
-        
-        # Генерируем ответ
-        response_text = ""
-        with generate_lock:
-            inputs = tokenizer(text, return_tensors="pt").to(model.device)
+        """Обрабатывает входящее сообщение"""
+        try:
+            # Валидация ввода
+            if not prompt or not prompt.strip():
+                return [], "⚠️ Введите сообщение", dialog_id or ""
             
-            with torch.no_grad():
-                outputs = model.generate(
-                    **inputs,
-                    **gen_params
+            # Получаем или создаем диалог
+            if not dialog_id:
+                dialog_id = self.dialog_service.create_dialog()
+            
+            # Получаем диалог
+            dialog = self.dialog_service.get_dialog(dialog_id)
+            if not dialog:
+                return [], "Ошибка: диалог не найден", dialog_id
+            
+            # Определяем параметры генерации
+            if max_tokens is None:
+                max_tokens = self.config.generation.default_max_tokens
+            if temperature is None:
+                temperature = self.config.generation.default_temperature
+            
+            # Форматируем историю
+            formatted_history = []
+            for msg in dialog.history:
+                formatted_history.append({
+                    "role": msg.role.value,
+                    "content": msg.content
+                })
+            
+            formatted_history.append({"role": "user", "content": prompt.strip()})
+            
+            print(f"📨 Запрос: {prompt[:50]}...")
+            print(f"   Параметры: {max_tokens} токенов, температура {temperature}")
+            
+            # Генерируем ответ (модель уже загружена)
+            response_text = ""
+            if hasattr(self.model_service, 'generate_response'):
+                start_time = time.time()  # <-- Теперь time определен
+                response_text = self.model_service.generate_response(
+                    messages=formatted_history,
+                    max_tokens=max_tokens,
+                    temperature=temperature
                 )
+                gen_time = time.time() - start_time
+                print(f"⏱️ Время генерации: {gen_time:.2f} сек")
+            else:
+                response_text = "Ошибка: сервис модели не поддерживается"
             
-            input_length = inputs.input_ids.shape[1]
-            response_text = tokenizer.decode(outputs[0][input_length:], skip_special_tokens=True)
-        
-        # Очищаем ответ
-        response_text = self._clean_response(response_text)
-        
-        # Добавляем сообщения в диалог
-        self.dialog_service.add_message(dialog_id, MessageRole.USER, prompt)
-        self.dialog_service.add_message(dialog_id, MessageRole.ASSISTANT, response_text)
-        
-        # Если это первое сообщение, генерируем простое название
-        if is_first_message:
-            self._generate_chat_name_simple(dialog_id, prompt)
-        
-        # Получаем обновленную историю для отображения
-        dialog = self.dialog_service.get_dialog(dialog_id)
-        display_history = dialog.to_ui_format()
-        
-        return display_history, "", dialog_id
+            # Очищаем ответ
+            response_text = self._clean_response(response_text)
+            
+            # Добавляем сообщения в диалог
+            self.dialog_service.add_message(dialog_id, MessageRole.USER, prompt)
+            self.dialog_service.add_message(dialog_id, MessageRole.ASSISTANT, response_text)
+            
+            # Генерируем название для первого сообщения
+            if len(dialog.history) == 0:
+                self._generate_chat_name_simple(dialog_id, prompt)
+            
+            # Получаем обновленную историю
+            dialog = self.dialog_service.get_dialog(dialog_id)
+            display_history = dialog.to_ui_format()
+            
+            print(f"✅ Ответ готов ({len(response_text)} символов)")
+            return display_history, "", dialog_id
+            
+        except Exception as e:
+            print(f"❌ Ошибка: {e}")
+            import traceback
+            traceback.print_exc()
+            return [], f"⚠️ Ошибка: {str(e)[:100]}", dialog_id or ""
     
     def _clean_response(self, response: str) -> str:
         """Очищает ответ от служебных тегов"""
-        # Убираем тег <think> и его содержимое
-        think_pattern = r'<think>.*?</think>'
-        response = re.sub(think_pattern, '', response, flags=re.DOTALL)
+        if not response:
+            return ""
         
-        # Убираем оставшиеся теги
-        response = re.sub(r'<[^>]+>', '', response)
-        
-        # Очищаем лишние пробелы и переносы строк
-        response = re.sub(r'\n\s*\n', '\n', response)
-        return response.strip()
+        try:
+            # Убираем тег <think> и его содержимое
+            think_pattern = r'<think>.*?</think>'
+            response = re.sub(think_pattern, '', response, flags=re.DOTALL)
+            
+            # Убираем оставшиеся теги
+            response = re.sub(r'<[^>]+>', '', response)
+            
+            # Очищаем лишние пробелы и переносы строк
+            response = re.sub(r'\n\s*\n', '\n', response)
+            response = re.sub(r'\s+', ' ', response)
+            
+            return response.strip()
+        except:
+            return response
     
     def _generate_chat_name_simple(self, dialog_id: str, prompt: str):
-        """Генерирует простое осмысленное название из промпта (1-4 слова)"""
+        """Генерирует простое осмысленное название из промпта"""
         try:
+            if not prompt or not isinstance(prompt, str):
+                return
+            
             # Очищаем промпт от мусора
             clean_prompt = re.sub(r'[^\w\s]', ' ', prompt.lower())
             words = clean_prompt.split()
             
-            # Убираем стоп-слова (слишком короткие и неинформативные)
-            stop_words = {'привет', 'здравствуй', 'здравствуйте', 'здрасьте', 'хай', 'хелло', 'hello', 'hi',
-                         'как', 'дела', 'что', 'ты', 'вы', 'мне', 'меня', 'мной', 'твой', 'ваш',
-                         'это', 'тот', 'этот', 'такой', 'который', 'свой',
-                         'можно', 'мог', 'могу', 'можешь', 'можете', 'помоги', 'помощь',
-                         'пожалуйста', 'пжлст', 'плз', 'plz', 'спасибо', 'thanks', 'thank',
-                         'ну', 'вот', 'так', 'же', 'бы', 'ли', 'то', 'либо', 'нибудь',
-                         'а', 'и', 'но', 'или', 'да', 'нет', 'не', 'ни', 'же',
-                         'уже', 'еще', 'уж', 'ещё', 'очень', 'оч', 'очень',
-                         'хочу', 'хотел', 'хотела', 'хотелось', 'хотеть',
-                         'сделай', 'напиши', 'объясни', 'расскажи', 'покажи',
-                         'вопрос', 'ответ', 'информация', 'инфа', 'инфо'}
+            if not words:
+                return
+            
+            # Убираем стоп-слова
+            stop_words = {
+                'привет', 'здравствуй', 'здравствуйте', 'здрасьте', 'хай', 'хелло', 
+                'hello', 'hi', 'как', 'дела', 'что', 'ты', 'вы', 'мне', 'меня', 
+                'мной', 'твой', 'ваш', 'это', 'тот', 'этот', 'такой', 'который', 
+                'свой', 'можно', 'мог', 'могу', 'можешь', 'можете', 'помоги', 
+                'помощь', 'пожалуйста', 'пжлст', 'плз', 'plz', 'спасибо', 'thanks', 
+                'thank', 'ну', 'вот', 'так', 'же', 'бы', 'ли', 'то', 'либо', 'нибудь',
+                'а', 'и', 'но', 'или', 'да', 'нет', 'не', 'ни', 'уже', 'еще', 'уж',
+                'ещё', 'очень', 'хочу', 'хотел', 'хотела', 'хотелось', 'хотеть',
+                'сделай', 'напиши', 'объясни', 'расскажи', 'покажи', 'вопрос',
+                'ответ', 'информация', 'инфа', 'инфо', 'просто', 'самый', 'сама',
+                'само', 'свои', 'свой', 'своих', 'чтобы', 'зачем', 'почему',
+                'когда', 'где', 'кто', 'чем', 'какой', 'какая', 'какое', 'какие'
+            }
             
             meaningful_words = []
             for word in words[:10]:  # Берем первые 10 слов
-                if (len(word) > 2 and  # Слово длиннее 2 букв
-                    word not in stop_words and  # Не стоп-слово
-                    word not in meaningful_words):  # Не дублируется
+                if (len(word) > 2 and 
+                    word not in stop_words and 
+                    word not in meaningful_words):
                     meaningful_words.append(word)
             
             # Формируем название
@@ -144,10 +162,11 @@ class ChatService:
                 # Fallback: берем первые 3 слова из промпта
                 chat_name = ' '.join(words[:3]) if len(words) >= 3 else prompt[:30]
             
-            # Капитализируем первую букву
+            # Капитализируем первую букву и ОЧИЩАЕМ от переносов строк
             chat_name = chat_name.strip().capitalize()
+            chat_name = chat_name.replace('\n', ' ').replace('\r', ' ')
+            chat_name = ' '.join(chat_name.split())  # Убираем лишние пробелы
             
-            # Обрезаем если слишком длинное
             if len(chat_name) > 50:
                 chat_name = chat_name[:47] + '...'
             
@@ -157,20 +176,49 @@ class ChatService:
             
         except Exception as e:
             print(f"⚠️ Ошибка при генерации названия: {e}")
-            # Простой fallback
-            simple_name = prompt[:40] + ('...' if len(prompt) > 40 else '')
-            self.dialog_service.rename_dialog(dialog_id, simple_name)
+            try:
+                # Очищаем название от переносов строк
+                simple_name = prompt[:40] + ('...' if len(prompt) > 40 else '')
+                simple_name = simple_name.replace('\n', ' ').replace('\r', ' ')
+                self.dialog_service.rename_dialog(dialog_id, simple_name)
+            except:
+                pass
     
     def get_chat_history(self, dialog_id: Optional[str] = None) -> List[Dict]:
         """Получает историю чата"""
-        if not dialog_id:
-            dialog = self.dialog_service.get_current_dialog()
-        else:
-            dialog = self.dialog_service.get_dialog(dialog_id)
-        
-        if dialog:
-            return dialog.to_ui_format()
-        return []
+        try:
+            if not dialog_id:
+                dialog = self.dialog_service.get_current_dialog()
+            else:
+                dialog = self.dialog_service.get_dialog(dialog_id)
+            
+            if dialog:
+                return dialog.to_ui_format()
+            return []
+        except Exception as e:
+            print(f"⚠️ Ошибка при получении истории чата: {e}")
+            return []
+    
+    def get_stats(self) -> Dict[str, Any]:
+        """Возвращает статистику генерации"""
+        try:
+            if hasattr(self.model_service, 'get_stats'):
+                stats = self.model_service.get_stats()
+                stats['service_type'] = self.service_type
+                return stats
+            else:
+                return {
+                    "service_type": self.service_type,
+                    "status": "Статистика недоступна",
+                    "model_initialized": hasattr(self.model_service, 'is_initialized') and 
+                                       self.model_service.is_initialized()
+                }
+        except Exception as e:
+            return {
+                "service_type": self.service_type,
+                "error": str(e),
+                "status": "Ошибка получения статистики"
+            }
 
 # Глобальный экземпляр
 chat_service = ChatService()
