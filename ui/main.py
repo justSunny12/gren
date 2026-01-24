@@ -83,16 +83,26 @@ def create_main_ui():
         )
         
         # 4. Функция отправки сообщения - ТОЛЬКО 5 OUTPUTS
-        def send_message(prompt, chat_id):
+        def send_message(prompt, chat_id, max_tokens, temperature, enable_thinking):
             """Обертка для отправки сообщения"""
-            max_t = sidebar_components["max_tokens"].value
-            temp = sidebar_components["temperature"].value
-            return ui_handlers.send_message_handler(prompt, chat_id, max_t, temp)
-        
+            return ui_handlers.send_message_handler(
+                prompt, 
+                chat_id, 
+                max_tokens, 
+                temperature,
+                enable_thinking
+            )
+
         # 5. Отправка по кнопке - ТОЛЬКО 5 OUTPUTS
         submit_btn.click(
             fn=send_message,
-            inputs=[user_input, current_dialog_id],
+            inputs=[
+                user_input, 
+                current_dialog_id,
+                sidebar_components["max_tokens"],
+                sidebar_components["temperature"],
+                sidebar_components["enable_thinking"]  # ← ДОБАВЛЯЕМ
+            ],
             outputs=[
                 chatbot,           # 0 - история чата
                 user_input,        # 1 - очистить поле ввода
@@ -101,11 +111,17 @@ def create_main_ui():
                 chatbot            # 4 - обновить label чата
             ]
         )
-        
+
         # 6. Отправка по Enter - ТОЛЬКО 5 OUTPUTS
         user_input.submit(
             fn=send_message,
-            inputs=[user_input, current_dialog_id],
+            inputs=[
+                user_input, 
+                current_dialog_id,
+                sidebar_components["max_tokens"],
+                sidebar_components["temperature"],
+                sidebar_components["enable_thinking"]  # ← ДОБАВЛЯЕМ
+            ],
             outputs=[
                 chatbot,
                 user_input,

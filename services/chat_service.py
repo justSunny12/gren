@@ -21,8 +21,9 @@ class ChatService:
         print(f"📊 Используется {self.service_type}")
     
     def process_message(self, prompt: str, dialog_id: Optional[str] = None, 
-                       max_tokens: Optional[int] = None,
-                       temperature: Optional[float] = None) -> Tuple[List[Dict], str, str]:
+                    max_tokens: Optional[int] = None,
+                    temperature: Optional[float] = None,
+                    enable_thinking: Optional[bool] = None) -> Tuple[List[Dict], str, str]:
         """Обрабатывает входящее сообщение"""
         try:
             # Валидация ввода
@@ -43,8 +44,12 @@ class ChatService:
                 max_tokens = self.config.generation.default_max_tokens
             if temperature is None:
                 temperature = self.config.generation.default_temperature
+            if enable_thinking is None:
+                enable_thinking = self.config.generation.default_enable_thinking
             
-            # Форматируем историю
+            print(f"🎯 Параметры: tokens={max_tokens}, temp={temperature}, thinking={enable_thinking}")
+            
+            # Форматируем историю ДО использования
             formatted_history = []
             for msg in dialog.history:
                 formatted_history.append({
@@ -52,27 +57,26 @@ class ChatService:
                     "content": msg.content
                 })
             
+            # Добавляем новое сообщение пользователя
             formatted_history.append({"role": "user", "content": prompt.strip()})
             
             print(f"📨 Запрос: {prompt[:50]}...")
-            print(f"   Параметры: {max_tokens} токенов, температура {temperature}")
+            print(f"   История: {len(formatted_history)} сообщений")
             
-            # Генерируем ответ (модель уже загружена)
+            # Генерируем ответ
             response_text = ""
             if hasattr(self.model_service, 'generate_response'):
-                start_time = time.time()  # <-- Теперь time определен
+                start_time = time.time()
                 response_text = self.model_service.generate_response(
                     messages=formatted_history,
                     max_tokens=max_tokens,
-                    temperature=temperature
+                    temperature=temperature,
+                    enable_thinking=enable_thinking
                 )
                 gen_time = time.time() - start_time
                 print(f"⏱️ Время генерации: {gen_time:.2f} сек")
             else:
                 response_text = "Ошибка: сервис модели не поддерживается"
-            
-            # Очищаем ответ
-            response_text = self._clean_response(response_text)
             
             # Добавляем сообщения в диалог
             self.dialog_service.add_message(dialog_id, MessageRole.USER, prompt)
@@ -94,27 +98,6 @@ class ChatService:
             import traceback
             traceback.print_exc()
             return [], f"⚠️ Ошибка: {str(e)[:100]}", dialog_id or ""
-    
-    def _clean_response(self, response: str) -> str:
-        """Очищает ответ от служебных тегов"""
-        if not response:
-            return ""
-        
-        try:
-            # Убираем тег <think> и его содержимое
-            think_pattern = r'<think>.*?</think>'
-            response = re.sub(think_pattern, '', response, flags=re.DOTALL)
-            
-            # Убираем оставшиеся теги
-            response = re.sub(r'<[^>]+>', '', response)
-            
-            # Очищаем лишние пробелы и переносы строк
-            response = re.sub(r'\n\s*\n', '\n', response)
-            response = re.sub(r'\s+', ' ', response)
-            
-            return response.strip()
-        except:
-            return response
     
     def _generate_chat_name_simple(self, dialog_id: str, prompt: str):
         """Генерирует простое осмысленное название из промпта"""

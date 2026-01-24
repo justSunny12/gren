@@ -160,11 +160,17 @@ class UIHandlers:
             print(f"Ошибка при удалении чата: {e}")
             return [], "", None, gr.update(), f"⚠️ Ошибка: {str(e)}", gr.update()
     
-    def send_message_handler(self, prompt, chat_id, max_tokens, temperature):
+    def send_message_handler(self, prompt, chat_id, max_tokens, temperature, enable_thinking):
         """Обработчик отправки сообщения"""
         try:
             if not prompt.strip():
                 return [], "", chat_id or "", gr.update(), gr.update()
+            
+            # Убедимся что enable_thinking булево
+            if enable_thinking is None:
+                enable_thinking = False
+            
+            print(f"📨 Отправка сообщения (thinking: {enable_thinking})")
             
             # Получаем или создаем диалог
             if not chat_id:
@@ -172,7 +178,7 @@ class UIHandlers:
             
             # Обрабатываем сообщение
             history, _, new_chat_id = self.chat_service.process_message(
-                prompt, chat_id, max_tokens, temperature
+                prompt, chat_id, max_tokens, temperature, enable_thinking
             )
             
             # Обновляем список чатов

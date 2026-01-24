@@ -45,6 +45,7 @@ class GenerationConfig(BaseModel):
     default_temperature: float = Field(0.7, ge=0.1, le=2.0)
     default_top_p: float = Field(0.9, ge=0.0, le=1.0)
     default_repetition_penalty: float = Field(1.1, ge=1.0, le=2.0)
+    default_enable_thinking: bool = False
     
     min_max_tokens: int = 64
     max_max_tokens: int = 2048

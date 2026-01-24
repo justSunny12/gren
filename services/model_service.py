@@ -88,6 +88,46 @@ class ModelService:
             print(f" ❌ Ошибка загрузки модели: {e}")
             return None, None, self.generate_lock
     
+    def generate_response(self, messages: list, max_tokens: int = 512, 
+                        temperature: float = 0.7, enable_thinking: bool = False) -> str:
+        """
+        Генерирует ответ для совместимости с новым интерфейсом
+        """
+        if not self._initialized:
+            self.initialize()
+        
+        # Тихий режим для прогрева
+        if hasattr(self, '_warming_up') and self._warming_up:
+            enable_thinking = False  # Принудительно выключаем thinking для прогрева
+        
+        try:
+            # Используем enable_thinking если токенизатор поддерживает
+            text = self.tokenizer.apply_chat_template(
+                messages,
+                tokenize=False,
+                add_generation_prompt=True,
+                enable_thinking=enable_thinking
+            )
+        except TypeError:
+            # Fallback для старых версий
+            text = self.tokenizer.apply_chat_template(
+                messages,
+                tokenize=False,
+                add_generation_prompt=True
+            )
+        
+        # Получаем параметры генерации
+        params = self.get_generation_params(max_tokens=max_tokens, temperature=temperature)
+        
+        # Для MPS при прогрессе используем минимальные параметры
+        if self.device == "mps" and hasattr(self, '_warming_up') and self._warming_up:
+            params = {"max_new_tokens": max_tokens}
+        
+        # Генерируем через пайплайн
+        response = self.generate_with_pipeline(text, **params)
+        
+        return response
+    
     def generate_with_pipeline(self, prompt: str, **generation_params) -> str:
         """Генерирует текст с использованием Pipeline"""
         if not self._initialized:

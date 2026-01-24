@@ -62,10 +62,17 @@ class InputComponents:
             step=0.1
         )
         
+        enable_thinking = gr.Checkbox(  # ← ДОБАВЛЯЕМ
+            label="🧠 Глубокое размышление",
+            value=gen_config.default_enable_thinking,
+            info="Включает внутренние размышления модели"
+        )
+        
         return {
-            "max_tokens": max_tokens,
-            "temperature": temperature
-        }
+        "max_tokens": max_tokens,
+        "temperature": temperature,
+        "enable_thinking": enable_thinking  # ← ДОБАВЛЯЕМ В ВОЗВРАЩАЕМЫЙ СЛОВАРЬ
+    }
 
 # Глобальный экземпляр
 inputs = InputComponents()

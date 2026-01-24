@@ -72,8 +72,6 @@ class OptimizedModelService:
         if self._initialized and not force_reload:
             return self.generator.model if self.generator else None, self.tokenizer, self.generate_lock
         
-        # УБИРАЕМ: print("🚀 Инициализация оптимизированной модели...")
-        
         # Загрузка конфигурации
         from container import container
         self.config = container.get_config()
@@ -130,7 +128,6 @@ class OptimizedModelService:
             
             load_time = time.time() - start_time
             print(f"✅ Модель загружена за {load_time:.2f} секунд")
-            # УБИРАЕМ ДУБЛИРОВАННЫЙ ВЫВОД: print(f"💾 Модель останется в памяти для быстрых ответов")
             
             return self.generator.model, self.tokenizer, self.generate_lock
             
@@ -141,8 +138,7 @@ class OptimizedModelService:
     def get_generation_params(self, max_tokens: Optional[int] = None, 
                              temperature: Optional[float] = None) -> Dict[str, Any]:
         """
-        Получает оптимизированные параметры генерации
-        Использует кэш для повторяющихся параметров
+        Получает параметры генерации
         """
         if not self._initialized:
             self.initialize()
@@ -152,13 +148,7 @@ class OptimizedModelService:
         if temperature is None:
             temperature = self.config.generation.default_temperature
         
-        # Ключ для кэша параметров - НЕ ОЧИЩАТЬ между запросами!
-        cache_key = f"{max_tokens}:{temperature:.2f}:{self.device}"
-        
-        if cache_key in self.param_cache:
-            return self.param_cache[cache_key].copy()
-        
-        # Базовые параметры генерации (поддерживаются всеми устройствами)
+        # Базовые параметры
         params = {
             "max_new_tokens": max_tokens,
             "temperature": max(temperature, 0.01),
@@ -167,90 +157,89 @@ class OptimizedModelService:
         
         # Устройство-специфичные параметры
         if self.device == "cuda":
-            # CUDA поддерживает все продвинутые параметры
             params.update({
                 "top_p": self.config.generation.default_top_p,
                 "repetition_penalty": self.config.generation.default_repetition_penalty,
-                "num_beams": 1,
-                "use_cache": True,
             })
-        elif self.device == "mps":
-            # MPS имеет ограниченную поддержку
-            params.update({
-                # MPS может не поддерживать top_p, repetition_penalty
-                "use_cache": False,
-            })
-        else:
-            # CPU
+        elif self.device == "cpu":
             params.update({
                 "top_p": self.config.generation.default_top_p,
             })
+        # MPS оставляем с базовыми параметрами
         
-        # Добавляем токены если токенизатор инициализирован
         if self.tokenizer:
             params["pad_token_id"] = self.tokenizer.pad_token_id
             params["eos_token_id"] = self.tokenizer.eos_token_id
         
-        # Кэшируем параметры - они будут переиспользоваться!
-        self.param_cache[cache_key] = params.copy()
-        
         return params
     
     def generate_response(self, messages: list, max_tokens: int = 512, 
-                         temperature: float = 0.7) -> str:
+                        temperature: float = 0.7, enable_thinking: bool = False) -> str:
         """
-        Генерирует ответ (модель уже в памяти)
+        Генерирует ответ с использованием enable_thinking параметра токенизатора Qwen
         """
         if not self._initialized:
             self.initialize()
         
         self.generation_stats['total_requests'] += 1
         
-        # Получаем параметры генерации (из кэша если есть)
+        # Временно скрываем вывод для прогрева через атрибут _warming_up
+        if hasattr(self, '_warming_up') and self._warming_up:
+            # Тихий режим для прогрева
+            enable_thinking = False  # Принудительно выключаем thinking для прогрева
+        else:
+            print(f"🧠 Thinking: {enable_thinking}")
+        
+        try:
+            # Используем встроенный параметр enable_thinking токенизатора Qwen
+            prompt = self.tokenizer.apply_chat_template(
+                messages,
+                tokenize=False,
+                add_generation_prompt=True,
+                enable_thinking=enable_thinking  # ← Штатный параметр модели
+            )
+        except TypeError as e:
+            # Если токенизатор не поддерживает enable_thinking (старая версия)
+            if not (hasattr(self, '_warming_up') and self._warming_up):
+                print(f"⚠️ Токенизатор не поддерживает enable_thinking: {e}")
+            prompt = self.tokenizer.apply_chat_template(
+                messages,
+                tokenize=False,
+                add_generation_prompt=True
+            )
+        
+        # Получаем параметры генерации
         params = self.get_generation_params(max_tokens, temperature)
         
-        # Форматируем промпт
-        prompt = self.tokenizer.apply_chat_template(
-            messages,
-            tokenize=False,
-            add_generation_prompt=True
-        )
-        
-        # Генерируем с замером времени
         start_time = time.time()
         
         with self.generate_lock:
             try:
-                # Для MPS используем МИНИМАЛЬНЫЙ набор параметров
-                if self.device == "mps":
-                    # MPS имеет очень ограниченную поддержку параметров
-                    # Используем только max_new_tokens, остальное игнорируем
-                    results = self.generator(
-                        prompt,
-                        max_new_tokens=params["max_new_tokens"],
-                        # temperature игнорируется MPS
-                        # do_sample игнорируется MPS
-                        return_full_text=False,
-                    )
-                elif self.device == "cuda":
-                    # CUDA поддерживает все параметры
-                    results = self.generator(
-                        prompt,
-                        max_new_tokens=params["max_new_tokens"],
-                        temperature=params["temperature"],
-                        top_p=params.get("top_p", 0.9),
-                        do_sample=params["do_sample"],
-                        return_full_text=False,
-                    )
-                else:
-                    # CPU
-                    results = self.generator(
-                        prompt,
-                        max_new_tokens=params["max_new_tokens"],
-                        temperature=params["temperature"],
-                        do_sample=params["do_sample"],
-                        return_full_text=False,
-                    )
+                # Базовые параметры
+                gen_params = {
+                    "max_new_tokens": params["max_new_tokens"],
+                    "temperature": params.get("temperature", 0.7),
+                    "do_sample": params.get("do_sample", True),
+                    "return_full_text": False,
+                }
+                
+                # Для MPS убираем параметры которые могут вызывать предупреждения
+                if self.device == "cuda":
+                    gen_params.update({
+                        "top_p": params.get("top_p", 0.9),
+                        "repetition_penalty": params.get("repetition_penalty", 1.1),
+                    })
+                elif self.device == "mps":
+                    # MPS имеет ограниченную поддержку параметров
+                    # Убираем параметры вызывающие предупреждения при прогреве
+                    if hasattr(self, '_warming_up') and self._warming_up:
+                        gen_params = {
+                            "max_new_tokens": params["max_new_tokens"],
+                            "return_full_text": False,
+                        }
+                
+                # Генерируем
+                results = self.generator(prompt, **gen_params)
                 
                 if results and len(results) > 0:
                     response = results[0]['generated_text'].strip()
@@ -259,22 +248,9 @@ class OptimizedModelService:
                 else:
                     response = ""
                     
-            except torch.cuda.OutOfMemoryError:
-                print("⚠️ Недостаточно памяти GPU")
-                if self.device == "cuda":
-                    torch.cuda.empty_cache()
-                elif self.device == "mps":
-                    torch.mps.empty_cache()
-                response = "Произошла ошибка памяти. Попробуйте сократить запрос."
-            except RuntimeError as e:
-                if "MPS" in str(e):
-                    print(f"⚠️ Ошибка MPS: {e}")
-                    response = "Ошибка MPS устройства."
-                else:
-                    print(f"⚠️ RuntimeError при генерации: {e}")
-                    response = "Извините, произошла ошибка при генерации ответа."
             except Exception as e:
-                print(f"⚠️ Ошибка генерации: {e}")
+                if not (hasattr(self, '_warming_up') and self._warming_up):
+                    print(f"❌ Ошибка генерации: {e}")
                 response = "Извините, произошла ошибка при генерации ответа."
         
         generation_time = time.time() - start_time
