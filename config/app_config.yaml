@@ -1,0 +1,20 @@
+# Основные настройки приложения
+app:
+  name: "Qwen3-4B Chat"
+  version: "1.0.0"
+  debug: false
+  theme: "soft"
+
+server:
+  host: "0.0.0.0"
+  port: 7860
+  share: false
+  show_error: true
+
+queue:
+  max_size: 5
+  concurrency_limit: 1
+
+dialogs:
+  save_dir: "saved_dialogs"
+  default_name: "Новый чат"

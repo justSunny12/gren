@@ -1,0 +1,108 @@
+/* css/sidebar.css - Стили сайдбара */
+#sidebar_container {
+    height: 100vh !important;
+    max-height: 100vh !important;
+    overflow-y: auto !important;
+    padding: 10px 15px !important;
+    border-right: 1px solid #e0e0e0 !important;
+    background: #f8f9fa !important;
+    min-width: 300px !important;
+    width: 300px !important;
+    max-width: 350px !important;
+    flex-shrink: 0 !important;
+    position: relative !important;
+    z-index: 10 !important;
+}
+
+/* Жесткий переопределение Gradio */
+#sidebar_container .gr-dropdown {
+    margin-top: 0 !important;
+    margin-bottom: 15px !important;
+    width: 100% !important;
+    background: white !important;
+    border: 1px solid #d0d0d0 !important;
+    border-radius: 6px !important;
+}
+
+#sidebar_container .gr-dropdown:hover {
+    border-color: #b0b0b0 !important;
+}
+
+#sidebar_container .gr-dropdown:focus {
+    border-color: #007bff !important;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1) !important;
+}
+
+/* Кнопки в сайдбаре */
+#sidebar_container .gr-button {
+    margin: 5px 0 !important;
+    width: 100% !important;
+    padding: 10px 16px !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+}
+
+#sidebar_container .gr-button.primary {
+    background: #007bff !important;
+    color: white !important;
+}
+
+#sidebar_container .gr-button.primary:hover {
+    background: #0056b3 !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+}
+
+#sidebar_container .gr-button.secondary {
+    background: #6c757d !important;
+    color: white !important;
+}
+
+#sidebar_container .gr-button.stop {
+    background: #dc3545 !important;
+    color: white !important;
+}
+
+/* Разделитель в сайдбаре */
+.sidebar-divider {
+    margin: 15px 0 !important;
+    border-color: #e0e0e0 !important;
+    border-width: 1px !important;
+}
+
+/* Аккордеон параметров */
+#sidebar_container .params-accordion {
+    margin-top: 15px !important;
+    margin-bottom: 15px !important;
+    background: white !important;
+    border: 1px solid #e0e0e0 !important;
+    border-radius: 8px !important;
+    padding: 0 !important;
+}
+
+#sidebar_container .params-accordion .gr-accordion {
+    border: none !important;
+}
+
+/* Слайдеры */
+#sidebar_container .gr-slider {
+    margin: 10px 0 !important;
+}
+
+#sidebar_container .gr-slider .gr-slider-input {
+    background: #e9ecef !important;
+}
+
+#sidebar_container .gr-slider .gr-slider-input::-webkit-slider-thumb {
+    background: #007bff !important;
+}
+
+/* Статус внизу сайдбара */
+#sidebar_container .gr-markdown:last-child {
+    margin-top: auto !important;
+    margin-bottom: 10px !important;
+    padding: 10px !important;
+    background: white !important;
+    border-radius: 6px !important;
+    border: 1px solid #e0e0e0 !important;
+}

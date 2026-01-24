@@ -1,0 +1,11 @@
+# Пути к файлам и директориям
+paths:
+  css_dir: "css"
+  saved_dialogs: "saved_dialogs"
+  logs: "logs"
+  
+  css_files:
+    - "css/base.css"
+    - "css/sidebar.css"
+    - "css/chat_window.css"
+    - "css/input_area.css"
