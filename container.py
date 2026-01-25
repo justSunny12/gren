@@ -14,13 +14,15 @@ class Container:
             if name == "config_service":
                 from services.config_service import ConfigService
                 self._services["config_service"] = ConfigService()
+                # Загружаем пользовательскую конфигурацию при первом обращении
+                self._services["config_service"].get_config()
+                print("✅ Конфигурация загружена (пользовательские настройки применены)")
             elif name == "model_service":
                 # Пробуем использовать оптимизированный сервис
                 try:
                     from services.optimized_model_service import OptimizedModelService
                     service = OptimizedModelService()
                     self._services["model_service"] = service
-                    # УБИРАЕМ: print("✅ Используется OptimizedModelService")
                 except ImportError:
                     from services.model_service import ModelService
                     service = ModelService()

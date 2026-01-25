@@ -1,6 +1,7 @@
 # /logic/ui_handlers.py
 import gradio as gr
 from container import container
+import time
 
 class UIHandlers:
     """Обработчики UI событий"""
@@ -9,8 +10,11 @@ class UIHandlers:
         # Ленивая загрузка сервисов
         self._chat_service = None
         self._dialog_service = None
-        self._config = None
-    
+        self._config_service = None
+        self._last_save_time = 0
+        self._save_debounce_ms = 500  # Задержка перед сохранением (мс)
+        self._pending_save = None  # Отложенное сохранение
+        
     @property
     def chat_service(self):
         if self._chat_service is None:
@@ -24,10 +28,14 @@ class UIHandlers:
         return self._dialog_service
     
     @property
+    def config_service(self):
+        if self._config_service is None:
+            self._config_service = container.get("config_service")
+        return self._config_service
+    
+    @property
     def config(self):
-        if self._config is None:
-            self._config = container.get_config()
-        return self._config
+        return self.config_service.get_config()
     
     def get_dialog_list_for_dropdown(self):
         """Получает список чатов для обновления dropdown"""
@@ -166,10 +174,6 @@ class UIHandlers:
             if not prompt.strip():
                 return [], "", chat_id or "", gr.update(), gr.update()
             
-            # Убедимся что enable_thinking булево
-            if enable_thinking is None:
-                enable_thinking = False
-            
             print(f"📨 Отправка сообщения (thinking: {enable_thinking})")
             
             # Получаем или создаем диалог
@@ -200,6 +204,60 @@ class UIHandlers:
             print(f"Ошибка при отправке сообщения: {e}")
             return [], "", chat_id or "", gr.update(), gr.update()
     
+    def save_user_settings_handler(self, max_tokens: int, temperature: float, enable_thinking: bool):
+        """Обработчик сохранения настроек (с debounce)"""
+        current_time = time.time() * 1000  # в миллисекундах
+        
+        # Отменяем предыдущее отложенное сохранение
+        if self._pending_save:
+            self._pending_save = None
+        
+        # Если прошло достаточно времени с последнего сохранения
+        if current_time - self._last_save_time > self._save_debounce_ms:
+            try:
+                self._save_user_settings_now(max_tokens, temperature, enable_thinking)
+                self._last_save_time = current_time
+                return "✅ Настройки сохранены"
+            except Exception as e:
+                return f"⚠️ Ошибка: {str(e)}"
+        else:
+            # Откладываем сохранение
+            self._pending_save = (max_tokens, temperature, enable_thinking, current_time)
+            return "⏳ Сохранение..."
+    
+    def _save_user_settings_now(self, max_tokens: int, temperature: float, enable_thinking: bool):
+        """Немедленное сохранение настроек"""
+        try:
+            # Сохраняем все настройки одним вызовом
+            self.config_service.update_user_setting("generation", "max_tokens", max_tokens)
+            self.config_service.update_user_setting("generation", "temperature", temperature)
+            self.config_service.update_user_setting("generation", "enable_thinking", enable_thinking)
+            
+            print(f"💾 Настройки сохранены: tokens={max_tokens}, temp={temperature}, thinking={enable_thinking}")
+            
+        except Exception as e:
+            print(f"❌ Ошибка сохранения пользовательских настроек: {e}")
+            raise
+    
+    def load_user_settings(self):
+        """Загружает пользовательские настройки"""
+        try:
+            # Получаем текущую конфигурацию
+            config = self.config
+            
+            # Загружаем настройки
+            max_tokens = config.generation.default_max_tokens
+            temperature = config.generation.default_temperature
+            enable_thinking = config.generation.default_enable_thinking
+            
+            return max_tokens, temperature, enable_thinking
+            
+        except Exception as e:
+            print(f"⚠️ Ошибка загрузки пользовательских настроек: {e}")
+            # Возвращаем стандартные настройки
+            gen_config = self.config_service.get_default_config().generation
+            return gen_config.default_max_tokens, gen_config.default_temperature, gen_config.default_enable_thinking
+    
     def init_app_handler(self):
         """Обработчик инициализации приложения"""
         try:
@@ -226,10 +284,17 @@ class UIHandlers:
                     if len(chat_name) > 30:
                         chat_name = chat_name[:27] + '...'
             
-            return history, chat_id, dropdown, gr.update(label=chat_name)
+            # Загружаем пользовательские настройки для слайдеров
+            max_tokens, temperature, enable_thinking = self.load_user_settings()
+            
+            # Возвращаем обновленные значения для слайдеров
+            return history, chat_id, dropdown, gr.update(label=chat_name), max_tokens, temperature, enable_thinking
+            
         except Exception as e:
             print(f"Ошибка при инициализации приложения: {e}")
-            return [], None, gr.update(), gr.update()
+            # Возвращаем стандартные значения
+            gen_config = self.config_service.get_default_config().generation
+            return [], None, gr.update(), gr.update(), gen_config.default_max_tokens, gen_config.default_temperature, gen_config.default_enable_thinking
 
 # Глобальный экземпляр
 ui_handlers = UIHandlers()

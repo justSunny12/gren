@@ -60,6 +60,21 @@ def initialize_model():
         
         print(f"📊 Используется: {type(model_service).__name__}")
         
+        # Получаем конфигурацию для отображения примененных настроек
+        config = container.get_config()
+        user_settings = container.get("config_service").get_user_settings()
+        
+        if user_settings:
+            print(f"📝 Применены пользовательские настройки:")
+            if "generation" in user_settings:
+                gen = user_settings["generation"]
+                if "max_tokens" in gen:
+                    print(f"   Токены: {gen['max_tokens']}")
+                if "temperature" in gen:
+                    print(f"   Температура: {gen['temperature']}")
+                if "enable_thinking" in gen:
+                    print(f"   Thinking: {gen['enable_thinking']}")
+        
         # Выводим память до загрузки
         print_memory_stats("До загрузки модели: ")
         
