@@ -40,11 +40,15 @@ def create_sidebar_layout():
                 minimum=0.1, maximum=1.5, value=0.7, step=0.1,
                 label="Температура"
             )
-            enable_thinking = gr.Checkbox(  # ← ДОБАВЛЯЕМ
+            enable_thinking = gr.Checkbox(
                 label="🧠 Глубокое размышление",
                 value=False,
                 info="Включает внутренние размышления модели"
             )
+            
+            # Добавляем кнопку сброса настроек
+            with gr.Row():
+                reset_settings_btn = gr.Button("🔄 Сбросить к стандартным", variant="secondary", size="sm")
         
         # Статус
         status_text = gr.Markdown("✅ Готов к работе")
@@ -57,5 +61,6 @@ def create_sidebar_layout():
         "status_text": status_text,
         "max_tokens": max_tokens,
         "temperature": temperature,
-        "enable_thinking": enable_thinking  # ← ДОБАВЛЯЕМ В ВОЗВРАЩАЕМЫЙ СЛОВАРЬ
+        "enable_thinking": enable_thinking,
+        "reset_settings_btn": reset_settings_btn  # Добавляем кнопку сброса
     }
