@@ -31,7 +31,7 @@ def create_sidebar_layout():
         gr.HTML("<hr class='sidebar-divider'>")
         
         # Параметры модели
-        with gr.Accordion("⚙️ Параметры", open=False, elem_classes="params-accordion"):
+        with gr.Accordion("⚙️ Параметры", open=True, elem_classes="params-accordion"):
             max_tokens = gr.Slider(
                 minimum=64, maximum=2048, value=512, step=64,
                 label="Максимальное количество токенов"
