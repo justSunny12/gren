@@ -4,6 +4,9 @@ import gradio as gr
 def create_sidebar_layout():
     """Создает layout боковой панели"""
     with gr.Column(scale=1, min_width=300, elem_id="sidebar_container"):
+        # Кнопка создания нового чата
+        create_dialog_btn = gr.Button("➕ Новый чат", variant="primary", size="lg")
+        
         # Выбор чата
         dialog_dropdown = gr.Dropdown(
             choices=[],
@@ -12,23 +15,14 @@ def create_sidebar_layout():
             show_label=False
         )
         
+        # Разделитель
+        gr.HTML("<hr class='sidebar-divider'>")
+        
         with gr.Row():
             switch_dialog_btn = gr.Button("🔄 Переключиться", variant="secondary")
         
-        # Разделитель
-        gr.HTML("<hr class='sidebar-divider'>")
-        
         with gr.Row():
             delete_dialog_btn = gr.Button("🗑️ Удалить", variant="stop", min_width=140)
-        
-        # Разделитель
-        gr.HTML("<hr class='sidebar-divider'>")
-        
-        # Кнопка создания нового чата
-        create_dialog_btn = gr.Button("➕ Новый чат", variant="primary", size="lg")
-        
-        # Разделитель
-        gr.HTML("<hr class='sidebar-divider'>")
         
         # Параметры модели
         with gr.Accordion("⚙️ Параметры", open=True, elem_classes="params-accordion"):
