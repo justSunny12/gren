@@ -5,21 +5,41 @@
     min-height: 110px !important;
     max-height: 110px !important;
     box-sizing: border-box !important;
-    background: white !important;
-    border: 1px solid #e0e0e0 !important;
-    border-radius: 6px !important;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
     display: flex !important;
-    align-items: center !important;
+    align-items: stretch !important; /* ← Изменить с center на stretch */
+    justify-content: stretch !important; /* ← Добавить */
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important; /* ← Добавить */
+}
+
+.input-container {
+    height: 100% !important;
 }
 
 .input-row {
     display: flex !important;
-    align-items: center !important;
+    align-items: stretch !important; /* ← Изменить с center на stretch */
+    justify-content: stretch !important; /* ← Добавить */
     gap: 0px !important;
     width: 100% !important;
     height: 100% !important;
     box-sizing: border-box !important;
-    padding: 0 10px 0 0;
+    padding: 0 !important;
+    margin: 0 !important;
+    flex: 1 !important; /* ← Добавить */
+    overflow: hidden !important; /* ← Добавить */
+}
+
+.chat-input {
+    padding: 0 !important;
+    margin: 0 !important;
+    flex: 1 !important; /* ← Добавить */
+    display: flex !important;
+    align-items: stretch !important; /* ← Добавить */
 }
 
 .chat-input-wrapper {
@@ -31,43 +51,69 @@
     border: none !important;
     position: relative !important;
     display: flex !important;
-    align-items: center !important;
+    align-items: stretch !important; /* ← Изменить с center на stretch */
+    justify-content: stretch !important; /* ← Добавить */
+    overflow: hidden !important; /* ← Добавить */
 }
 
+/* УБИРАЕМ ВСЕ внутренние обертки Gradio */
+.chat-input-wrapper > div,
+.chat-input-wrapper > .gr-textbox,
+.chat-input-wrapper > .wrap,
+.chat-input-wrapper > .wrap.s,
+.chat-input-wrapper > .block.chat_input,
+.chat-input-wrapper > * {
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    background: transparent !important;
+    width: 100% !important;
+    height: 100% !important;
+    display: flex !important;
+    align-items: stretch !important;
+    justify-content: stretch !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    flex: 1 !important;
+}
+
+/* Специфично для самого textarea */
 .chat-input-wrapper textarea {
     width: 100% !important;
-    height: 90px !important;
-    min-height: 90px !important;
-    max-height: 90px !important;
+    height: 100% !important;
+    min-height: 100% !important;
+    max-height: 100% !important;
     box-sizing: border-box !important;
     resize: none !important;
     padding: 10px 14px !important;
     line-height: 1.4 !important;
     background: #f9f9f9 !important;
     border: 1px solid #d0d0d0 !important;
-    border-radius: 6px !important;
+    border-radius: 6px 0 0 6px !important;
     font-family: inherit !important;
     font-size: 14px !important;
     transition: all 0.2s ease !important;
     margin: 0 !important;
     display: block !important;
     overflow: hidden !important;
+    align-self: stretch !important; /* ← Ключевое для растягивания */
+    flex: 1 !important; /* ← Добавить */
 }
 
-.chat-input-wrapper textarea:hover {
-    border-color: #b0b0b0 !important;
-    background: #f5f5f5 !important;
+/* ФИКС ДЛЯ FLEXBOX BASELINE ISSUE */
+.chat-input-wrapper textarea::before,
+.chat-input-wrapper textarea::after {
+    content: none !important;
+    display: none !important;
 }
 
-.chat-input-wrapper textarea:focus {
-    border-color: #007bff !important;
-    background: #fff !important;
-    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1) !important;
-    outline: none !important;
+.chat-input-wrapper textarea {
+    vertical-align: top !important; /* ← Исправить baseline alignment */
+    line-height: normal !important; /* ← Исправить baseline alignment */
 }
 
 .send-btn-wrapper {
-    height: 90px !important;
+    height: 100% !important;
     width: 120px !important;
     min-width: 120px !important;
     max-width: 120px !important;
@@ -76,15 +122,36 @@
     margin: 0 !important;
     padding: 0 !important;
     display: flex !important;
-    align-items: center !important;
+    align-items: stretch !important; /* ← Изменить с center на stretch */
+    justify-content: stretch !important; /* ← Добавить */
+    overflow: hidden !important; /* ← Добавить */
+}
+
+/* УБИРАЕМ ВСЕ внутренние обертки Gradio для кнопки */
+.send-btn-wrapper > div,
+.send-btn-wrapper > .gr-button,
+.send-btn-wrapper > .wrap,
+.send-btn-wrapper > * {
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    background: transparent !important;
+    width: 100% !important;
+    height: 100% !important;
+    display: flex !important;
+    align-items: stretch !important;
+    justify-content: stretch !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    flex: 1 !important;
 }
 
 .send-btn-wrapper button {
     width: 100% !important;
-    height: 90px !important;
+    height: 100% !important;
     margin: 0 !important;
     padding: 12px 8px !important;
-    border-radius: 6px !important;
+    border-radius: 0 6px 6px 0 !important;
     font-size: 14px !important;
     font-weight: 500 !important;
     background: #007bff !important;
@@ -99,11 +166,13 @@
     text-align: center !important;
     white-space: normal !important;
     word-wrap: break-word !important;
+    align-self: stretch !important; /* ← Ключевое для растягивания */
+    flex: 1 !important; /* ← Добавить */
 }
 
 .send-btn-wrapper button:hover {
     background: #0056b3 !important;
-    №transform: translateY(-1px) !important;
+    transform: translateY(-1px) !important;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
 }
 
@@ -117,4 +186,64 @@
     cursor: not-allowed !important;
     transform: none !important;
     box-shadow: none !important;
+}
+
+/* СТРОГИЙ ХАК ДЛЯ GRADIO COLUMN */
+.gr-column.chat-input-wrapper,
+div[class*="chat-input-wrapper"] {
+    align-items: stretch !important;
+    justify-content: stretch !important;
+    flex: 1 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    min-height: 0 !important;
+    max-height: 100% !important;
+    height: 100% !important;
+    overflow: hidden !important;
+}
+
+/* Убираем все псевдоэлементы которые могут создавать отступы */
+.gr-column::before,
+.gr-column::after,
+.gr-row::before,
+.gr-row::after,
+.wrap::before,
+.wrap::after {
+    content: none !important;
+    display: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+}
+
+/* ФИКС ДЛЯ ВЕРТИКАЛЬНЫХ ОТСТУПОВ В FLEXBOX */
+.chat-input-wrapper {
+    min-height: 0 !important; /* ← Ключевое для flex containers */
+    max-height: 100% !important;
+}
+
+/* Принудительное растягивание ВСЕХ вложенных элементов */
+.input-plate * {
+    box-sizing: border-box !important;
+    min-height: 0 !important;
+    max-height: 100% !important;
+}
+
+/* Если проблема осталась, попробуйте этот ядерный вариант */
+.input-row {
+    line-height: 0 !important;
+    font-size: 0 !important;
+}
+
+.input-row > * {
+    line-height: normal !important;
+    font-size: 14px !important;
+}
+
+/* Убираем все возможные флекс-пробелы */
+.input-row {
+    gap: 0 !important;
+    row-gap: 0 !important;
+    column-gap: 0 !important;
 }

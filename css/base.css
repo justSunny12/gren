@@ -8,6 +8,7 @@ body, html, .gradio-container {
     height: 100vh !important;
     flex-wrap: nowrap !important;
     display: flex !important;
+    gap: 0 !important
 }
 
 /* Основной контент - занимает оставшееся */
@@ -26,5 +27,9 @@ body, html, .gradio-container {
     display: flex !important;
     flex-direction: column !important;
     flex: 1 !important;
-    gap: 8 !important;
+    gap: 0 !important;
+}
+
+.app {
+    padding: 0 10px 0 0 !important;
 }

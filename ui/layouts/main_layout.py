@@ -19,7 +19,7 @@ def create_main_layout():
                         height=None,
                         avatar_images=(None, "https://avatars.githubusercontent.com/u/1024"),
                         elem_classes="chatbot",
-                        container=True  # ← Ключевой параметр
+                        container=True,  # ← Ключевой параметр
                     )
                 
                 # Область ввода

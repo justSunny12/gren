@@ -3,12 +3,10 @@
     height: 100vh !important;
     max-height: 100vh !important;
     overflow-y: auto !important;
-    padding: 10px 15px !important;
-    border-right: 1px solid #e0e0e0 !important;
+    padding: 0 10px !important;
     background: #f8f9fa !important;
     min-width: 300px !important;
-    width: 300px !important;
-    max-width: 350px !important;
+    max-width: 12.5vw !important;
     flex-shrink: 0 !important;
     position: relative !important;
     z-index: 10 !important;

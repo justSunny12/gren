@@ -59,7 +59,7 @@ def create_main_ui():
     css_content = load_css()
     
     # Убираем css из gr.Blocks() - только title
-    with gr.Blocks(title="Qwen3-4B Chat") as demo:
+    with gr.Blocks(title="Qwen3-4B Chat", fill_width=True) as demo:
         current_dialog_id = gr.State(value=None)
         
         # Создаем layout
