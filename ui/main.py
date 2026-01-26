@@ -106,10 +106,8 @@ def create_main_ui():
         
         if (!window.chatListData || window.chatListData.length === 0) {
             container.innerHTML = `
-                <div style="text-align: center; padding: 40px 20px; color: #64748b;">
-                    <div style="font-size: 48px; margin-bottom: 20px;">💬</div>
-                    <div style="font-size: 16px; font-weight: 600; margin-bottom: 10px;">Нет чатов</div>
-                    <div style="font-size: 14px;">Создайте новый чат</div>
+                <div style="text-align: center; padding: 20px; color: #64748b;">
+                    Нет чатов
                 </div>
             `;
             return;
@@ -120,26 +118,9 @@ def create_main_ui():
             chatDiv.className = 'chat-item';
             chatDiv.setAttribute('data-chat-id', chat.id);
             
-            let timeInfo = '';
-            if (chat.updated) {
-                try {
-                    const date = new Date(chat.updated);
-                    timeInfo = ` • ${date.toLocaleDateString()} ${date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
-                } catch (e) {}
-            }
-            
+            // СОКРАЩЕННЫЙ HTML - только название чата
             chatDiv.innerHTML = `
-                <div style="display: flex; align-items: center; gap: 12px; padding: 14px;">
-                    <span style="font-size: 24px;">💬</span>
-                    <div style="flex: 1; overflow: hidden;">
-                        <div style="font-weight: 700; font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                            ${chat.name}
-                        </div>
-                        <div style="font-size: 14px; color: #666; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                            ID: ${chat.id} • ${chat.history_length || 0} сообщ.${timeInfo}
-                        </div>
-                    </div>
-                </div>
+                <div class="chat-name">${chat.name}</div>
             `;
             
             if (chat.is_current) {

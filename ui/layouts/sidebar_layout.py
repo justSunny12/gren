@@ -4,44 +4,38 @@ import gradio as gr
 def create_sidebar_layout():
     """Создает layout боковой панели с новым списком чатов"""
     with gr.Column(scale=1, min_width=380, elem_id="sidebar_container"):
-        # Заголовок
-        gr.Markdown("### 💬 Список чатов")
+        # 1. Кнопка создания нового чата
+        create_dialog_btn = gr.Button(
+            "➕ Новый чат",
+            variant="primary",
+            size="lg",
+            elem_classes="new-chat-btn"
+        )
         
-        # Контейнер списка чатов (заполняется JavaScript)
+        # 2. Контейнер списка чатов
         gr.HTML("""
         <div class="chat-list-container">
             <div class="chat-list" id="chat_list">
-                <div style="text-align: center; padding: 40px 20px; color: #64748b;">
-                    <div style="font-size: 48px; margin-bottom: 20px;">⏳</div>
+                <div style="text-align: center; padding: 20px; color: #64748b;">
                     Загрузка чатов...
                 </div>
             </div>
         </div>
         """)
         
-        # Кнопки управления чатами
-        with gr.Row():
-            create_dialog_btn = gr.Button(
-                "➕ Новый чат",
-                variant="primary",
-                size="lg",
-                elem_classes="action-btn"
-            )
-            delete_dialog_btn = gr.Button(
-                "🗑️ Удалить текущий",
-                variant="stop",
-                size="lg",
-                elem_classes="action-btn"
-            )
+        # 3. Кнопка удаления текущего чата
+        delete_dialog_btn = gr.Button(
+            "🗑️ Удалить текущий",
+            variant="stop",
+            size="lg",
+            elem_classes="delete-chat-btn"
+        )
         
-        # Разделитель
-        gr.HTML("<hr class='sidebar-divider'>")
-        
-        # Параметры модели
-        with gr.Accordion("⚙️ Параметры генерации", open=True, elem_classes="params-accordion"):
+        # 4. Параметры модели (аккордеон) - ОБЯЗАТЕЛЬНО ДОБАВЛЯЕМ в return
+        with gr.Accordion("⚙️ Параметры генерации", open=True, elem_classes="params-accordion") as params_accordion:
             max_tokens = gr.Slider(
                 minimum=64, maximum=2048, value=512, step=64,
-                label="Максимальное количество токенов"
+                label="Макс. токенов"
             )
             temperature = gr.Slider(
                 minimum=0.1, maximum=1.5, value=0.7, step=0.1,
@@ -84,5 +78,6 @@ def create_sidebar_layout():
         "enable_thinking": enable_thinking,
         "reset_settings_btn": reset_settings_btn,
         "chat_input": chat_input,
-        "js_trigger": js_trigger
+        "js_trigger": js_trigger,
+        "params_accordion": params_accordion
     }
