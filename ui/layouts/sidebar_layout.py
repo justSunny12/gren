@@ -2,30 +2,43 @@
 import gradio as gr
 
 def create_sidebar_layout():
-    """Создает layout боковой панели"""
-    with gr.Column(scale=1, min_width=300, elem_id="sidebar_container"):
-        # Кнопка создания нового чата
-        create_dialog_btn = gr.Button("➕ Новый чат", variant="primary", size="lg")
+    """Создает layout боковой панели с новым списком чатов"""
+    with gr.Column(scale=1, min_width=380, elem_id="sidebar_container"):
+        # Заголовок
+        gr.Markdown("### 💬 Список чатов")
         
-        # Выбор чата
-        dialog_dropdown = gr.Dropdown(
-            choices=[],
-            interactive=True,
-            scale=1,
-            show_label=False
-        )
+        # Контейнер списка чатов (заполняется JavaScript)
+        gr.HTML("""
+        <div class="chat-list-container">
+            <div class="chat-list" id="chat_list">
+                <div style="text-align: center; padding: 40px 20px; color: #64748b;">
+                    <div style="font-size: 48px; margin-bottom: 20px;">⏳</div>
+                    Загрузка чатов...
+                </div>
+            </div>
+        </div>
+        """)
+        
+        # Кнопки управления чатами
+        with gr.Row():
+            create_dialog_btn = gr.Button(
+                "➕ Новый чат",
+                variant="primary",
+                size="lg",
+                elem_classes="action-btn"
+            )
+            delete_dialog_btn = gr.Button(
+                "🗑️ Удалить текущий",
+                variant="stop",
+                size="lg",
+                elem_classes="action-btn"
+            )
         
         # Разделитель
         gr.HTML("<hr class='sidebar-divider'>")
         
-        with gr.Row():
-            switch_dialog_btn = gr.Button("🔄 Переключиться", variant="secondary")
-        
-        with gr.Row():
-            delete_dialog_btn = gr.Button("🗑️ Удалить", variant="stop", min_width=140)
-        
         # Параметры модели
-        with gr.Accordion("⚙️ Параметры", open=True, elem_classes="params-accordion"):
+        with gr.Accordion("⚙️ Параметры генерации", open=True, elem_classes="params-accordion"):
             max_tokens = gr.Slider(
                 minimum=64, maximum=2048, value=512, step=64,
                 label="Максимальное количество токенов"
@@ -40,21 +53,36 @@ def create_sidebar_layout():
                 info="Включает внутренние размышления модели"
             )
             
-            # Добавляем кнопку сброса настроек
+            # Кнопка сброса настроек
             with gr.Row():
                 reset_settings_btn = gr.Button("🔄 Сбросить к стандартным", variant="secondary", size="sm")
         
+        # Скрытое поле для передачи ID выбранного чата
+        chat_input = gr.Textbox(
+            elem_id="chat_input_field",
+            label="",
+            show_label=False,
+            container=False,
+            scale=0,
+            min_width=50,
+            elem_classes="hidden-input",
+            interactive=True
+        )
+        
+        # Скрытый триггер для JavaScript
+        js_trigger = gr.HTML(visible=False)
+        
         # Статус
-        status_text = gr.Markdown("✅ Готов к работе")
+        status_text = gr.Markdown("✅ Готов к работе", elem_classes="status-bar")
     
     return {
         "create_dialog_btn": create_dialog_btn,
-        "dialog_dropdown": dialog_dropdown,
-        "switch_dialog_btn": switch_dialog_btn,
         "delete_dialog_btn": delete_dialog_btn,
         "status_text": status_text,
         "max_tokens": max_tokens,
         "temperature": temperature,
         "enable_thinking": enable_thinking,
-        "reset_settings_btn": reset_settings_btn  # Добавляем кнопку сброса
+        "reset_settings_btn": reset_settings_btn,
+        "chat_input": chat_input,
+        "js_trigger": js_trigger
     }

@@ -339,3 +339,96 @@
         margin: 10px 0 !important;
     }
 }
+
+/* Новые стили для списка чатов */
+.chat-list-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 20px;
+}
+
+.chat-list {
+    flex: 1;
+    background: white;
+    border-radius: 16px;
+    padding: 15px;
+    border: 1px solid #e0e0e0;
+    overflow-y: auto;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    min-height: 400px;
+    max-height: 500px;
+}
+
+.chat-item {
+    padding: 16px 18px;
+    margin: 10px 0;
+    border-radius: 14px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 2px solid transparent;
+    background: white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+}
+
+.chat-item:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 20px rgba(0,0,0,0.1);
+    border-color: #d0d0d0;
+    background: #f8f9fa;
+}
+
+.chat-item.active {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    color: white !important;
+    border-color: #0056b3;
+    box-shadow: 0 8px 25px rgba(0, 123, 246, 0.4);
+    transform: translateY(-2px);
+}
+
+.chat-item.active .chat-meta {
+    color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.action-btn {
+    flex: 1 !important;
+    padding: 14px !important;
+    font-size: 16px !important;
+    font-weight: 600 !important;
+    border-radius: 12px !important;
+    margin: 5px !important;
+}
+
+.action-btn:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
+}
+
+.status-bar {
+    padding: 14px 20px;
+    background: linear-gradient(135deg, #dbeafe 0%, #eff6ff 100%);
+    border-radius: 12px;
+    border: 1px solid #bfdbfe;
+    margin-top: 20px;
+    font-size: 15px;
+    color: #1e40af;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.status-bar::before {
+    content: "💬";
+    font-size: 18px;
+}
+
+.hidden-input {
+    opacity: 0.01;
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    width: 100px;
+    height: 20px;
+    pointer-events: auto !important;
+}

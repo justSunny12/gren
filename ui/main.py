@@ -21,10 +21,8 @@ def load_css():
             if os.path.exists(css_file):
                 with open(css_file, 'r', encoding='utf-8') as f:
                     css_content += f.read() + "\n"
-            else:
-                print(f"⚠️ CSS файл не найден: {css_file}")
-        except Exception as e:
-            print(f"⚠️ Ошибка загрузки CSS файла {css_file}: {e}")
+        except Exception:
+            pass
     
     return css_content
 
@@ -35,7 +33,6 @@ def reset_user_settings():
         success = config_service.reset_user_settings()
         
         if success:
-            # Загружаем стандартные значения
             default_config = config_service.get_default_config()
             gen_config = default_config.generation
             
@@ -47,70 +44,193 @@ def reset_user_settings():
             )
         else:
             return None, None, None, "❌ Ошибка сброса настроек"
-            
-    except Exception as e:
-        print(f"Ошибка при сбросе настроек: {e}")
-        return None, None, None, f"⚠️ Ошибка: {str(e)}"
+    except Exception:
+        return None, None, None, "⚠️ Ошибка сброса настроек"
 
 def create_main_ui():
     """Создает основной UI интерфейс с привязанной логикой"""
     
-    # Загружаем CSS (но не передаем в Blocks)
     css_content = load_css()
     
-    # Убираем css из gr.Blocks() - только title
+    SIMPLE_JS = """
+    <script>
+    function selectChat(chatId) {
+        document.querySelectorAll('.chat-item').forEach(el => {
+            el.classList.remove('active');
+        });
+        
+        const clicked = document.querySelector(`[data-chat-id="${chatId}"]`);
+        if (clicked) {
+            clicked.classList.add('active');
+        }
+        
+        const targetDiv = document.getElementById('chat_input_field');
+        if (targetDiv) {
+            const textarea = targetDiv.querySelector('textarea');
+            if (textarea) {
+                textarea.value = chatId;
+                
+                ['input', 'change'].forEach((eventName, index) => {
+                    setTimeout(() => {
+                        try {
+                            const event = new Event(eventName, { 
+                                bubbles: true,
+                                cancelable: true 
+                            });
+                            textarea.dispatchEvent(event);
+                        } catch (e) {}
+                    }, index * 50 + 50);
+                });
+            }
+        }
+    }
+    
+    function renderChatList(chats) {
+        const container = document.getElementById('chat_list');
+        if (!container) {
+            setTimeout(() => renderChatList(chats), 1000);
+            return;
+        }
+        
+        if (typeof chats === 'string') {
+            try {
+                chats = JSON.parse(chats);
+            } catch (e) {
+                chats = [];
+            }
+        }
+        
+        window.chatListData = chats || [];
+        
+        container.innerHTML = '';
+        
+        if (!window.chatListData || window.chatListData.length === 0) {
+            container.innerHTML = `
+                <div style="text-align: center; padding: 40px 20px; color: #64748b;">
+                    <div style="font-size: 48px; margin-bottom: 20px;">💬</div>
+                    <div style="font-size: 16px; font-weight: 600; margin-bottom: 10px;">Нет чатов</div>
+                    <div style="font-size: 14px;">Создайте новый чат</div>
+                </div>
+            `;
+            return;
+        }
+        
+        window.chatListData.forEach((chat) => {
+            const chatDiv = document.createElement('div');
+            chatDiv.className = 'chat-item';
+            chatDiv.setAttribute('data-chat-id', chat.id);
+            
+            let timeInfo = '';
+            if (chat.updated) {
+                try {
+                    const date = new Date(chat.updated);
+                    timeInfo = ` • ${date.toLocaleDateString()} ${date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+                } catch (e) {}
+            }
+            
+            chatDiv.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 12px; padding: 14px;">
+                    <span style="font-size: 24px;">💬</span>
+                    <div style="flex: 1; overflow: hidden;">
+                        <div style="font-weight: 700; font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            ${chat.name}
+                        </div>
+                        <div style="font-size: 14px; color: #666; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            ID: ${chat.id} • ${chat.history_length || 0} сообщ.${timeInfo}
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            if (chat.is_current) {
+                chatDiv.classList.add('active');
+            }
+            
+            chatDiv.onclick = function() {
+                const chatId = this.getAttribute('data-chat-id');
+                selectChat(chatId);
+            };
+            
+            container.appendChild(chatDiv);
+        });
+        
+        const activeChat = window.chatListData.find(chat => chat.is_current);
+        if (activeChat) {
+            setTimeout(() => {
+                selectChat(activeChat.id);
+            }, 500);
+        }
+    }
+    
+    document.addEventListener('DOMContentLoaded', function() {});
+    
+    document.addEventListener('chatListUpdated', function() {
+        if (window.chatListData && window.chatListData.length > 0) {
+            renderChatList(window.chatListData);
+        }
+    });
+    </script>
+    """
+    
     with gr.Blocks(title="Qwen3-4B Chat", fill_width=True) as demo:
         current_dialog_id = gr.State(value=None)
         
-        # Создаем layout
         sidebar_components, chatbot, user_input, submit_btn = create_main_layout()
         
-        # Создаем скрытый триггер для автосохранения
-        auto_save_trigger = gr.Textbox(visible=False, elem_id="auto_save_trigger")
+        chat_list_data = gr.Textbox(
+            visible=False,
+            elem_id="chat_list_data",
+            interactive=False
+        )
         
-        # 1. Создание нового чата - 6 OUTPUTS
+        sidebar_components["chat_input"].input(
+            fn=ui_handlers.handle_chat_selection,
+            inputs=[sidebar_components["chat_input"]],
+            outputs=[
+                chatbot,
+                current_dialog_id,
+                sidebar_components["status_text"],
+                chat_list_data
+            ]
+        )
+        
+        sidebar_components["chat_input"].change(
+            fn=ui_handlers.handle_chat_selection,
+            inputs=[sidebar_components["chat_input"]],
+            outputs=[
+                chatbot,
+                current_dialog_id,
+                sidebar_components["status_text"],
+                chat_list_data
+            ]
+        )
+        
         sidebar_components["create_dialog_btn"].click(
-            fn=ui_handlers.create_chat_handler,
+            fn=ui_handlers.create_chat_with_js_handler,
             inputs=[],
             outputs=[
-                chatbot,           # 0 - история чата
-                user_input,        # 1 - очистить поле ввода
-                current_dialog_id, # 2 - ID текущего диалога
-                sidebar_components["dialog_dropdown"],  # 3 - обновить dropdown
-                sidebar_components["status_text"],      # 4 - обновить статус
-                chatbot            # 5 - обновить label чата
-            ]
-        )
-        
-        # 2. Переключение чата - 6 OUTPUTS
-        sidebar_components["switch_dialog_btn"].click(
-            fn=ui_handlers.switch_chat_handler,
-            inputs=[sidebar_components["dialog_dropdown"]],
-            outputs=[
                 chatbot,
                 user_input,
                 current_dialog_id,
-                sidebar_components["dialog_dropdown"],
                 sidebar_components["status_text"],
-                chatbot
+                sidebar_components["js_trigger"],
+                chat_list_data
             ]
         )
         
-        # 3. Удаление чата - 6 OUTPUTS
         sidebar_components["delete_dialog_btn"].click(
-            fn=ui_handlers.delete_chat_handler,
-            inputs=[sidebar_components["dialog_dropdown"]],
+            fn=ui_handlers.delete_chat_with_js_handler,
+            inputs=[],
             outputs=[
                 chatbot,
                 user_input,
                 current_dialog_id,
-                sidebar_components["dialog_dropdown"],
                 sidebar_components["status_text"],
-                chatbot
+                sidebar_components["js_trigger"],
+                chat_list_data
             ]
         )
         
-        # 4. Сброс пользовательских настроек - 4 OUTPUTS
         sidebar_components["reset_settings_btn"].click(
             fn=reset_user_settings,
             inputs=[],
@@ -122,12 +242,9 @@ def create_main_ui():
             ]
         )
         
-        # 5. Автосохранение настроек при изменении слайдеров
         def on_slider_change(max_tokens, temperature, enable_thinking):
-            """Вызывается при изменении любого параметра"""
             return ui_handlers.save_user_settings_handler(max_tokens, temperature, enable_thinking)
         
-        # Привязываем автосохранение к изменениям всех трех параметров
         for param in ["max_tokens", "temperature", "enable_thinking"]:
             sidebar_components[param].change(
                 fn=on_slider_change,
@@ -139,9 +256,7 @@ def create_main_ui():
                 outputs=sidebar_components["status_text"]
             )
         
-        # 6. Функция отправки сообщения - ТОЛЬКО 5 OUTPUTS
         def send_message(prompt, chat_id, max_tokens, temperature, enable_thinking):
-            """Обертка для отправки сообщения"""
             return ui_handlers.send_message_handler(
                 prompt, 
                 chat_id, 
@@ -150,7 +265,6 @@ def create_main_ui():
                 enable_thinking
             )
 
-        # 7. Отправка по кнопке - ТОЛЬКО 5 OUTPUTS
         submit_btn.click(
             fn=send_message,
             inputs=[
@@ -161,15 +275,14 @@ def create_main_ui():
                 sidebar_components["enable_thinking"]
             ],
             outputs=[
-                chatbot,           # 0 - история чата
-                user_input,        # 1 - очистить поле ввода
-                current_dialog_id, # 2 - ID текущего диалога
-                sidebar_components["dialog_dropdown"],  # 3 - обновить dropdown
-                chatbot            # 4 - обновить label чата
+                chatbot,
+                user_input,
+                current_dialog_id,
+                chatbot,
+                chat_list_data
             ]
         )
 
-        # 8. Отправка по Enter - ТОЛЬКО 5 OUTPUTS
         user_input.submit(
             fn=send_message,
             inputs=[
@@ -183,26 +296,40 @@ def create_main_ui():
                 chatbot,
                 user_input,
                 current_dialog_id,
-                sidebar_components["dialog_dropdown"],
-                chatbot
+                chatbot,
+                chat_list_data
             ]
         )
         
-        # 9. Инициализация - 7 OUTPUTS (добавлены значения для слайдеров)
         demo.load(
             fn=ui_handlers.init_app_handler,
             outputs=[
-                chatbot,           # 0 - история чата
-                current_dialog_id, # 1 - ID текущего диалога
-                sidebar_components["dialog_dropdown"],  # 2 - обновить dropdown
-                chatbot,           # 3 - обновить label чата
-                sidebar_components["max_tokens"],       # 4 - значение слайдера токенов
-                sidebar_components["temperature"],      # 5 - значение слайдера температуры
-                sidebar_components["enable_thinking"]   # 6 - значение чекбокса thinking
+                chatbot,
+                current_dialog_id,
+                chatbot,
+                sidebar_components["max_tokens"],
+                sidebar_components["temperature"],
+                sidebar_components["enable_thinking"],
+                chat_list_data
             ]
         )
+        
+        chat_list_data.change(
+            fn=None,
+            inputs=[chat_list_data],
+            outputs=[],
+            js="""
+            (data) => {
+                try {
+                    const chats = JSON.parse(data);
+                    renderChatList(chats);
+                } catch (e) {}
+                return [];
+            }
+            """
+        )
     
-    return demo, css_content
+    return demo, css_content, SIMPLE_JS
 
 def get_css_content():
     """Возвращает CSS контент для launch()"""

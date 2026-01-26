@@ -39,7 +39,7 @@ class DialogService:
         
         self.dialogs[dialog_id] = dialog
         self.current_dialog_id = dialog_id
-        self._save_dialog(dialog)  # Тихое сохранение
+        self._save_dialog(dialog)
         
         return dialog_id
     
@@ -68,7 +68,7 @@ class DialogService:
                 else:
                     self.current_dialog_id = None
             
-            self._save_all_silent()  # Тихое сохранение
+            self._save_all_silent()
             return True
         return False
     
@@ -76,7 +76,7 @@ class DialogService:
         """Переименовывает диалог"""
         if dialog_id in self.dialogs:
             self.dialogs[dialog_id].rename(new_name)
-            self._save_dialog(self.dialogs[dialog_id])  # Тихое сохранение
+            self._save_dialog(self.dialogs[dialog_id])
             return True
         return False
     
@@ -111,7 +111,7 @@ class DialogService:
         """Добавляет сообщение в диалог"""
         if dialog_id in self.dialogs:
             self.dialogs[dialog_id].add_message(role, content)
-            self._save_dialog(self.dialogs[dialog_id])  # Тихое сохранение
+            self._save_dialog(self.dialogs[dialog_id])
             return True
         return False
     
@@ -119,7 +119,7 @@ class DialogService:
         """Очищает историю диалога"""
         if dialog_id in self.dialogs:
             self.dialogs[dialog_id].clear_history()
-            self._save_dialog(self.dialogs[dialog_id])  # Тихое сохранение
+            self._save_dialog(self.dialogs[dialog_id])
             return True
         return False
     
@@ -149,9 +149,8 @@ class DialogService:
             with open(dialog_file, 'w', encoding='utf-8') as f:
                 json.dump(dialog_data, f, ensure_ascii=False, indent=2)
                 
-        except Exception as e:
-            # Только при реальной ошибке
-            print(f"❌ Ошибка при сохранении диалога {dialog.id}: {e}")
+        except Exception:
+            pass
     
     def _save_all_silent(self):
         """Тихое сохранение всех диалогов"""
@@ -159,7 +158,7 @@ class DialogService:
             self._save_dialog(dialog)
     
     def load_dialogs(self):
-        """Загружает сохраненные диалогов БЕЗ вывода"""
+        """Загружает сохраненные диалогов"""
         try:
             if not os.path.exists(self.config.save_dir):
                 os.makedirs(self.config.save_dir, exist_ok=True)
@@ -175,8 +174,6 @@ class DialogService:
                         continue
                     
                     dialog_files.append(file_path)
-            
-            # УБИРАЕМ: if dialog_files: print(f"📂 Загружено {len(dialog_files)} диалогов")
             
             for file_path in dialog_files:
                 try:
