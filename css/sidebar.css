@@ -92,15 +92,15 @@
 
 /* Разделитель в сайдбаре */
 .sidebar-divider {
-    margin: 15px 0 !important;
+    margin: 7px 0 !important;
     border-color: #e0e0e0 !important;
     border-width: 1px !important;
 }
 
 /* Аккордеон параметров */
 #sidebar_container .params-accordion {
-    margin-top: 15px !important;
-    margin-bottom: 15px !important;
+    /* margin-top: 15px !important;
+    margin-bottom: 15px !important; */
     background: white !important;
     border: 1px solid #e0e0e0 !important;
     border-radius: 8px !important;
