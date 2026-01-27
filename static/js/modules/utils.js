@@ -1,22 +1,17 @@
-/* static/js/modules/utils.js */
-// Глобальные переменные и утилиты
-let activeContextMenu = null;
-let lastChatClick = 0;
-const SWITCH_DEBOUNCE_MS = 300;
+/* static/js/modules/utils.js - Вспомогательные функции */
+// Больше не импортируем SELECTORS, они уже в window
 
-// Селекторы
-const SELECTORS = {
-    CHAT_LIST: '#chat_list',
-    CHAT_INPUT_FIELD: '#chat_input_field',
-    DELETE_BTN: '.delete-chat-btn',
-    CHAT_ITEM: '.chat-item',
-    CHAT_CONTROL: '.chat-control',
-    CONTEXT_MENU: '.chat-context-menu',
-    CONTEXT_MENU_ITEM: '.chat-context-menu-item'
-};
+// Проверяем, что SELECTORS загружены
+if (!window.SELECTORS) {
+    console.error('SELECTORS не определены! Загрузите selectors.js первым');
+}
+
+// Глобальные переменные (используем window для доступа из других файлов)
+window.activeContextMenu = null;
+window.lastChatClick = 0;
 
 // Вспомогательные функции
-export function debounce(func, wait) {
+window.debounce = function(func, wait) {
     let timeout;
     return function executedFunction(...args) {
         const later = () => {
@@ -26,18 +21,26 @@ export function debounce(func, wait) {
         clearTimeout(timeout);
         timeout = setTimeout(later, wait);
     };
-}
+};
 
-export function closeAllContextMenus() {
-    document.querySelectorAll(`${SELECTORS.CONTEXT_MENU}.show`).forEach(menu => {
+window.closeAllContextMenus = function() {
+    if (!window.SELECTORS) return;
+    
+    document.querySelectorAll(`${window.SELECTORS.CONTEXT_MENU}.show`).forEach(menu => {
         menu.classList.remove('show');
     });
-    activeContextMenu = null;
-}
+    window.activeContextMenu = null;
+};
 
-export function getChatInputField() {
-    const targetDiv = document.getElementById('chat_input_field'.replace('#', ''));
+window.getChatInputField = function() {
+    if (!window.SELECTORS) return null;
+    
+    const targetDiv = document.getElementById(window.SELECTORS.CHAT_INPUT_FIELD.replace('#', ''));
     return targetDiv ? targetDiv.querySelector('textarea') : null;
-}
+};
 
-export { activeContextMenu, lastChatClick, SWITCH_DEBOUNCE_MS, SELECTORS };
+window.escapeHtml = function(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+};

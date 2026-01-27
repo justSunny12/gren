@@ -1,8 +1,12 @@
 /* static/js/modules/context-menu.js */
-import { closeAllContextMenus, activeContextMenu, SELECTORS } from './utils.js';
-import { selectChat } from './main.js';
+// Проверяем, что SELECTORS загружены
+if (!window.SELECTORS) {
+    console.error('SELECTORS не определены! Загрузите selectors.js первым');
+}
 
-export function createContextMenu(chatId, chatName) {
+window.createContextMenu = function(chatId, chatName) {
+    if (!window.SELECTORS) return null;
+    
     const menu = document.createElement('div');
     menu.className = 'chat-context-menu';
     menu.setAttribute('data-chat-id', chatId);
@@ -45,7 +49,7 @@ export function createContextMenu(chatId, chatName) {
     setupMenuHandlers(menu, chatId, chatName);
     
     return menu;
-}
+};
 
 function setupMenuHandlers(menu, chatId, chatName) {
     const renameBtn = menu.querySelector('.rename');
@@ -55,13 +59,17 @@ function setupMenuHandlers(menu, chatId, chatName) {
     renameBtn.onclick = function(e) {
         e.stopPropagation();
         console.log('Переименовать чат:', chatId, chatName);
-        closeAllContextMenus();
+        if (window.closeAllContextMenus) {
+            window.closeAllContextMenus();
+        }
     };
     
     pinBtn.onclick = function(e) {
         e.stopPropagation();
         console.log('Закрепить чат:', chatId, chatName);
-        closeAllContextMenus();
+        if (window.closeAllContextMenus) {
+            window.closeAllContextMenus();
+        }
     };
     
     deleteBtn.onclick = async function(e) {
@@ -69,24 +77,30 @@ function setupMenuHandlers(menu, chatId, chatName) {
         console.log('Удалить чат:', chatId, chatName);
         
         // Закрываем меню перед удалением
-        closeAllContextMenus();
+        if (window.closeAllContextMenus) {
+            window.closeAllContextMenus();
+        }
         
         // Показываем подтверждение
         if (confirm(`Вы уверены, что хотите удалить чат "${chatName}"?`)) {
             try {
                 // Сначала переключаемся на этот чат (если он не активный)
-                selectChat(chatId);
+                if (window.selectChat) {
+                    window.selectChat(chatId);
+                }
                 
                 // Ждем немного чтобы переключение произошло
                 await new Promise(resolve => setTimeout(resolve, 100));
                 
                 // Находим и кликаем на кнопку удаления в сайдбаре
-                const deleteBtnInSidebar = document.querySelector(SELECTORS.DELETE_BTN);
-                if (deleteBtnInSidebar) {
-                    deleteBtnInSidebar.click();
-                    console.log('Запущено удаление чата через сайдбар');
-                } else {
-                    console.error('Кнопка удаления в сайдбаре не найдена');
+                if (window.SELECTORS) {
+                    const deleteBtnInSidebar = document.querySelector(window.SELECTORS.DELETE_BTN);
+                    if (deleteBtnInSidebar) {
+                        deleteBtnInSidebar.click();
+                        console.log('Запущено удаление чата через сайдбар');
+                    } else {
+                        console.error('Кнопка удаления в сайдбаре не найдена');
+                    }
                 }
                 
             } catch (error) {
@@ -96,30 +110,38 @@ function setupMenuHandlers(menu, chatId, chatName) {
     };
 }
 
-export function toggleContextMenu(chatItem, chatId, chatName) {
+window.toggleContextMenu = function(chatItem, chatId, chatName) {
+    if (!window.SELECTORS) return;
+    
     // Закрываем все открытые меню
-    closeAllContextMenus();
+    if (window.closeAllContextMenus) {
+        window.closeAllContextMenus();
+    }
     
     // Если кликнули на тот же элемент управления
-    if (activeContextMenu && activeContextMenu.parentElement === chatItem) {
+    if (window.activeContextMenu && window.activeContextMenu.parentElement === chatItem) {
         window.activeContextMenu = null;
         return;
     }
     
     // Создаем и показываем новое меню
-    const menu = createContextMenu(chatId, chatName);
-    chatItem.appendChild(menu);
-    menu.classList.add('show');
-    window.activeContextMenu = menu;
-    
-    // Закрываем меню при клике вне его
-    setTimeout(() => {
-        const closeMenuHandler = (e) => {
-            if (!menu.contains(e.target) && !chatItem.querySelector(SELECTORS.CHAT_CONTROL).contains(e.target)) {
-                closeAllContextMenus();
-                document.removeEventListener('click', closeMenuHandler);
-            }
-        };
-        document.addEventListener('click', closeMenuHandler);
-    }, 10);
-}
+    if (window.createContextMenu) {
+        const menu = window.createContextMenu(chatId, chatName);
+        chatItem.appendChild(menu);
+        menu.classList.add('show');
+        window.activeContextMenu = menu;
+        
+        // Закрываем меню при клике вне его
+        setTimeout(() => {
+            const closeMenuHandler = (e) => {
+                if (!menu.contains(e.target) && !chatItem.querySelector(window.SELECTORS.CHAT_CONTROL).contains(e.target)) {
+                    if (window.closeAllContextMenus) {
+                        window.closeAllContextMenus();
+                    }
+                    document.removeEventListener('click', closeMenuHandler);
+                }
+            };
+            document.addEventListener('click', closeMenuHandler);
+        }, 10);
+    }
+};

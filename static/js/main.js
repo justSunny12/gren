@@ -1,16 +1,20 @@
-/* static/js/main.js */
-import { renderChatList } from './modules/chat-list.js';
-import { SELECTORS, lastChatClick, SWITCH_DEBOUNCE_MS, getChatInputField } from './modules/utils.js';
+/* static/js/main.js - Основной файл JavaScript */
+// Проверяем, что SELECTORS загружены
+if (!window.SELECTORS) {
+    console.error('SELECTORS не определены! Загрузите selectors.js первым');
+}
 
-// Экспортируем функции для использования в модулях
-export function selectChat(chatId) {
+// Функция для выбора чата
+window.selectChat = function(chatId) {
     // Защита от быстрых кликов
-    if (window.lastChatClick && Date.now() - window.lastChatClick < SWITCH_DEBOUNCE_MS) {
+    if (window.lastChatClick && Date.now() - window.lastChatClick < window.SWITCH_DEBOUNCE_MS) {
         return;
     }
     window.lastChatClick = Date.now();
     
-    document.querySelectorAll(SELECTORS.CHAT_ITEM).forEach(el => {
+    if (!window.SELECTORS) return;
+    
+    document.querySelectorAll(window.SELECTORS.CHAT_ITEM).forEach(el => {
         el.classList.remove('active');
     });
     
@@ -19,7 +23,7 @@ export function selectChat(chatId) {
         clicked.classList.add('active');
     }
     
-    const textarea = getChatInputField();
+    const textarea = window.getChatInputField ? window.getChatInputField() : null;
     if (textarea) {
         textarea.value = chatId;
         
@@ -32,20 +36,18 @@ export function selectChat(chatId) {
             textarea.dispatchEvent(event);
         } catch (e) {}
     }
-}
-
-// Глобальные функции для использования в Gradio
-window.renderChatList = renderChatList;
-window.selectChat = selectChat;
+};
 
 // Инициализация при загрузке
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Chat UI JavaScript загружен');
+    console.log('SELECTORS доступны:', window.SELECTORS);
 });
 
 // Обработчик обновления списка чатов
 document.addEventListener('chatListUpdated', function() {
-    if (window.chatListData && window.chatListData.length > 0) {
-        renderChatList(window.chatListData);
+    // Используем данные, которые могли быть установлены через Gradio
+    if (window.chatListData && window.chatListData.length > 0 && window.renderChatList) {
+        window.renderChatList(window.chatListData);
     }
 });

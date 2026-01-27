@@ -55,23 +55,27 @@ def create_main_ui():
     # Загружаем JavaScript из файлов
     js_content = ""
     js_files = [
-        'static/js/modules/utils.js',
-        'static/js/modules/chat-list.js',
-        'static/js/modules/context-menu.js',
-        'static/js/main.js'
+        'static/js/config/selectors.js',      # 1. Селекторы (самый первый!)
+        'static/js/modules/utils.js',         # 2. Утилиты
+        'static/js/modules/chat-list.js',     # 3. Список чатов
+        'static/js/modules/context-menu.js',  # 4. Контекстное меню
+        'static/js/main.js'                   # 5. Основной код
     ]
     
+    js_content = ""
     for js_file in js_files:
         try:
             if os.path.exists(js_file):
                 with open(js_file, 'r', encoding='utf-8') as f:
                     js_content += f.read() + "\n\n"
-        except Exception:
-            pass
+            else:
+                print(f"⚠️ JS файл не найден: {js_file}")
+        except Exception as e:
+            print(f"⚠️ Ошибка загрузки JS файла {js_file}: {e}")
     
     # Обертка для JavaScript
     JS_CODE = f"""
-    <script type="module">
+    <script type="text/javascript">
     {js_content}
     </script>
     """

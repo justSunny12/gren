@@ -1,14 +1,18 @@
 /* static/js/modules/chat-list.js */
-import { SELECTORS, SWITCH_DEBOUNCE_MS, closeAllContextMenus } from './utils.js';
-import { selectChat } from './main.js';
+// Проверяем, что SELECTORS загружены
+if (!window.SELECTORS) {
+    console.error('SELECTORS не определены! Загрузите selectors.js первым');
+}
 
 let chatListData = [];
 let chatGroups = {};
 
-export function renderChatList(chats) {
-    const container = document.querySelector(SELECTORS.CHAT_LIST);
+window.renderChatList = function(chats) {
+    if (!window.SELECTORS) return;
+    
+    const container = document.querySelector(window.SELECTORS.CHAT_LIST);
     if (!container) {
-        setTimeout(() => renderChatList(chats), 50);
+        setTimeout(() => window.renderChatList(chats), 50);
         return;
     }
     
@@ -37,7 +41,9 @@ export function renderChatList(chats) {
     }
     
     // Закрываем все открытые меню при обновлении списка
-    closeAllContextMenus();
+    if (window.closeAllContextMenus) {
+        window.closeAllContextMenus();
+    }
     
     // Отображаем группы в правильном порядке
     const groupOrder = ['Сегодня', 'Вчера', '7 дней', 'Месяц', 'Более месяца'];
@@ -59,12 +65,14 @@ export function renderChatList(chats) {
     
     // Выделяем активный чат
     const activeChat = chatListData.find(chat => chat.is_current);
-    if (activeChat) {
-        selectChat(activeChat.id);
+    if (activeChat && window.selectChat) {
+        window.selectChat(activeChat.id);
     }
-}
+};
 
 function createChatElement(container, chat) {
+    if (!window.SELECTORS || !window.escapeHtml) return;
+    
     const chatDiv = document.createElement('div');
     chatDiv.className = 'chat-item';
     chatDiv.setAttribute('data-chat-id', chat.id);
@@ -72,7 +80,7 @@ function createChatElement(container, chat) {
     // Структура с элементом управления
     chatDiv.innerHTML = `
         <div class="chat-name-wrapper">
-            <div class="chat-name">${escapeHtml(chat.name)}</div>
+            <div class="chat-name">${window.escapeHtml(chat.name)}</div>
         </div>
         <div class="chat-control"></div>
     `;
@@ -83,35 +91,34 @@ function createChatElement(container, chat) {
     
     // Клик на весь элемент чата
     chatDiv.onclick = function(e) {
+        if (!window.SELECTORS) return;
+        
         // Если кликнули на элемент управления или контекстное меню - не переключаем чат
-        if (e.target.classList.contains(SELECTORS.CHAT_CONTROL.replace('.', '')) || 
-            e.target.closest(SELECTORS.CHAT_CONTROL) ||
-            e.target.classList.contains(SELECTORS.CONTEXT_MENU_ITEM.replace('.', '')) ||
-            e.target.closest(SELECTORS.CONTEXT_MENU)) {
+        if (e.target.classList.contains(window.SELECTORS.CHAT_CONTROL.replace('.', '')) || 
+            e.target.closest(window.SELECTORS.CHAT_CONTROL) ||
+            e.target.classList.contains(window.SELECTORS.CONTEXT_MENU_ITEM.replace('.', '')) ||
+            e.target.closest(window.SELECTORS.CONTEXT_MENU)) {
             e.stopPropagation();
             return;
         }
         const chatId = this.getAttribute('data-chat-id');
-        selectChat(chatId);
-        closeAllContextMenus();
+        if (window.selectChat) {
+            window.selectChat(chatId);
+        }
+        if (window.closeAllContextMenus) {
+            window.closeAllContextMenus();
+        }
     };
     
     // Обработчик для элемента управления
-    const controlBtn = chatDiv.querySelector(SELECTORS.CHAT_CONTROL);
+    const controlBtn = chatDiv.querySelector(window.SELECTORS.CHAT_CONTROL);
     controlBtn.onclick = function(e) {
         e.stopPropagation();
-        import('./context-menu.js').then(module => {
-            module.toggleContextMenu(chatDiv, chat.id, chat.name);
-        });
+        // Динамически загружаем модуль контекстного меню
+        if (window.toggleContextMenu) {
+            window.toggleContextMenu(chatDiv, chat.id, chat.name);
+        }
     };
     
     container.appendChild(chatDiv);
 }
-
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-export { chatListData, chatGroups };
