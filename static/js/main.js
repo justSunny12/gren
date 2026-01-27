@@ -54,13 +54,19 @@ window.addEventListener('resize', function() {
 
 // Инициализация при загрузке
 document.addEventListener('DOMContentLoaded', function() {
-    // Консоль очищена от отладочных сообщений
+    // Закрытие модального окна при клике на оверлей (дополнительная защита)
+    document.addEventListener('click', function(e) {
+        if (window.deleteConfirmationModal && window.deleteConfirmationModal.isVisible && 
+            e.target.id === 'deleteConfirmModal') {
+            window.deleteConfirmationModal.hide(false);
+        }
+    });
 });
 
 // Обработчик обновления списка чатов
 document.addEventListener('chatListUpdated', function() {
-    // Используем данные, которые могли быть установлены через Gradio
-    if (window.chatListData && window.chatListData.length > 0 && window.renderChatList) {
+    // Используем данные, которые могли быть установиться через Gradio
+    if (window.chatListData && window.renderChatList) {
         window.renderChatList(window.chatListData);
     }
 });

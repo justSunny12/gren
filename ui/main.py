@@ -57,9 +57,10 @@ def create_main_ui():
     js_files = [
         'static/js/config/selectors.js',      # 1. Селекторы (самый первый!)
         'static/js/modules/utils.js',         # 2. Утилиты
-        'static/js/modules/chat-list.js',     # 3. Список чатов
-        'static/js/modules/context-menu.js',  # 4. Контекстное меню
-        'static/js/main.js'                   # 5. Основной код
+        'static/js/modules/modal.js',         # 3. Модальное окно
+        'static/js/modules/chat-list.js',     # 4. Список чатов
+        'static/js/modules/context-menu.js',  # 5. Контекстное меню
+        'static/js/main.js'                   # 6. Основной код
     ]
     
     js_content = ""

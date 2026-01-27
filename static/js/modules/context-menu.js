@@ -4,6 +4,17 @@ if (!window.SELECTORS) {
     console.error('SELECTORS не определены! Загрузите selectors.js первым');
 }
 
+// Ждем загрузки DOM для инициализации модального окна
+document.addEventListener('DOMContentLoaded', function() {
+    // Убедимся что модальное окно загружено
+    if (!window.deleteConfirmationModal) {
+        // Динамически загружаем modal.js если он еще не загружен
+        const script = document.createElement('script');
+        script.src = 'static/js/modules/modal.js';
+        document.head.appendChild(script);
+    }
+});
+
 window.createContextMenu = function(chatId, chatName) {
     if (!window.SELECTORS) return null;
     
@@ -103,17 +114,20 @@ function setupMenuHandlers(menu, chatId, chatName) {
             menu.parentNode.removeChild(menu);
         }
         
-        // Показываем подтверждение
-        if (confirm(`Вы уверены, что хотите удалить чат "${chatName}"?`)) {
-            try {
-                // Определяем, активен ли удаляемый чат
-                const isActive = chatItem && chatItem.classList.contains('active');
-                
+        // Определяем, активен ли удаляемый чат
+        const isActive = chatItem && chatItem.classList.contains('active');
+        
+        // Используем кастомное модальное окно
+        if (window.showDeleteConfirmation) {
+            const confirmed = await window.showDeleteConfirmation(chatId, chatName, chatItem);
+            if (confirmed) {
                 // Отправляем запрос на удаление
                 await deleteChatRequest(chatId, isActive);
-                
-            } catch (error) {
-                alert('Ошибка при удалении чата. Пожалуйста, попробуйте снова.');
+            }
+        } else {
+            // Fallback на стандартный confirm если модальное окно не загружено
+            if (confirm(`Вы уверены, что хотите удалить чат "${chatName}"?`)) {
+                await deleteChatRequest(chatId, isActive);
             }
         }
     };
