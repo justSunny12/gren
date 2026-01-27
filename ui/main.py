@@ -52,252 +52,27 @@ def create_main_ui():
     
     css_content = load_css()
     
-    SIMPLE_JS = """
-    <script>
-    // Глобальные переменные для управления контекстными меню
-    let activeContextMenu = null;
+    # Загружаем JavaScript из файлов
+    js_content = ""
+    js_files = [
+        'static/js/modules/utils.js',
+        'static/js/modules/chat-list.js',
+        'static/js/modules/context-menu.js',
+        'static/js/main.js'
+    ]
     
-    function selectChat(chatId) {
-        // Защита от быстрых кликов
-        if (window.lastChatClick && Date.now() - window.lastChatClick < 300) {
-            return;
-        }
-        window.lastChatClick = Date.now();
-        
-        document.querySelectorAll('.chat-item').forEach(el => {
-            el.classList.remove('active');
-        });
-        
-        const clicked = document.querySelector(`[data-chat-id="${chatId}"]`);
-        if (clicked) {
-            clicked.classList.add('active');
-        }
-        
-        const targetDiv = document.getElementById('chat_input_field');
-        if (targetDiv) {
-            const textarea = targetDiv.querySelector('textarea');
-            if (textarea) {
-                textarea.value = chatId;
-                
-                // Запускаем событие сразу, без задержек
-                try {
-                    const event = new Event('input', { 
-                        bubbles: true,
-                        cancelable: true 
-                    });
-                    textarea.dispatchEvent(event);
-                } catch (e) {}
-            }
-        }
-        
-        // Закрываем все открытые меню при переключении чата
-        closeAllContextMenus();
-    }
+    for js_file in js_files:
+        try:
+            if os.path.exists(js_file):
+                with open(js_file, 'r', encoding='utf-8') as f:
+                    js_content += f.read() + "\n\n"
+        except Exception:
+            pass
     
-    function closeAllContextMenus() {
-        document.querySelectorAll('.chat-context-menu.show').forEach(menu => {
-            menu.classList.remove('show');
-        });
-        activeContextMenu = null;
-    }
-    
-    function createContextMenu(chatId, chatName) {
-        const menu = document.createElement('div');
-        menu.className = 'chat-context-menu';
-        menu.setAttribute('data-chat-id', chatId);
-        
-        menu.innerHTML = `
-            <div class="chat-context-menu-item rename">
-                <span class="menu-icon">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M13 21h8"/>
-                        <path d="m15 5 4 4"/>
-                        <path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/>
-                    </svg>
-                </span>
-                <span>Переименовать</span>
-            </div>
-            <div class="chat-context-menu-item pin">
-                <span class="menu-icon">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M12 17v5"/>
-                        <path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/>
-                    </svg>
-                </span>
-                <span>Закрепить</span>
-            </div>
-            <div class="chat-context-menu-divider"></div>
-            <div class="chat-context-menu-item delete">
-                <span class="menu-icon">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M3 6h18"/>
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                        <path d="M10 11v6"/>
-                        <path d="M14 11v6"/>
-                    </svg>
-                </span>
-                <span>Удалить</span>
-            </div>
-        `;
-        
-        // Добавляем обработчики для пунктов меню
-        const renameBtn = menu.querySelector('.rename');
-        const pinBtn = menu.querySelector('.pin');
-        const deleteBtn = menu.querySelector('.delete');
-        
-        renameBtn.onclick = function(e) {
-            e.stopPropagation();
-            console.log('Переименовать чат:', chatId, chatName);
-            closeAllContextMenus();
-        };
-        
-        pinBtn.onclick = function(e) {
-            e.stopPropagation();
-            console.log('Закрепить чат:', chatId, chatName);
-            closeAllContextMenus();
-        };
-        
-        deleteBtn.onclick = function(e) {
-            e.stopPropagation();
-            console.log('Удалить чат:', chatId, chatName);
-            closeAllContextMenus();
-        };
-        
-        return menu;
-    }
-    
-    function toggleContextMenu(chatItem, chatId, chatName) {
-        // Закрываем все открытые меню
-        closeAllContextMenus();
-        
-        // Если кликнули на тот же элемент управления
-        if (activeContextMenu && activeContextMenu.parentElement === chatItem) {
-            activeContextMenu = null;
-            return;
-        }
-        
-        // Создаем и показываем новое меню
-        const menu = createContextMenu(chatId, chatName);
-        chatItem.appendChild(menu);
-        menu.classList.add('show');
-        activeContextMenu = menu;
-        
-        // Закрываем меню при клике вне его
-        setTimeout(() => {
-            const closeMenuHandler = (e) => {
-                if (!menu.contains(e.target) && !chatItem.querySelector('.chat-control').contains(e.target)) {
-                    closeAllContextMenus();
-                    document.removeEventListener('click', closeMenuHandler);
-                }
-            };
-            document.addEventListener('click', closeMenuHandler);
-        }, 10);
-    }
-    
-    function renderChatList(chats) {
-        const container = document.getElementById('chat_list');
-        if (!container) {
-            setTimeout(() => renderChatList(chats), 50);
-            return;
-        }
-        
-        if (typeof chats === 'string') {
-            try {
-                chats = JSON.parse(chats);
-            } catch (e) {
-                chats = { groups: {}, flat: [] };
-            }
-        }
-        
-        window.chatListData = chats.flat || [];
-        window.chatGroups = chats.groups || {};
-        
-        container.innerHTML = '';
-        
-        if (!window.chatGroups || Object.keys(window.chatGroups).length === 0) {
-            container.innerHTML = `
-                <div style="text-align: center; padding: 20px; color: #64748b;">
-                    Нет чатов
-                </div>
-            `;
-            return;
-        }
-        
-        // Закрываем все открытые меню при обновлении списка
-        closeAllContextMenus();
-        
-        // Отображаем группы в правильном порядке
-        const groupOrder = ['Сегодня', 'Вчера', '7 дней', 'Месяц', 'Более месяца'];
-        
-        groupOrder.forEach(groupName => {
-            if (window.chatGroups[groupName] && window.chatGroups[groupName].length > 0) {
-                // Добавляем разделитель группы
-                const divider = document.createElement('div');
-                divider.className = 'group-divider';
-                divider.textContent = groupName;
-                container.appendChild(divider);
-                
-                // Добавляем чаты из этой группы
-                window.chatGroups[groupName].forEach((chat) => {
-                    const chatDiv = document.createElement('div');
-                    chatDiv.className = 'chat-item';
-                    chatDiv.setAttribute('data-chat-id', chat.id);
-                    
-                    // Новая структура с элементом управления
-                    chatDiv.innerHTML = `
-                        <div class="chat-name-wrapper">
-                            <div class="chat-name">${chat.name}</div>
-                        </div>
-                        <div class="chat-control"></div>
-                    `;
-                    
-                    if (chat.is_current) {
-                        chatDiv.classList.add('active');
-                    }
-                    
-                    // Клик на весь элемент чата
-                    chatDiv.onclick = function(e) {
-                        // Если кликнули на элемент управления или контекстное меню - не переключаем чат
-                        if (e.target.classList.contains('chat-control') || 
-                            e.target.closest('.chat-control') ||
-                            e.target.classList.contains('chat-context-menu-item') ||
-                            e.target.closest('.chat-context-menu')) {
-                            e.stopPropagation();
-                            return;
-                        }
-                        const chatId = this.getAttribute('data-chat-id');
-                        selectChat(chatId);
-                        closeAllContextMenus();
-                    };
-                    
-                    // Обработчик для элемента управления
-                    const controlBtn = chatDiv.querySelector('.chat-control');
-                    controlBtn.onclick = function(e) {
-                        e.stopPropagation();
-                        const chatId = chatDiv.getAttribute('data-chat-id');
-                        const chatName = chat.name;
-                        toggleContextMenu(chatDiv, chatId, chatName);
-                    };
-                    
-                    container.appendChild(chatDiv);
-                });
-            }
-        });
-        
-        // Выделяем активный чат
-        const activeChat = window.chatListData.find(chat => chat.is_current);
-        if (activeChat) {
-            selectChat(activeChat.id);
-        }
-    }
-    
-    document.addEventListener('DOMContentLoaded', function() {});
-    
-    document.addEventListener('chatListUpdated', function() {
-        if (window.chatListData && window.chatListData.length > 0) {
-            renderChatList(window.chatListData);
-        }
-    });
+    # Обертка для JavaScript
+    JS_CODE = f"""
+    <script type="module">
+    {js_content}
     </script>
     """
     
@@ -450,15 +225,18 @@ def create_main_ui():
             js="""
             (data) => {
                 try {
-                    const chats = JSON.parse(data);
-                    renderChatList(chats);
-                } catch (e) {}
+                    if (window.renderChatList) {
+                        window.renderChatList(data);
+                    }
+                } catch (e) {
+                    console.error('Ошибка рендеринга списка чатов:', e);
+                }
                 return [];
             }
             """
         )
     
-    return demo, css_content, SIMPLE_JS
+    return demo, css_content, JS_CODE
 
 def get_css_content():
     """Возвращает CSS контент для launch()"""
