@@ -58,23 +58,26 @@ function setupMenuHandlers(menu, chatId, chatName) {
     
     renameBtn.onclick = function(e) {
         e.stopPropagation();
-        console.log('Переименовать чат:', chatId, chatName);
         if (window.closeAllContextMenus) {
             window.closeAllContextMenus();
+        }
+        // TODO: Реализовать переименование через модальное окно
+        const newName = prompt('Введите новое название для чата:', chatName);
+        if (newName && newName.trim() !== '' && newName !== chatName) {
+            // TODO: Вызов Python функции для переименования
         }
     };
     
     pinBtn.onclick = function(e) {
         e.stopPropagation();
-        console.log('Закрепить чат:', chatId, chatName);
         if (window.closeAllContextMenus) {
             window.closeAllContextMenus();
         }
+        // TODO: Реализовать закрепление чата
     };
     
     deleteBtn.onclick = async function(e) {
         e.stopPropagation();
-        console.log('Удалить чат:', chatId, chatName);
         
         // Закрываем меню перед удалением
         if (window.closeAllContextMenus) {
@@ -84,30 +87,60 @@ function setupMenuHandlers(menu, chatId, chatName) {
         // Показываем подтверждение
         if (confirm(`Вы уверены, что хотите удалить чат "${chatName}"?`)) {
             try {
-                // Сначала переключаемся на этот чат (если он не активный)
-                if (window.selectChat) {
-                    window.selectChat(chatId);
-                }
+                // Определяем, активен ли удаляемый чат
+                const chatItem = document.querySelector(`[data-chat-id="${chatId}"]`);
+                const isActive = chatItem && chatItem.classList.contains('active');
                 
-                // Ждем немного чтобы переключение произошло
-                await new Promise(resolve => setTimeout(resolve, 100));
-                
-                // Находим и кликаем на кнопку удаления в сайдбаре
-                if (window.SELECTORS) {
-                    const deleteBtnInSidebar = document.querySelector(window.SELECTORS.DELETE_BTN);
-                    if (deleteBtnInSidebar) {
-                        deleteBtnInSidebar.click();
-                        console.log('Запущено удаление чата через сайдбар');
-                    } else {
-                        console.error('Кнопка удаления в сайдбаре не найдена');
-                    }
-                }
+                // Отправляем запрос на удаление
+                await deleteChatRequest(chatId, isActive);
                 
             } catch (error) {
                 console.error('Ошибка при удалении чата:', error);
+                alert('Ошибка при удалении чата. Пожалуйста, попробуйте снова.');
             }
         }
     };
+}
+
+async function deleteChatRequest(chatId, isActive) {
+    try {
+        // Находим поле ввода для отправки ID чата
+        const textarea = window.getChatInputField ? window.getChatInputField() : null;
+        if (!textarea) {
+            throw new Error('Не найдено поле для отправки данных');
+        }
+        
+        // Отправляем специальный запрос на удаление
+        // Формат: "delete:<chat_id>:<is_active>"
+        const deleteCommand = `delete:${chatId}:${isActive ? 'active' : 'inactive'}`;
+        textarea.value = deleteCommand;
+        
+        // Запускаем событие изменения
+        try {
+            const event = new Event('input', { 
+                bubbles: true,
+                cancelable: true 
+            });
+            textarea.dispatchEvent(event);
+        } catch (e) {
+            const changeEvent = new Event('change', {
+                bubbles: true,
+                cancelable: true
+            });
+            textarea.dispatchEvent(changeEvent);
+        }
+        
+        // Обновляем список чатов через 500мс
+        setTimeout(() => {
+            if (window.chatListData && window.renderChatList) {
+                window.renderChatList(window.chatListData);
+            }
+        }, 500);
+        
+    } catch (error) {
+        console.error('Ошибка при отправке запроса на удаление:', error);
+        throw error;
+    }
 }
 
 window.toggleContextMenu = function(chatItem, chatId, chatName) {

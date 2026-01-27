@@ -23,15 +23,7 @@ def create_sidebar_layout():
         </div>
         """)
         
-        # 3. Кнопка удаления текущего чата
-        delete_dialog_btn = gr.Button(
-            "🗑️ Удалить текущий",
-            variant="stop",
-            size="lg",
-            elem_classes="delete-chat-btn"
-        )
-        
-        # 4. Параметры модели (аккордеон) - ОБЯЗАТЕЛЬНО ДОБАВЛЯЕМ в return
+        # 3. Параметры модели (аккордеон)
         with gr.Accordion("⚙️ Параметры генерации", open=True, elem_classes="params-accordion") as params_accordion:
             max_tokens = gr.Slider(
                 minimum=64, maximum=2048, value=512, step=64,
@@ -71,7 +63,6 @@ def create_sidebar_layout():
     
     return {
         "create_dialog_btn": create_dialog_btn,
-        "delete_dialog_btn": delete_dialog_btn,
         "status_text": status_text,
         "max_tokens": max_tokens,
         "temperature": temperature,

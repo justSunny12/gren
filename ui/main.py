@@ -126,19 +126,6 @@ def create_main_ui():
             ]
         )
         
-        sidebar_components["delete_dialog_btn"].click(
-            fn=ui_handlers.delete_chat_with_js_handler,
-            inputs=[],
-            outputs=[
-                chatbot,
-                user_input,
-                current_dialog_id,
-                sidebar_components["status_text"],
-                sidebar_components["js_trigger"],
-                chat_list_data
-            ]
-        )
-        
         sidebar_components["reset_settings_btn"].click(
             fn=reset_user_settings,
             inputs=[],
