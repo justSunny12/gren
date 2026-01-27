@@ -4,7 +4,7 @@
     max-height: 100vh !important;
     overflow-y: auto !important;
     padding: 15px !important;
-    background: #f8f9fa !important;
+    background: rgb(249, 250, 251);
     min-width: 320px !important;
     max-width: 350px !important;
     flex-shrink: 0 !important;
@@ -24,10 +24,9 @@
 
 .chat-list {
     flex: 1;
-    background: white;
-    border-radius: 8px;
-    padding: 8px;
-    border: 1px solid #e0e0e0;
+    background: transparent;
+    padding: 0 !important;
+    border: none;
     overflow-y: auto;
     height: 100%;
 }
@@ -38,22 +37,22 @@
     border-radius: 6px;
     cursor: pointer;
     transition: all 0.15s ease;
-    border: 1px solid transparent;
-    background: white;
+    border: none;
+    background: rgb(249, 250, 251);
     min-height: 32px;
     display: flex;
     align-items: center;
 }
 
 .chat-item:hover {
-    background: #f5f5f5;
-    border-color: #d0d0d0;
+    background: rgb(241, 243, 245);
+    border: none;
 }
 
 .chat-item.active {
-    background: #007bff;
-    color: white;
-    border-color: #0056b3;
+    background: rgb(230, 237,252);
+    /* color: white; */
+    border: none;
 }
 
 .chat-item .chat-name {
@@ -213,5 +212,7 @@
         height: 44px !important;
         margin-bottom: 5px !important; /* 22px/2 */
         margin-top: 5px !important; /* 22px/2 */
+        background-color: white !important;
+        color: black !important;
     }
 }
