@@ -51,8 +51,16 @@ class DialogService:
         return False
     
     def delete_dialog(self, dialog_id: str) -> bool:
-        """Удаляет диалог"""
+        """Удаляет диалог и правильно переключает на следующий"""
         if dialog_id in self.dialogs:
+            # Получаем список диалогов ДО удаления (уже отсортирован по updated)
+            dialogs_before = self.get_dialog_list()
+            current_index = -1
+            for i, d in enumerate(dialogs_before):
+                if d['id'] == dialog_id:
+                    current_index = i
+                    break
+            
             # Удаляем файл с диалогом
             dialog_file = os.path.join(self.config.save_dir, f"dialog_{dialog_id}.json")
             if os.path.exists(dialog_file):
@@ -61,12 +69,30 @@ class DialogService:
             # Удаляем из памяти
             del self.dialogs[dialog_id]
             
-            # Если удалили текущий диалог, переключаемся на другой
+            # Правильно переключаем на следующий диалог
             if self.current_dialog_id == dialog_id:
-                if self.dialogs:
-                    self.current_dialog_id = list(self.dialogs.keys())[0]
-                else:
-                    self.current_dialog_id = None
+                new_dialog_id = None
+                
+                # 1. Пробуем взять следующий в списке (ниже)
+                if current_index >= 0 and current_index + 1 < len(dialogs_before):
+                    next_dialog = dialogs_before[current_index + 1]
+                    # Убеждаемся, что не пытаемся переключиться на удаляемый диалог
+                    if next_dialog['id'] != dialog_id and next_dialog['id'] in self.dialogs:
+                        new_dialog_id = next_dialog['id']
+                
+                # 2. Если не нашли следующего ниже - берем самый верхний (первый в списке)
+                if not new_dialog_id and dialogs_before:
+                    # Ищем первый НЕ удаленный диалог в списке
+                    for dialog_info in dialogs_before:
+                        if dialog_info['id'] != dialog_id and dialog_info['id'] in self.dialogs:
+                            new_dialog_id = dialog_info['id']
+                            break
+                
+                # 3. Если все еще не нашли (маловероятно), берем любой оставшийся
+                if not new_dialog_id and self.dialogs:
+                    new_dialog_id = list(self.dialogs.keys())[0]
+                
+                self.current_dialog_id = new_dialog_id
             
             self._save_all_silent()
             return True

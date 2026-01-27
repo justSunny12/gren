@@ -55,6 +55,12 @@ def create_main_ui():
     SIMPLE_JS = """
     <script>
     function selectChat(chatId) {
+        // Защита от быстрых кликов
+        if (window.lastChatClick && Date.now() - window.lastChatClick < 300) {
+            return;
+        }
+        window.lastChatClick = Date.now();
+        
         document.querySelectorAll('.chat-item').forEach(el => {
             el.classList.remove('active');
         });
@@ -70,25 +76,22 @@ def create_main_ui():
             if (textarea) {
                 textarea.value = chatId;
                 
-                ['input', 'change'].forEach((eventName, index) => {
-                    setTimeout(() => {
-                        try {
-                            const event = new Event(eventName, { 
-                                bubbles: true,
-                                cancelable: true 
-                            });
-                            textarea.dispatchEvent(event);
-                        } catch (e) {}
-                    }, index * 50 + 50);
-                });
+                // Запускаем событие сразу, без задержек
+                try {
+                    const event = new Event('input', { 
+                        bubbles: true,
+                        cancelable: true 
+                    });
+                    textarea.dispatchEvent(event);
+                } catch (e) {}
             }
         }
     }
-    
+
     function renderChatList(chats) {
         const container = document.getElementById('chat_list');
         if (!container) {
-            setTimeout(() => renderChatList(chats), 1000);
+            setTimeout(() => renderChatList(chats), 50); // Уменьшили задержку
             return;
         }
         
@@ -137,9 +140,8 @@ def create_main_ui():
         
         const activeChat = window.chatListData.find(chat => chat.is_current);
         if (activeChat) {
-            setTimeout(() => {
-                selectChat(activeChat.id);
-            }, 500);
+            // Убираем задержку для активного чата
+            selectChat(activeChat.id);
         }
     }
     

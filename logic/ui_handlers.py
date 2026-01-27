@@ -1,4 +1,4 @@
-# /logic/ui_handlers.py
+# /logic/ui_handlers.py - исправляем обработчики
 import gradio as gr
 from container import container
 import time
@@ -15,6 +15,8 @@ class UIHandlers:
         self._last_save_time = 0
         self._save_debounce_ms = 500
         self._pending_save = None
+        self._last_chat_switch = 0  # Защита от быстрого переключения
+        self._switch_debounce_ms = 300
     
     @property
     def chat_service(self):
@@ -59,10 +61,26 @@ class UIHandlers:
     
     def handle_chat_selection(self, chat_id: str):
         """Обработчик выбора чата из списка"""
+        current_time = time.time() * 1000
+        
+        # Защита от быстрого переключения
+        if current_time - self._last_chat_switch < self._switch_debounce_ms:
+            # Возвращаем текущее состояние без изменений
+            current_dialog = self.dialog_service.get_current_dialog()
+            if current_dialog:
+                history = current_dialog.to_ui_format()
+                current_id = current_dialog.id
+                status_text = f"⏳ Слишком быстро..."
+                chat_list_data = self.get_chat_list_data()
+                return history, current_id, status_text, chat_list_data
+            else:
+                return [], "", "⚠️ Нет активного чата", self.get_chat_list_data()
+        
+        self._last_chat_switch = current_time
         chat_id = chat_id.strip()
         
         if not chat_id or chat_id == "null" or chat_id == "undefined":
-            return [], "", "⚠️ Неверный ID чата", "[]"
+            return [], "", "⚠️ Неверный ID чата", self.get_chat_list_data()
         
         if self.dialog_service.switch_dialog(chat_id):
             dialog = self.dialog_service.get_dialog(chat_id)
@@ -74,7 +92,7 @@ class UIHandlers:
             return [], chat_id, f"⚠️ Ошибка переключения на: {chat_id}", self.get_chat_list_data()
     
     def create_chat_with_js_handler(self):
-        """Обработчик создания нового чата с JS триггером"""
+        """Обработчик создания нового чата без лишних задержек"""
         try:
             dialog_id = self.dialog_service.create_dialog()
             dialog = self.dialog_service.get_dialog(dialog_id)
@@ -96,7 +114,7 @@ class UIHandlers:
             return [], "", None, f"⚠️ Ошибка: {str(e)}", gr.HTML(""), "[]"
     
     def delete_chat_with_js_handler(self):
-        """Обработчик удаления текущего чата с JS триггером"""
+        """Обработчик удаления текущего чата с правильной логикой переключения"""
         try:
             current_dialog = self.dialog_service.get_current_dialog()
             if not current_dialog:
@@ -105,12 +123,23 @@ class UIHandlers:
             dialog_id = current_dialog.id
             dialog_name = current_dialog.name
             
+            # Получаем список всех диалогов ДО удаления
+            all_dialogs = self.dialog_service.get_dialog_list()
+            current_index = -1
+            for i, d in enumerate(all_dialogs):
+                if d['id'] == dialog_id:
+                    current_index = i
+                    break
+            
+            # Удаляем текущий диалог
             if self.dialog_service.delete_dialog(dialog_id):
+                # Диалог уже удален, логика переключения уже выполнена в dialog_service
+                # Просто получаем новый текущий диалог
                 new_dialog = self.dialog_service.get_current_dialog()
                 if new_dialog:
                     new_history = new_dialog.to_ui_format()
                     new_dialog_id = new_dialog.id
-                    status_text = f"✅ Удален чат: {dialog_name}. Переключен на: {new_dialog.name}"
+                    status_text = f"✅ Удален чат: {dialog_name}. Открыт: {new_dialog.name}"
                 else:
                     new_history = []
                     new_dialog_id = None
@@ -120,7 +149,9 @@ class UIHandlers:
                 
                 js_code = f"""
                 <script>
-                document.dispatchEvent(new Event('chatListUpdated'));
+                setTimeout(() => {{
+                    document.dispatchEvent(new Event('chatListUpdated'));
+                }}, 100);
                 </script>
                 """
                 
