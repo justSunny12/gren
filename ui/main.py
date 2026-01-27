@@ -134,17 +134,38 @@ def create_main_ui():
                     chatDiv.className = 'chat-item';
                     chatDiv.setAttribute('data-chat-id', chat.id);
                     
+                    // Новая структура с элементом управления
                     chatDiv.innerHTML = `
-                        <div class="chat-name">${chat.name}</div>
+                        <div class="chat-name-wrapper">
+                            <div class="chat-name">${chat.name}</div>
+                        </div>
+                        <div class="chat-control"></div>
                     `;
                     
                     if (chat.is_current) {
                         chatDiv.classList.add('active');
                     }
                     
-                    chatDiv.onclick = function() {
+                    // Клик на весь элемент чата
+                    chatDiv.onclick = function(e) {
+                        // Если кликнули на элемент управления - не переключаем чат
+                        if (e.target.classList.contains('chat-control') || 
+                            e.target.closest('.chat-control')) {
+                            e.stopPropagation();
+                            console.log('Chat control clicked for chat:', chat.id);
+                            // Здесь позже добавим функционал меню
+                            return;
+                        }
                         const chatId = this.getAttribute('data-chat-id');
                         selectChat(chatId);
+                    };
+                    
+                    // Обработчик для элемента управления
+                    const controlBtn = chatDiv.querySelector('.chat-control');
+                    controlBtn.onclick = function(e) {
+                        e.stopPropagation();
+                        console.log('Chat control clicked for chat:', chat.id);
+                        // Здесь позже добавим функционал меню
                     };
                     
                     container.appendChild(chatDiv);
