@@ -145,6 +145,85 @@
     color: rgb(55, 65, 81);
 }
 
+/* Контекстное меню */
+.chat-context-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 8px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    min-width: 160px;
+    z-index: 1000;
+    display: none;
+    border: 1px solid rgb(229, 231, 235);
+    overflow: hidden;
+    padding: 4px 0;
+}
+
+.chat-context-menu.show {
+    display: block;
+}
+
+.chat-context-menu-item {
+    padding: 8px 12px;
+    font-size: 13px;
+    color: rgb(55, 65, 81);
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.chat-context-menu-item:hover {
+    background-color: rgb(249, 250, 251);
+}
+
+.chat-context-menu-item.delete {
+    color: rgb(220, 38, 38) !important;
+}
+
+.chat-context-menu-item.delete:hover {
+    background-color: rgb(254, 242, 242);
+    color: rgb(220, 38, 38) !important;
+}
+
+.chat-context-menu-item.delete .menu-icon {
+    color: rgb(220, 38, 38) !important;
+}
+
+/* Убеждаемся, что текст тоже красный */
+.chat-context-menu-item.delete span:not(.menu-icon) {
+    color: rgb(220, 38, 38) !important;
+}
+
+.chat-context-menu-divider {
+    height: 1px;
+    background-color: rgb(229, 231, 235);
+    margin: 4px 0;
+}
+
+/* Иконки для пунктов меню как в DeepSeek */
+.chat-context-menu-item .menu-icon {
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    color: inherit;
+}
+
+.chat-context-menu-item .menu-icon svg {
+    stroke: currentColor;
+    fill: none;
+}
+
+.chat-context-menu-item.delete .menu-icon svg {
+    stroke: rgb(220, 38, 38);
+}
+
 /* Стили для кнопок */
 .new-chat-btn {
     width: 100% !important;
@@ -356,6 +435,22 @@
     
     .chat-control::before {
         font-size: 14px;
+    }
+    
+    .chat-context-menu {
+        min-width: 140px;
+        right: 6px;
+    }
+    
+    .chat-context-menu-item {
+        padding: 6px 10px;
+        font-size: 12px;
+    }
+    
+    .chat-context-menu-item .menu-icon {
+        width: 14px;
+        height: 14px;
+        font-size: 12px;
     }
     
     .new-chat-btn,
