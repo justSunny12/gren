@@ -38,10 +38,23 @@ window.selectChat = function(chatId) {
     }
 };
 
+// Закрываем контекстные меню при скролле
+document.addEventListener('scroll', function(e) {
+    if (window.closeAllContextMenus) {
+        window.closeAllContextMenus();
+    }
+}, true); // Используем capture phase для надежности
+
+// Закрываем контекстные меню при изменении размера окна
+window.addEventListener('resize', function() {
+    if (window.closeAllContextMenus) {
+        window.closeAllContextMenus();
+    }
+});
+
 // Инициализация при загрузке
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Chat UI JavaScript загружен');
-    console.log('SELECTORS доступны:', window.SELECTORS);
 });
 
 // Обработчик обновления списка чатов

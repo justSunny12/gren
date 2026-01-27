@@ -151,23 +151,40 @@ window.toggleContextMenu = function(chatItem, chatId, chatName) {
         window.closeAllContextMenus();
     }
     
-    // Если кликнули на тот же элемент управления
-    if (window.activeContextMenu && window.activeContextMenu.parentElement === chatItem) {
+    // Если кликнули на тот же элемент управления, и меню уже открыто - закрываем его
+    const existingMenu = chatItem.querySelector('.chat-context-menu.show');
+    if (existingMenu) {
+        existingMenu.classList.remove('show');
+        // Удаляем меню из DOM после скрытия
+        setTimeout(() => {
+            if (existingMenu.parentNode) {
+                existingMenu.parentNode.removeChild(existingMenu);
+            }
+        }, 150);
         window.activeContextMenu = null;
         return;
     }
     
-    // Создаем и показываем новое меню
+    // Создаем новое меню
     if (window.createContextMenu) {
         const menu = window.createContextMenu(chatId, chatName);
-        chatItem.appendChild(menu);
+        
+        // Добавляем меню в body для абсолютного позиционирования
+        document.body.appendChild(menu);
+        
+        // Рассчитываем положение меню
+        positionContextMenu(chatItem, menu);
+        
+        // Показываем меню
         menu.classList.add('show');
         window.activeContextMenu = menu;
         
         // Закрываем меню при клике вне его
         setTimeout(() => {
             const closeMenuHandler = (e) => {
-                if (!menu.contains(e.target) && !chatItem.querySelector(window.SELECTORS.CHAT_CONTROL).contains(e.target)) {
+                // Если кликнули вне меню или на другой элемент управления
+                if (!menu.contains(e.target) && 
+                    !(chatItem.contains(e.target) && e.target.closest(SELECTORS.CHAT_CONTROL))) {
                     if (window.closeAllContextMenus) {
                         window.closeAllContextMenus();
                     }
@@ -178,3 +195,47 @@ window.toggleContextMenu = function(chatItem, chatId, chatName) {
         }, 10);
     }
 };
+
+function positionContextMenu(chatItem, menu) {
+    if (!chatItem || !menu) return;
+    
+    // Показываем меню для получения размеров
+    menu.style.display = 'block';
+    menu.style.visibility = 'hidden';
+    
+    // Получаем размеры и позиции элементов
+    const chatItemRect = chatItem.getBoundingClientRect();
+    const menuRect = menu.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    const viewportWidth = window.innerWidth;
+    
+    // Рассчитываем позицию по умолчанию (справа от элемента)
+    let topPosition = chatItemRect.top + (chatItemRect.height / 2) - (menuRect.height / 2);
+    let leftPosition = chatItemRect.right + 10; // 10px справа от элемента
+    
+    // Проверяем, помещается ли меню справа
+    if (leftPosition + menuRect.width > viewportWidth - 10) {
+        // Если не помещается справа, показываем слева
+        leftPosition = chatItemRect.left - menuRect.width - 10;
+    }
+    
+    // Проверяем, помещается ли меню по вертикали
+    if (topPosition + menuRect.height > viewportHeight - 10) {
+        // Если не помещается снизу, сдвигаем вверх
+        topPosition = viewportHeight - menuRect.height - 10;
+    }
+    
+    if (topPosition < 10) {
+        // Если не помещается сверху, сдвигаем вниз
+        topPosition = 10;
+    }
+    
+    // Устанавливаем позицию
+    menu.style.position = 'fixed';
+    menu.style.top = `${Math.max(10, topPosition)}px`;
+    menu.style.left = `${Math.max(10, leftPosition)}px`;
+    menu.style.right = 'auto';
+    menu.style.bottom = 'auto';
+    menu.style.visibility = 'visible';
+    menu.style.zIndex = '10000'; // Высокий z-index чтобы было поверх всего
+}

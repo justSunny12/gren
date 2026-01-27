@@ -1,6 +1,4 @@
 /* static/js/modules/utils.js - Вспомогательные функции */
-// Больше не импортируем SELECTORS, они уже в window
-
 // Проверяем, что SELECTORS загружены
 if (!window.SELECTORS) {
     console.error('SELECTORS не определены! Загрузите selectors.js первым');
@@ -26,9 +24,24 @@ window.debounce = function(func, wait) {
 window.closeAllContextMenus = function() {
     if (!window.SELECTORS) return;
     
+    // Закрываем все видимые меню
     document.querySelectorAll(`${window.SELECTORS.CONTEXT_MENU}.show`).forEach(menu => {
         menu.classList.remove('show');
+        // Удаляем меню из DOM через небольшой таймаут
+        setTimeout(() => {
+            if (menu.parentNode) {
+                menu.parentNode.removeChild(menu);
+            }
+        }, 100);
     });
+    
+    // Также удаляем все меню, даже скрытые (на всякий случай)
+    document.querySelectorAll(`${window.SELECTORS.CONTEXT_MENU}`).forEach(menu => {
+        if (menu.parentNode) {
+            menu.parentNode.removeChild(menu);
+        }
+    });
+    
     window.activeContextMenu = null;
 };
 
