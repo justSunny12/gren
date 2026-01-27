@@ -24,15 +24,17 @@ window.debounce = function(func, wait) {
 window.closeAllContextMenus = function() {
     if (!window.SELECTORS) return;
     
+    // Снимаем флаги со всех элементов
+    document.querySelectorAll('.chat-item.context-menu-open').forEach(item => {
+        item.classList.remove('context-menu-open');
+    });
+    
     // Закрываем все видимые меню
     document.querySelectorAll(`${window.SELECTORS.CONTEXT_MENU}.show`).forEach(menu => {
         menu.classList.remove('show');
-        // Удаляем меню из DOM через небольшой таймаут
-        setTimeout(() => {
-            if (menu.parentNode) {
-                menu.parentNode.removeChild(menu);
-            }
-        }, 100);
+        if (menu.parentNode) {
+            menu.parentNode.removeChild(menu);
+        }
     });
     
     // Также удаляем все меню, даже скрытые (на всякий случай)
@@ -41,8 +43,6 @@ window.closeAllContextMenus = function() {
             menu.parentNode.removeChild(menu);
         }
     });
-    
-    window.activeContextMenu = null;
 };
 
 window.getChatInputField = function() {

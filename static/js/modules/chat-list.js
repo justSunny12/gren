@@ -101,12 +101,15 @@ function createChatElement(container, chat) {
             e.stopPropagation();
             return;
         }
+        
+        // Закрываем все открытые меню перед переключением чата
+        if (window.closeAllContextMenus) {
+            window.closeAllContextMenus();
+        }
+        
         const chatId = this.getAttribute('data-chat-id');
         if (window.selectChat) {
             window.selectChat(chatId);
-        }
-        if (window.closeAllContextMenus) {
-            window.closeAllContextMenus();
         }
     };
     
@@ -114,7 +117,8 @@ function createChatElement(container, chat) {
     const controlBtn = chatDiv.querySelector(window.SELECTORS.CHAT_CONTROL);
     controlBtn.onclick = function(e) {
         e.stopPropagation();
-        // Динамически загружаем модуль контекстного меню
+        
+        // Просто вызываем toggleContextMenu - вся логика там
         if (window.toggleContextMenu) {
             window.toggleContextMenu(chatDiv, chat.id, chat.name);
         }

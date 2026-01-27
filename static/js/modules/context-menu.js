@@ -58,9 +58,16 @@ function setupMenuHandlers(menu, chatId, chatName) {
     
     renameBtn.onclick = function(e) {
         e.stopPropagation();
-        if (window.closeAllContextMenus) {
-            window.closeAllContextMenus();
+        // Находим родительский элемент чата и закрываем меню
+        const chatItem = document.querySelector(`[data-chat-id="${chatId}"]`);
+        if (chatItem && chatItem.classList.contains('context-menu-open')) {
+            chatItem.classList.remove('context-menu-open');
         }
+        
+        if (menu.parentNode) {
+            menu.parentNode.removeChild(menu);
+        }
+        
         // TODO: Реализовать переименование через модальное окно
         const newName = prompt('Введите новое название для чата:', chatName);
         if (newName && newName.trim() !== '' && newName !== chatName) {
@@ -70,32 +77,42 @@ function setupMenuHandlers(menu, chatId, chatName) {
     
     pinBtn.onclick = function(e) {
         e.stopPropagation();
-        if (window.closeAllContextMenus) {
-            window.closeAllContextMenus();
+        // Находим родительский элемент чата и закрываем меню
+        const chatItem = document.querySelector(`[data-chat-id="${chatId}"]`);
+        if (chatItem && chatItem.classList.contains('context-menu-open')) {
+            chatItem.classList.remove('context-menu-open');
         }
+        
+        if (menu.parentNode) {
+            menu.parentNode.removeChild(menu);
+        }
+        
         // TODO: Реализовать закрепление чата
     };
     
     deleteBtn.onclick = async function(e) {
         e.stopPropagation();
         
-        // Закрываем меню перед удалением
-        if (window.closeAllContextMenus) {
-            window.closeAllContextMenus();
+        // Находим родительский элемент чата и закрываем меню
+        const chatItem = document.querySelector(`[data-chat-id="${chatId}"]`);
+        if (chatItem && chatItem.classList.contains('context-menu-open')) {
+            chatItem.classList.remove('context-menu-open');
+        }
+        
+        if (menu.parentNode) {
+            menu.parentNode.removeChild(menu);
         }
         
         // Показываем подтверждение
         if (confirm(`Вы уверены, что хотите удалить чат "${chatName}"?`)) {
             try {
                 // Определяем, активен ли удаляемый чат
-                const chatItem = document.querySelector(`[data-chat-id="${chatId}"]`);
                 const isActive = chatItem && chatItem.classList.contains('active');
                 
                 // Отправляем запрос на удаление
                 await deleteChatRequest(chatId, isActive);
                 
             } catch (error) {
-                console.error('Ошибка при удалении чата:', error);
                 alert('Ошибка при удалении чата. Пожалуйста, попробуйте снова.');
             }
         }
@@ -138,7 +155,6 @@ async function deleteChatRequest(chatId, isActive) {
         }, 500);
         
     } catch (error) {
-        console.error('Ошибка при отправке запроса на удаление:', error);
         throw error;
     }
 }
@@ -146,23 +162,26 @@ async function deleteChatRequest(chatId, isActive) {
 window.toggleContextMenu = function(chatItem, chatId, chatName) {
     if (!window.SELECTORS) return;
     
+    // Проверяем, есть ли у этого элемента чата открытое меню
+    if (chatItem.classList.contains('context-menu-open')) {
+        // Находим и закрываем меню
+        const menu = document.querySelector('.chat-context-menu.show[data-chat-id="' + chatId + '"]');
+        if (menu && menu.parentNode) {
+            menu.parentNode.removeChild(menu);
+        }
+        
+        chatItem.classList.remove('context-menu-open');
+        return;
+    }
+    
+    // Закрываем все открытые меню и снимаем флаги
+    document.querySelectorAll('.chat-item.context-menu-open').forEach(item => {
+        item.classList.remove('context-menu-open');
+    });
+    
     // Закрываем все открытые меню
     if (window.closeAllContextMenus) {
         window.closeAllContextMenus();
-    }
-    
-    // Если кликнули на тот же элемент управления, и меню уже открыто - закрываем его
-    const existingMenu = chatItem.querySelector('.chat-context-menu.show');
-    if (existingMenu) {
-        existingMenu.classList.remove('show');
-        // Удаляем меню из DOM после скрытия
-        setTimeout(() => {
-            if (existingMenu.parentNode) {
-                existingMenu.parentNode.removeChild(existingMenu);
-            }
-        }, 150);
-        window.activeContextMenu = null;
-        return;
     }
     
     // Создаем новое меню
@@ -177,7 +196,9 @@ window.toggleContextMenu = function(chatItem, chatId, chatName) {
         
         // Показываем меню
         menu.classList.add('show');
-        window.activeContextMenu = menu;
+        
+        // Помечаем элемент как имеющий открытое меню
+        chatItem.classList.add('context-menu-open');
         
         // Закрываем меню при клике вне его
         setTimeout(() => {
@@ -185,9 +206,20 @@ window.toggleContextMenu = function(chatItem, chatId, chatName) {
                 // Если кликнули вне меню или на другой элемент управления
                 if (!menu.contains(e.target) && 
                     !(chatItem.contains(e.target) && e.target.closest(SELECTORS.CHAT_CONTROL))) {
-                    if (window.closeAllContextMenus) {
-                        window.closeAllContextMenus();
+                    
+                    // Удаляем класс с элемента
+                    if (chatItem.classList.contains('context-menu-open')) {
+                        chatItem.classList.remove('context-menu-open');
                     }
+                    
+                    // Закрываем меню
+                    if (menu && menu.classList.contains('show')) {
+                        menu.classList.remove('show');
+                        if (menu.parentNode) {
+                            menu.parentNode.removeChild(menu);
+                        }
+                    }
+                    
                     document.removeEventListener('click', closeMenuHandler);
                 }
             };

@@ -43,7 +43,7 @@ document.addEventListener('scroll', function(e) {
     if (window.closeAllContextMenus) {
         window.closeAllContextMenus();
     }
-}, true); // Используем capture phase для надежности
+}, true);
 
 // Закрываем контекстные меню при изменении размера окна
 window.addEventListener('resize', function() {
@@ -54,7 +54,7 @@ window.addEventListener('resize', function() {
 
 // Инициализация при загрузке
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Chat UI JavaScript загружен');
+    // Консоль очищена от отладочных сообщений
 });
 
 // Обработчик обновления списка чатов
