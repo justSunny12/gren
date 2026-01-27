@@ -91,7 +91,7 @@ def create_main_ui():
     function renderChatList(chats) {
         const container = document.getElementById('chat_list');
         if (!container) {
-            setTimeout(() => renderChatList(chats), 50); // Уменьшили задержку
+            setTimeout(() => renderChatList(chats), 50);
             return;
         }
         
@@ -99,15 +99,16 @@ def create_main_ui():
             try {
                 chats = JSON.parse(chats);
             } catch (e) {
-                chats = [];
+                chats = { groups: {}, flat: [] };
             }
         }
         
-        window.chatListData = chats || [];
+        window.chatListData = chats.flat || [];
+        window.chatGroups = chats.groups || {};
         
         container.innerHTML = '';
         
-        if (!window.chatListData || window.chatListData.length === 0) {
+        if (!window.chatGroups || Object.keys(window.chatGroups).length === 0) {
             container.innerHTML = `
                 <div style="text-align: center; padding: 20px; color: #64748b;">
                     Нет чатов
@@ -116,31 +117,44 @@ def create_main_ui():
             return;
         }
         
-        window.chatListData.forEach((chat) => {
-            const chatDiv = document.createElement('div');
-            chatDiv.className = 'chat-item';
-            chatDiv.setAttribute('data-chat-id', chat.id);
-            
-            // СОКРАЩЕННЫЙ HTML - только название чата
-            chatDiv.innerHTML = `
-                <div class="chat-name">${chat.name}</div>
-            `;
-            
-            if (chat.is_current) {
-                chatDiv.classList.add('active');
+        // Отображаем группы в правильном порядке
+        const groupOrder = ['Сегодня', 'Вчера', '7 дней', 'Месяц', 'Более месяца'];
+        
+        groupOrder.forEach(groupName => {
+            if (window.chatGroups[groupName] && window.chatGroups[groupName].length > 0) {
+                // Добавляем разделитель группы
+                const divider = document.createElement('div');
+                divider.className = 'group-divider';
+                divider.textContent = groupName;
+                container.appendChild(divider);
+                
+                // Добавляем чаты из этой группы
+                window.chatGroups[groupName].forEach((chat) => {
+                    const chatDiv = document.createElement('div');
+                    chatDiv.className = 'chat-item';
+                    chatDiv.setAttribute('data-chat-id', chat.id);
+                    
+                    chatDiv.innerHTML = `
+                        <div class="chat-name">${chat.name}</div>
+                    `;
+                    
+                    if (chat.is_current) {
+                        chatDiv.classList.add('active');
+                    }
+                    
+                    chatDiv.onclick = function() {
+                        const chatId = this.getAttribute('data-chat-id');
+                        selectChat(chatId);
+                    };
+                    
+                    container.appendChild(chatDiv);
+                });
             }
-            
-            chatDiv.onclick = function() {
-                const chatId = this.getAttribute('data-chat-id');
-                selectChat(chatId);
-            };
-            
-            container.appendChild(chatDiv);
         });
         
+        // Выделяем активный чат
         const activeChat = window.chatListData.find(chat => chat.is_current);
         if (activeChat) {
-            // Убираем задержку для активного чата
             selectChat(activeChat.id);
         }
     }

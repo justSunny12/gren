@@ -1,7 +1,7 @@
 # /services/dialog_service.py
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timedelta, date
 from typing import List, Dict, Optional, Any
 from models.dialog import Dialog, Message
 from models.enums import MessageRole
@@ -133,10 +133,79 @@ class DialogService:
         dialogs_list.sort(key=lambda x: x["updated"], reverse=True)
         return dialogs_list
     
+    def get_dialog_list_with_groups(self) -> Dict[str, List[Dict[str, Any]]]:
+        """Получает список всех диалогов с группировкой по датам последнего сообщения"""
+        dialogs_list = self.get_dialog_list()
+        if not dialogs_list:
+            return {}
+        
+        today_date = date.today()
+        yesterday_date = today_date - timedelta(days=1)
+        week_ago_date = today_date - timedelta(days=7)
+        month_ago_date = today_date - timedelta(days=30)
+        
+        # Группируем диалоги
+        groups = {
+            "today": [],  # Сегодня
+            "yesterday": [],  # Вчера  
+            "week": [],  # Последние 7 дней (кроме сегодня и вчера)
+            "month": [],  # Месяц (кроме последних 7 дней)
+            "older": []  # Более месяца
+        }
+        
+        for dialog_info in dialogs_list:
+            # Парсим дату последнего обновления (updated содержит timestamp последнего сообщения)
+            try:
+                last_update = datetime.fromisoformat(dialog_info["updated"].replace('Z', '+00:00'))
+                last_update_date = last_update.date()
+                
+                # Определяем группу
+                if last_update_date == today_date:
+                    groups["today"].append(dialog_info)
+                elif last_update_date == yesterday_date:
+                    groups["yesterday"].append(dialog_info)
+                elif week_ago_date <= last_update_date < yesterday_date:
+                    groups["week"].append(dialog_info)
+                elif month_ago_date <= last_update_date < week_ago_date:
+                    groups["month"].append(dialog_info)
+                else:
+                    groups["older"].append(dialog_info)
+                    
+            except Exception:
+                # Если ошибка парсинга даты, кладем в "older"
+                groups["older"].append(dialog_info)
+        
+        # Убираем пустые группы
+        result = {}
+        if groups["today"]:
+            result["Сегодня"] = groups["today"]
+        if groups["yesterday"]:
+            result["Вчера"] = groups["yesterday"]
+        if groups["week"]:
+            result["7 дней"] = groups["week"]
+        if groups["month"]:
+            result["Месяц"] = groups["month"]
+        if groups["older"]:
+            result["Более месяца"] = groups["older"]
+        
+        return result
+    
+    def update_dialog_timestamp(self, dialog_id: str):
+        """Обновляет timestamp диалога (вызывается при отправке нового сообщения)"""
+        if dialog_id in self.dialogs:
+            # Обновляем время в диалоге
+            self.dialogs[dialog_id].updated = datetime.now()
+            self._save_dialog(self.dialogs[dialog_id])
+            return True
+        return False
+    
     def add_message(self, dialog_id: str, role: MessageRole, content: str) -> bool:
         """Добавляет сообщение в диалог"""
         if dialog_id in self.dialogs:
+            # Добавляем сообщение
             self.dialogs[dialog_id].add_message(role, content)
+            # Обновляем timestamp
+            self.dialogs[dialog_id].updated = datetime.now()
             self._save_dialog(self.dialogs[dialog_id])
             return True
         return False

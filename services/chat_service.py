@@ -66,6 +66,7 @@ class ChatService:
                 response_text = "Ошибка: сервис модели не поддерживается"
             
             # Добавляем сообщения в диалог
+            # Используем новый метод, который обновляет timestamp
             self.dialog_service.add_message(dialog_id, MessageRole.USER, prompt)
             self.dialog_service.add_message(dialog_id, MessageRole.ASSISTANT, response_text)
             

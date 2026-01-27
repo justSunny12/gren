@@ -1,4 +1,4 @@
-# /logic/ui_handlers.py - исправляем обработчики
+# /logic/ui_handlers.py
 import gradio as gr
 from container import container
 import time
@@ -41,23 +41,35 @@ class UIHandlers:
         return self.config_service.get_config()
     
     def get_chat_list_data(self):
-        """Возвращает данные списка чатов в формате JSON"""
+        """Возвращает данные списка чатов с группировкой в формате JSON"""
         try:
-            dialogs = self.dialog_service.get_dialog_list()
+            # Получаем диалоги с группировкой по датам
+            grouped_dialogs = self.dialog_service.get_dialog_list_with_groups()
             
-            js_dialogs = []
-            for d in dialogs:
-                js_dialogs.append({
-                    "id": d['id'],
-                    "name": d['name'].replace('\n', ' ').replace('\r', ' '),
-                    "history_length": d['history_length'],
-                    "updated": d['updated'],
-                    "is_current": d['is_current']
-                })
+            # Преобразуем в формат для фронтенда
+            js_data = {
+                "groups": {},
+                "flat": []
+            }
             
-            return json.dumps(js_dialogs, ensure_ascii=False)
+            for group_name, dialogs in grouped_dialogs.items():
+                group_dialogs = []
+                for d in dialogs:
+                    js_dialog = {
+                        "id": d['id'],
+                        "name": d['name'].replace('\n', ' ').replace('\r', ' '),
+                        "history_length": d['history_length'],
+                        "updated": d['updated'],
+                        "is_current": d['is_current']
+                    }
+                    group_dialogs.append(js_dialog)
+                    js_data["flat"].append(js_dialog)
+                
+                js_data["groups"][group_name] = group_dialogs
+            
+            return json.dumps(js_data, ensure_ascii=False)
         except Exception:
-            return json.dumps([], ensure_ascii=False)
+            return json.dumps({"groups": {}, "flat": []}, ensure_ascii=False)
     
     def handle_chat_selection(self, chat_id: str):
         """Обработчик выбора чата из списка"""
@@ -122,14 +134,6 @@ class UIHandlers:
             
             dialog_id = current_dialog.id
             dialog_name = current_dialog.name
-            
-            # Получаем список всех диалогов ДО удаления
-            all_dialogs = self.dialog_service.get_dialog_list()
-            current_index = -1
-            for i, d in enumerate(all_dialogs):
-                if d['id'] == dialog_id:
-                    current_index = i
-                    break
             
             # Удаляем текущий диалог
             if self.dialog_service.delete_dialog(dialog_id):
