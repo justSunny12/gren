@@ -14,7 +14,7 @@ __pycache__/
 saved_dialogs/
 
 #tests
-tests/
+test.py
 
 #local code dump
 project_dump.txt
