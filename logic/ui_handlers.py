@@ -3,6 +3,7 @@ import gradio as gr
 from container import container
 import time
 import json
+import urllib.parse
 
 class UIHandlers:
     """Обработчики UI событий"""
@@ -76,6 +77,10 @@ class UIHandlers:
         # Проверяем, не запрос ли это на удаление
         if chat_id and chat_id.startswith('delete:'):
             return self.handle_chat_deletion(chat_id)
+        
+        # Проверяем, не запрос ли это на переименование
+        if chat_id and chat_id.startswith('rename:'):
+            return self.handle_chat_rename(chat_id)
         
         current_time = time.time() * 1000
         
@@ -173,6 +178,55 @@ class UIHandlers:
             
         except Exception as e:
             return [], "", f"⚠️ Ошибка при удалении: {str(e)}", self.get_chat_list_data()
+    
+    def handle_chat_rename(self, rename_command: str):
+        """Обработчик переименования чата из контекстного меню"""
+        try:
+            # Парсим команду: "rename:<chat_id>:<new_name>"
+            parts = rename_command.split(':', 2)  # Разделяем только на 3 части
+            if len(parts) != 3 or parts[0] != 'rename':
+                return [], "", "⚠️ Неверный формат команды переименования", self.get_chat_list_data()
+            
+            chat_id = parts[1]
+            new_name = urllib.parse.unquote(parts[2])
+            
+            # Получаем информацию о чате перед переименованием
+            dialog_to_rename = self.dialog_service.get_dialog(chat_id)
+            if not dialog_to_rename:
+                return [], "", "⚠️ Чат не найден", self.get_chat_list_data()
+            
+            old_name = dialog_to_rename.name
+            
+            # Проверяем новое название
+            if not new_name or not new_name.strip():
+                return [], "", "⚠️ Название не может быть пустым", self.get_chat_list_data()
+            
+            # Обрезаем если слишком длинное
+            if len(new_name) > 50:
+                new_name = new_name[:50]
+            
+            # Переименовываем
+            success = self.dialog_service.rename_dialog(chat_id, new_name)
+            
+            if not success:
+                return [], "", f"⚠️ Ошибка переименования чата: {old_name}", self.get_chat_list_data()
+            
+            # Получаем обновленный диалог
+            updated_dialog = self.dialog_service.get_dialog(chat_id)
+            
+            # Формируем ответ
+            if updated_dialog:
+                history = updated_dialog.to_ui_format()
+                status_text = f"✅ Чат переименован: {old_name} → {new_name}"
+            else:
+                history = []
+                status_text = f"⚠️ Чат не найден после переименования"
+            
+            chat_list_data = self.get_chat_list_data()
+            return history, chat_id, status_text, chat_list_data
+            
+        except Exception as e:
+            return [], "", f"⚠️ Ошибка при переименовании: {str(e)}", self.get_chat_list_data()
     
     def create_chat_with_js_handler(self):
         """Обработчик создания нового чата без лишних задержек"""

@@ -55,8 +55,16 @@ class GenerationConfig(BaseModel):
 class ChatNamingConfig(BaseModel):
     """Конфигурация генерации названий чатов"""
     max_name_length: int = 50
-    summary_max_tokens: int = 20
-    summary_temperature: float = 0.4
+    min_name_length: int = 1
+    default_name: str = "Новый чат"
+    
+    class NameValidationConfig(BaseModel):
+        allow_empty: bool = False
+        allow_whitespace_only: bool = False
+        allow_special_chars: bool = True
+        max_special_chars_percent: int = 30
+    
+    name_validation: NameValidationConfig = NameValidationConfig()
 
 class UIConfig(BaseModel):
     """Конфигурация UI"""

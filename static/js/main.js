@@ -60,6 +60,10 @@ document.addEventListener('DOMContentLoaded', function() {
             e.target.id === 'deleteConfirmModal') {
             window.deleteConfirmationModal.hide(false);
         }
+        if (window.renameChatModal && window.renameChatModal.isVisible && 
+            e.target.id === 'renameChatModal') {
+            window.renameChatModal.hide(false);
+        }
     });
 });
 
@@ -70,3 +74,16 @@ document.addEventListener('chatListUpdated', function() {
         window.renderChatList(window.chatListData);
     }
 });
+
+// Загружаем дополнительные модули после загрузки основных
+setTimeout(() => {
+    if (window.loadScript) {
+        // Загружаем модальные окна если они еще не загружены
+        if (!window.deleteConfirmationModal) {
+            window.loadScript('static/js/modules/modal.js');
+        }
+        if (!window.renameChatModal) {
+            window.loadScript('static/js/modules/rename-modal.js');
+        }
+    }
+}, 1000);

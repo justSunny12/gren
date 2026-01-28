@@ -57,3 +57,33 @@ window.escapeHtml = function(text) {
     div.textContent = text;
     return div.innerHTML;
 };
+
+// Функция для загрузки дополнительных JavaScript файлов
+window.loadScript = function(src, callback) {
+    if (document.querySelector(`script[src="${src}"]`)) {
+        if (callback) callback();
+        return;
+    }
+    
+    const script = document.createElement('script');
+    script.src = src;
+    script.onload = function() {
+        if (callback) callback();
+    };
+    script.onerror = function() {
+        console.error(`Не удалось загрузить скрипт: ${src}`);
+        if (callback) callback();
+    };
+    document.head.appendChild(script);
+};
+
+// Инициализация при загрузке DOM
+document.addEventListener('DOMContentLoaded', function() {
+    // Загружаем модальные окна если они еще не загружены
+    if (!window.deleteConfirmationModal) {
+        window.loadScript('static/js/modules/modal.js');
+    }
+    if (!window.renameChatModal) {
+        window.loadScript('static/js/modules/rename-modal.js');
+    }
+});

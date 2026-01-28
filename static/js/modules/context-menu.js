@@ -4,14 +4,25 @@ if (!window.SELECTORS) {
     console.error('SELECTORS не определены! Загрузите selectors.js первым');
 }
 
-// Ждем загрузки DOM для инициализации модального окна
+// Ждем загрузки DOM для инициализации модальных окон
 document.addEventListener('DOMContentLoaded', function() {
-    // Убедимся что модальное окно загружено
+    // Динамически загружаем модальные окна если они еще не загружены
+    const loadScript = (src) => {
+        if (!document.querySelector(`script[src="${src}"]`)) {
+            const script = document.createElement('script');
+            script.src = src;
+            document.head.appendChild(script);
+        }
+    };
+    
+    // Загружаем modal.js если еще не загружен
     if (!window.deleteConfirmationModal) {
-        // Динамически загружаем modal.js если он еще не загружен
-        const script = document.createElement('script');
-        script.src = 'static/js/modules/modal.js';
-        document.head.appendChild(script);
+        loadScript('static/js/modules/modal.js');
+    }
+    
+    // Загружаем rename-modal.js если еще не загружен
+    if (!window.renameChatModal) {
+        loadScript('static/js/modules/rename-modal.js');
     }
 });
 
@@ -67,8 +78,9 @@ function setupMenuHandlers(menu, chatId, chatName) {
     const pinBtn = menu.querySelector('.pin');
     const deleteBtn = menu.querySelector('.delete');
     
-    renameBtn.onclick = function(e) {
+    renameBtn.onclick = async function(e) {
         e.stopPropagation();
+        
         // Находим родительский элемент чата и закрываем меню
         const chatItem = document.querySelector(`[data-chat-id="${chatId}"]`);
         if (chatItem && chatItem.classList.contains('context-menu-open')) {
@@ -79,10 +91,18 @@ function setupMenuHandlers(menu, chatId, chatName) {
             menu.parentNode.removeChild(menu);
         }
         
-        // TODO: Реализовать переименование через модальное окно
-        const newName = prompt('Введите новое название для чата:', chatName);
-        if (newName && newName.trim() !== '' && newName !== chatName) {
-            // TODO: Вызов Python функции для переименования
+        // Используем кастомное модальное окно для переименования
+        if (window.showRenameChatModal) {
+            const newName = await window.showRenameChatModal(chatId, chatName);
+            if (newName && newName !== chatName) {
+                await renameChatRequest(chatId, newName);
+            }
+        } else {
+            // Fallback на стандартный prompt если модальное окно не загружено
+            const newName = prompt('Введите новое название для чата:', chatName);
+            if (newName && newName.trim() !== '' && newName !== chatName) {
+                await renameChatRequest(chatId, newName);
+            }
         }
     };
     
@@ -99,6 +119,7 @@ function setupMenuHandlers(menu, chatId, chatName) {
         }
         
         // TODO: Реализовать закрепление чата
+        alert('Функция закрепления чата скоро будет доступна!');
     };
     
     deleteBtn.onclick = async function(e) {
@@ -131,6 +152,47 @@ function setupMenuHandlers(menu, chatId, chatName) {
             }
         }
     };
+}
+
+async function renameChatRequest(chatId, newName) {
+    try {
+        // Находим поле ввода для отправки данных
+        const textarea = window.getChatInputField ? window.getChatInputField() : null;
+        if (!textarea) {
+            throw new Error('Не найдено поле для отправки данных');
+        }
+        
+        // Отправляем специальный запрос на переименование
+        // Формат: "rename:<chat_id>:<new_name>"
+        const renameCommand = `rename:${chatId}:${encodeURIComponent(newName)}`;
+        textarea.value = renameCommand;
+        
+        // Запускаем событие изменения
+        try {
+            const event = new Event('input', { 
+                bubbles: true,
+                cancelable: true 
+            });
+            textarea.dispatchEvent(event);
+        } catch (e) {
+            const changeEvent = new Event('change', {
+                bubbles: true,
+                cancelable: true
+            });
+            textarea.dispatchEvent(changeEvent);
+        }
+        
+        // Обновляем список чатов через 500мс
+        setTimeout(() => {
+            if (window.chatListData && window.renderChatList) {
+                window.renderChatList(window.chatListData);
+            }
+        }, 500);
+        
+    } catch (error) {
+        console.error('Ошибка при переименовании:', error);
+        alert('Не удалось переименовать чат. Попробуйте снова.');
+    }
 }
 
 async function deleteChatRequest(chatId, isActive) {
@@ -169,7 +231,8 @@ async function deleteChatRequest(chatId, isActive) {
         }, 500);
         
     } catch (error) {
-        throw error;
+        console.error('Ошибка при удалении:', error);
+        alert('Не удалось удалить чат. Попробуйте снова.');
     }
 }
 

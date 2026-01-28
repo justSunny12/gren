@@ -128,12 +128,47 @@ class DialogService:
         return True
     
     def rename_dialog(self, dialog_id: str, new_name: str) -> bool:
-        """Переименовывает диалог"""
-        if dialog_id in self.dialogs:
+        """Переименовывает диалог с валидацией"""
+        if dialog_id not in self.dialogs:
+            return False
+        
+        # Получаем конфигурацию
+        from container import container
+        config = container.get_config()
+        
+        # Очищаем и валидируем новое название
+        new_name = new_name.strip()
+        
+        # Проверка минимальной длины
+        if len(new_name) < config.chat_naming.min_name_length:
+            return False
+        
+        # Проверка на пустое название (после trim)
+        if not new_name:
+            return False
+        
+        # Проверка на только пробелы
+        if not config.chat_naming.name_validation.allow_whitespace_only and new_name.isspace():
+            return False
+        
+        # Ограничение максимальной длины
+        if len(new_name) > config.chat_naming.max_name_length:
+            new_name = new_name[:config.chat_naming.max_name_length]
+        
+        # Сохраняем старое название на случай ошибки
+        old_name = self.dialogs[dialog_id].name
+        
+        try:
             self.dialogs[dialog_id].rename(new_name)
             self._save_dialog(self.dialogs[dialog_id])
             return True
-        return False
+        except Exception:
+            # В случае ошибки восстанавливаем старое название
+            try:
+                self.dialogs[dialog_id].rename(old_name)
+            except:
+                pass
+            return False
     
     def get_current_dialog(self) -> Optional[Dialog]:
         """Получает текущий активный диалог"""

@@ -53,14 +53,14 @@ def create_main_ui():
     css_content = load_css()
     
     # Загружаем JavaScript из файлов
-    js_content = ""
     js_files = [
         'static/js/config/selectors.js',      # 1. Селекторы (самый первый!)
         'static/js/modules/utils.js',         # 2. Утилиты
-        'static/js/modules/modal.js',         # 3. Модальное окно
-        'static/js/modules/chat-list.js',     # 4. Список чатов
-        'static/js/modules/context-menu.js',  # 5. Контекстное меню
-        'static/js/main.js'                   # 6. Основной код
+        'static/js/modules/modal.js',         # 3. Модальное окно удаления
+        'static/js/modules/rename-modal.js',  # 4. Модальное окно переименования
+        'static/js/modules/chat-list.js',     # 5. Список чатов
+        'static/js/modules/context-menu.js',  # 6. Контекстное меню
+        'static/js/main.js'                   # 7. Основной код
     ]
     
     js_content = ""
