@@ -60,15 +60,6 @@ class ButtonComponents:
             variant="secondary",
             elem_classes="switch-chat-btn"
         )
-    
-    def create_delete_chat_button(self) -> gr.Button:
-        """Создает кнопку удаления чата"""
-        return gr.Button(
-            "🗑️ Удалить",
-            variant="stop",
-            min_width=140,
-            elem_classes="delete-chat-btn"
-        )
 
 # Глобальный экземпляр
 buttons = ButtonComponents()

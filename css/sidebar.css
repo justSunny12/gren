@@ -3,303 +3,319 @@
     height: 100vh !important;
     max-height: 100vh !important;
     overflow-y: auto !important;
-    padding: 0 10px !important;
-    background: #f8f9fa !important;
-    min-width: 300px !important;
-    max-width: 12.5vw !important;
+    padding: 15px !important;
+    background: rgb(249, 250, 251);
+    min-width: 320px !important;
+    max-width: 350px !important;
     flex-shrink: 0 !important;
     position: relative !important;
     z-index: 10 !important;
+    display: flex !important;
+    flex-direction: column !important;
 }
 
-/* Жесткий переопределение Gradio */
-#sidebar_container .gr-dropdown {
-    margin-top: 0 !important;
+/* Новые стили для списка чатов */
+.chat-list-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: 50vh;
     margin-bottom: 15px !important;
+}
+
+.chat-list {
+    flex: 1;
+    background: transparent;
+    padding: 0 !important;
+    border: none;
+    overflow-y: auto;
+    height: 100%;
+}
+
+/* Стили для разделителей групп */
+.group-divider {
+    margin: 12px 0 6px 0;
+    padding: 6px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: rgb(107, 114, 128);
+    background-color: transparent;
+    border-bottom: 1px solid rgb(229, 231, 235);
+}
+
+/* Первый разделитель без отступа сверху */
+.chat-list > .group-divider:first-child {
+    margin-top: 0;
+}
+
+.chat-item {
+    padding: 6px 8px;
+    margin: 4px 0;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    border: none;
+    background: rgb(249, 250, 251);
+    min-height: 32px;
+    display: flex;
+    align-items: center;
+    position: relative;
+}
+
+.chat-item:hover {
+    background: rgb(241, 243, 245);
+    border: none;
+}
+
+.chat-item.active {
+    background: rgb(230, 237, 252);
+    border: none;
+}
+
+.chat-item .chat-name-wrapper {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    min-width: 0; /* Для правильной работы text-overflow */
+}
+
+.chat-item .chat-name {
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.4;
+    flex: 1;
+}
+
+/* Элемент управления - круг с троеточием */
+.chat-control {
+    display: none; /* Скрыт по умолчанию */
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    margin: 0 0 0 8px;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s ease;
+    position: relative;
+}
+
+/* Отображаем элемент управления для активного чата всегда */
+.chat-item.active .chat-control {
+    display: flex;
+    background: transparent;
+}
+
+/* Отображаем элемент управления при ховере на чат */
+.chat-item:hover .chat-control {
+    display: flex;
+}
+
+/* Цвет фона при ховере на элемент управления */
+.chat-control:hover {
+    background: rgb(229, 232, 235);
+}
+
+.chat-item.active .chat-control:hover {
+    background: rgb(219, 226, 241);
+}
+
+/* Символ троеточия */
+.chat-control::before {
+    content: "⋯";
+    font-size: 14px;
+    font-weight: bold;
+    color: rgb(107, 114, 128);
+    line-height: 1;
+    transform: rotate(90deg);
+    display: block;
+}
+
+.chat-control:hover::before {
+    color: rgb(55, 65, 81);
+}
+
+/* Контекстное меню */
+.chat-context-menu {
+    position: fixed !important;  /* Фиксированное позиционирование */
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    min-width: 160px;
+    z-index: 10000; /* Очень высокий z-index */
+    display: none;
+    border: 1px solid rgb(229, 231, 235);
+    overflow: hidden;
+    padding: 4px 0;
+}
+
+.chat-context-menu.show {
+    display: block;
+}
+
+.chat-context-menu-item {
+    padding: 8px 12px;
+    font-size: 13px;
+    color: rgb(55, 65, 81);
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.chat-context-menu-item:hover {
+    background-color: rgb(249, 250, 251);
+}
+
+.chat-context-menu-item.delete {
+    color: rgb(220, 38, 38) !important;
+}
+
+.chat-context-menu-item.delete:hover {
+    background-color: rgb(254, 242, 242);
+    color: rgb(220, 38, 38) !important;
+}
+
+.chat-context-menu-item.delete .menu-icon {
+    color: rgb(220, 38, 38) !important;
+}
+
+/* Убеждаемся, что текст тоже красный */
+.chat-context-menu-item.delete span:not(.menu-icon) {
+    color: rgb(220, 38, 38) !important;
+}
+
+.chat-context-menu-divider {
+    height: 1px;
+    background-color: rgb(229, 231, 235);
+    margin: 4px 0;
+}
+
+/* Иконки для пунктов меню как в DeepSeek */
+.chat-context-menu-item .menu-icon {
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    color: inherit;
+}
+
+.chat-context-menu-item .menu-icon svg {
+    stroke: currentColor;
+    fill: none;
+}
+
+.chat-context-menu-item.delete .menu-icon svg {
+    stroke: rgb(220, 38, 38);
+}
+
+/* Стили для кнопок */
+.new-chat-btn {
     width: 100% !important;
-    background: white !important;
-    border: 1px solid #d0d0d0 !important;
-    border-radius: 6px !important;
+    padding: 12px !important;
+    font-size: 15px !important;
+    font-weight: 600 !important;
+    border-radius: 8px !important;
+    height: 48px !important;
+    margin-bottom: 15px !important; /* Увеличиваем отступ снизу */
 }
 
-#sidebar_container .gr-dropdown:hover {
-    border-color: #b0b0b0 !important;
-}
-
-#sidebar_container .gr-dropdown:focus {
-    border-color: #007bff !important;
-    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1) !important;
-}
-
-/* Кнопки в сайдбаре */
-#sidebar_container .gr-button {
-    margin: 5px 0 !important;
-    width: 100% !important;
-    padding: 10px 16px !important;
-    font-size: 14px !important;
-    font-weight: 500 !important;
-    transition: all 0.2s ease !important;
-}
-
-#sidebar_container .gr-button.primary {
-    background: #007bff !important;
-    color: white !important;
-}
-
-#sidebar_container .gr-button.primary:hover {
-    background: #0056b3 !important;
-    transform: translateY(-1px) !important;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
-}
-
-#sidebar_container .gr-button.secondary {
-    background: #6c757d !important;
-    color: white !important;
-}
-
-#sidebar_container .gr-button.secondary:hover {
-    background: #5a6268 !important;
-    transform: translateY(-1px) !important;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
-}
-
-#sidebar_container .gr-button.stop {
-    background: #dc3545 !important;
-    color: white !important;
-}
-
-#sidebar_container .gr-button.stop:hover {
-    background: #c82333 !important;
-    transform: translateY(-1px) !important;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
-}
-
-/* Специальная кнопка для сброса настроек */
-#sidebar_container .gr-button.reset-btn {
-    background: #ffc107 !important;
-    color: #212529 !important;
-    font-size: 13px !important;
-    padding: 8px 12px !important;
-    margin-top: 10px !important;
-    border: 1px solid #ffc107 !important;
-}
-
-#sidebar_container .gr-button.reset-btn:hover {
-    background: #e0a800 !important;
-    border-color: #e0a800 !important;
-    transform: translateY(-1px) !important;
-}
-
-/* Разделитель в сайдбаре */
-.sidebar-divider {
-    margin: 7px 0 !important;
-    border-color: #e0e0e0 !important;
-    border-width: 1px !important;
-}
+/* УДАЛЯЕМ ВСЕ СТИЛИ ДЛЯ .delete-chat-btn */
 
 /* Аккордеон параметров */
-#sidebar_container .params-accordion {
-    /* margin-top: 15px !important;
-    margin-bottom: 15px !important; */
+.params-accordion {
+    margin-bottom: 15px !important;
     background: white !important;
-    border: 1px solid #e0e0e0 !important;
+    border: 1px solid rgb(229, 231, 235) !important;
     border-radius: 8px !important;
-    padding: 0 !important;
-    transition: all 0.3s ease !important;
+    overflow: hidden !important;
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
 }
 
-#sidebar_container .params-accordion .gr-accordion {
-    border: none !important;
-}
-
-/* Слайдеры */
-#sidebar_container .gr-slider {
-    margin: 12px 0 !important;
-    transition: all 0.3s ease !important;
-    position: relative !important;
-}
-
-#sidebar_container .gr-slider .gr-slider-input {
-    background: #e9ecef !important;
-    transition: all 0.2s ease !important;
-}
-
-#sidebar_container .gr-slider .gr-slider-input:hover {
-    background: #dee2e6 !important;
-}
-
-#sidebar_container .gr-slider .gr-slider-input::-webkit-slider-thumb {
-    background: #007bff !important;
-    transition: all 0.2s ease !important;
+/* Заголовок аккордеона */
+.params-accordion .gr-accordion-header {
+    background: rgb(249, 250, 251) !important;
+    border-bottom: 1px solid rgb(229, 231, 235) !important;
+    padding: 12px 16px !important;
+    font-weight: 600 !important;
+    color: rgb(55, 65, 81) !important;
     cursor: pointer !important;
 }
 
-#sidebar_container .gr-slider .gr-slider-input::-webkit-slider-thumb:hover {
-    background: #0056b3 !important;
-    transform: scale(1.1) !important;
+.params-accordion .gr-accordion-header:hover {
+    background: rgb(243, 244, 246) !important;
+    color: rgb(37, 99, 235) !important;
 }
 
-#sidebar_container .gr-slider .gr-slider-input::-webkit-slider-thumb:active {
-    background: #0056b3 !important;
-    transform: scale(1.2) !important;
+/* Содержимое аккордеона */
+.params-accordion .gr-accordion-content {
+    padding: 16px !important;
+    background: white !important;
 }
 
-/* Чекбокс Thinking */
-#sidebar_container .gr-checkbox {
+/* Слайдеры в аккордеоне */
+.params-accordion .gr-slider {
+    margin: 12px 0 !important;
+}
+
+.params-accordion .gr-slider .gr-slider-input {
+    background: rgb(243, 244, 246) !important;
+}
+
+/* Чекбокс в аккордеона */
+.params-accordion .gr-checkbox {
     margin: 15px 0 !important;
     padding: 10px !important;
     background: white !important;
     border-radius: 6px !important;
-    border: 1px solid #e0e0e0 !important;
-    transition: all 0.3s ease !important;
+    border: 1px solid rgb(229, 231, 235) !important;
 }
 
-#sidebar_container .gr-checkbox:hover {
-    border-color: #007bff !important;
-    background: #f8f9ff !important;
+.params-accordion .gr-checkbox:hover {
+    border-color: rgb(37, 99, 235) !important;
+    background: rgb(239, 246, 255) !important;
 }
 
-#sidebar_container .gr-checkbox input[type="checkbox"] {
-    margin-right: 8px !important;
-    cursor: pointer !important;
-}
-
-#sidebar_container .gr-checkbox label {
-    cursor: pointer !important;
-    font-weight: 500 !important;
-    display: flex !important;
-    align-items: center !important;
-}
-
-#sidebar_container .gr-checkbox .info {
-    color: #6c757d !important;
-    font-size: 12px !important;
-    margin-top: 4px !important;
-    margin-left: 24px !important;
-}
-
-/* Стили для уведомлений о сохранении */
-#sidebar_container .status-saving {
-    color: #ff9800 !important;
-    font-style: italic !important;
-    animation: pulse 1.5s infinite !important;
-}
-
-#sidebar_container .status-success {
-    color: #4caf50 !important;
-    font-weight: 500 !important;
-    animation: fadeIn 0.3s ease !important;
-}
-
-#sidebar_container .status-error {
-    color: #f44336 !important;
-    font-weight: 500 !important;
-    animation: shake 0.5s ease !important;
-}
-
-@keyframes pulse {
-    0% { opacity: 1; }
-    50% { opacity: 0.6; }
-    100% { opacity: 1; }
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(-5px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes shake {
-    0%, 100% { transform: translateX(0); }
-    10%, 30%, 50%, 70%, 90% { transform: translateX(-2px); }
-    20%, 40%, 60%, 80% { transform: translateX(2px); }
-}
-
-/* Анимация для изменяющихся значений */
-.params-accordion .gr-slider.changed {
-    border-left: 3px solid #ff9800 !important;
-    padding-left: 12px !important;
-    background: linear-gradient(90deg, rgba(255,152,0,0.05) 0%, rgba(255,152,0,0) 20px) !important;
-}
-
-.params-accordion .gr-checkbox.changed {
-    border-left: 3px solid #ff9800 !important;
-    padding-left: 12px !important;
-    background: linear-gradient(90deg, rgba(255,152,0,0.05) 0%, rgba(255,152,0,0) 20px) !important;
-}
-
-/* Подсветка активного слайдера */
-.params-accordion .gr-slider:focus-within {
-    border-color: #007bff !important;
-    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1) !important;
-}
-
-/* Индикатор изменения значения */
-.value-indicator {
-    position: absolute !important;
-    right: 10px !important;
-    top: 50% !important;
-    transform: translateY(-50%) !important;
-    background: #ff9800 !important;
-    color: white !important;
-    font-size: 11px !important;
-    padding: 2px 6px !important;
-    border-radius: 10px !important;
-    opacity: 0 !important;
-    transition: opacity 0.3s ease !important;
-}
-
-.params-accordion .gr-slider.changed .value-indicator,
-.params-accordion .gr-checkbox.changed .value-indicator {
-    opacity: 1 !important;
-}
-
-/* Статус внизу сайдбара */
-#sidebar_container .gr-markdown:last-child {
-    margin-top: auto !important;
-    margin-bottom: 10px !important;
-    padding: 12px !important;
-    background: white !important;
-    border-radius: 8px !important;
-    border: 1px solid #e0e0e0 !important;
-    font-size: 13px !important;
-    min-height: 50px !important;
-    display: flex !important;
-    align-items: center !important;
-    transition: all 0.3s ease !important;
-}
-
-#sidebar_container .gr-markdown:last-child:hover {
-    border-color: #007bff !important;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05) !important;
-}
-
-/* Заголовки в аккордеоне */
-#sidebar_container .params-accordion .gr-accordion-header {
-    background: #f8f9fa !important;
-    border-bottom: 1px solid #e0e0e0 !important;
-    padding: 12px 16px !important;
-    font-weight: 600 !important;
-    color: #495057 !important;
-    cursor: pointer !important;
-    transition: all 0.2s ease !important;
-}
-
-#sidebar_container .params-accordion .gr-accordion-header:hover {
-    background: #e9ecef !important;
-    color: #007bff !important;
-}
-
-#sidebar_container .params-accordion .gr-accordion-header:active {
-    background: #dee2e6 !important;
-}
-
-/* Контейнер для кнопки сброса */
-.reset-btn-container {
+/* Кнопка сброса настроек внутри аккордеона */
+.params-accordion .gr-button {
     margin-top: 10px !important;
-    padding-top: 10px !important;
-    border-top: 1px dashed #dee2e6 !important;
-    display: flex !important;
-    justify-content: center !important;
+    width: 100% !important;
+    padding: 8px 12px !important;
+    font-size: 13px !important;
+    background: rgb(243, 244, 246) !important;
+    border: 1px solid rgb(229, 231, 235) !important;
+    color: rgb(55, 65, 81) !important;
+}
+
+.params-accordion .gr-button:hover {
+    background: rgb(229, 231, 235) !important;
+    border-color: rgb(209, 213, 219) !important;
+}
+
+/* Статус */
+.status-bar {
+    padding: 12px 16px;
+    background: rgb(243, 244, 246);
+    border-radius: 8px;
+    border: 1px solid rgb(229, 231, 235);
+    margin-top: auto !important; /* Прижимаем к низу */
+    font-size: 13px;
+    color: rgb(55, 65, 81);
+    font-weight: 500;
 }
 
 /* Скроллбар для сайдбара */
@@ -308,17 +324,68 @@
 }
 
 #sidebar_container::-webkit-scrollbar-track {
-    background: #f1f1f1 !important;
+    background: rgb(243, 244, 246) !important;
     border-radius: 3px !important;
 }
 
 #sidebar_container::-webkit-scrollbar-thumb {
-    background: #c1c1c1 !important;
+    background: rgb(209, 213, 219) !important;
     border-radius: 3px !important;
 }
 
 #sidebar_container::-webkit-scrollbar-thumb:hover {
-    background: #a8a8a8 !important;
+    background: rgb(156, 163, 175) !important;
+}
+
+/* Скроллбар для списка чатов - СКРЫВАЕТСЯ КОГДА НЕ ИСПОЛЬЗУЕТСЯ */
+.chat-list::-webkit-scrollbar {
+    width: 4px !important;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.chat-list:hover::-webkit-scrollbar {
+    opacity: 1;
+}
+
+.chat-list::-webkit-scrollbar-track {
+    background: transparent !important;
+    border-radius: 2px !important;
+}
+
+.chat-list::-webkit-scrollbar-thumb {
+    background: transparent !important;
+    border-radius: 2px !important;
+    transition: background 0.3s ease;
+}
+
+.chat-list:hover::-webkit-scrollbar-thumb {
+    background: rgb(209, 213, 219) !important;
+}
+
+.chat-list::-webkit-scrollbar-thumb:hover {
+    background: rgb(156, 163, 175) !important;
+}
+
+/* Для Firefox - скрываем скроллбар когда не используется */
+.chat-list {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+    transition: scrollbar-color 0.3s ease;
+}
+
+.chat-list:hover {
+    scrollbar-color: rgb(209, 213, 219) transparent;
+}
+
+.hidden-input {
+    opacity: 0.01;
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    width: 100px;
+    height: 20px;
+    pointer-events: auto !important;
 }
 
 /* Responsive adjustments */
@@ -326,16 +393,58 @@
     #sidebar_container {
         min-width: 280px !important;
         width: 280px !important;
-        max-width: 300px !important;
-        padding: 8px 12px !important;
+        padding: 12px !important;
     }
     
-    #sidebar_container .gr-button {
-        padding: 8px 12px !important;
-        font-size: 13px !important;
+    .chat-list-container {
+        margin-bottom: 12px !important;
     }
     
-    #sidebar_container .gr-slider {
-        margin: 10px 0 !important;
+    .chat-item {
+        min-height: 32px;
+        padding: 6px 6px;
+    }
+    
+    .chat-item .chat-name {
+        font-size: 13px;
+    }
+    
+    .group-divider {
+        font-size: 10px;
+        padding: 5px 8px;
+        margin: 10px 0 5px 0;
+    }
+    
+    .chat-control {
+        width: 20px;
+        height: 20px;
+        margin-left: 6px;
+    }
+    
+    .chat-control::before {
+        font-size: 14px;
+    }
+    
+    .chat-context-menu {
+        min-width: 140px;
+        right: 6px;
+    }
+    
+    .chat-context-menu-item {
+        padding: 6px 10px;
+        font-size: 12px;
+    }
+    
+    .chat-context-menu-item .menu-icon {
+        width: 14px;
+        height: 14px;
+        font-size: 12px;
+    }
+    
+    .new-chat-btn {
+        padding: 10px !important;
+        font-size: 14px !important;
+        height: 44px !important;
+        margin-bottom: 12px !important; /* Уменьшаем для мобильных */
     }
 }

@@ -1,4 +1,4 @@
-# /run.py (полностью исправленный)
+# /run.py (упрощенный)
 import gradio as gr
 import atexit
 import time
@@ -102,14 +102,13 @@ def initialize_model():
                     warmup_messages, 
                     max_tokens=10,
                     temperature=0.1,
-                    enable_thinking=False  # ← ВЫКЛЮЧАЕМ РАЗМЫШЛЕНИЯ
+                    enable_thinking=False
                 )
                 
                 # Убираем флаг прогрева
                 if hasattr(model_service, '_warming_up'):
                     model_service._warming_up = False
                 
-                # Не выводим ответ в консоль
                 print("✅ Модель прогрета успешно")
                 
             except Exception as e:
@@ -169,7 +168,7 @@ def main():
     # Создаем интерфейс
     print("\n🖥️  СОЗДАНИЕ ИНТЕРФЕЙСА...")
     try:
-        demo, css_content = create_main_ui()
+        demo, css_content, simple_js = create_main_ui()
         print("✅ Интерфейс создан")
     except Exception as e:
         print(f"❌ Ошибка создания интерфейса: {e}")
@@ -201,7 +200,8 @@ def main():
             debug=config.app.debug,
             show_error=config.server.show_error,
             theme=config.app.theme,
-            css=css_content
+            css=css_content,
+            head=simple_js
         )
     except Exception as e:
         print(f"❌ Ошибка запуска сервера: {e}")
