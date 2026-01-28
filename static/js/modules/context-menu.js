@@ -15,9 +15,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
     
-    // Загружаем modal.js если еще не загружен
+    // Загружаем delete-modal.js если еще не загружен
     if (!window.deleteConfirmationModal) {
-        loadScript('static/js/modules/modal.js');
+        loadScript('static/js/modules/delete-modal.js');
     }
     
     // Загружаем rename-modal.js если еще не загружен

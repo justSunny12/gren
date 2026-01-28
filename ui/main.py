@@ -56,7 +56,7 @@ def create_main_ui():
     js_files = [
         'static/js/config/selectors.js',      # 1. Селекторы (самый первый!)
         'static/js/modules/utils.js',         # 2. Утилиты
-        'static/js/modules/modal.js',         # 3. Модальное окно удаления
+        'static/js/modules/delete-modal.js',         # 3. Модальное окно удаления
         'static/js/modules/rename-modal.js',  # 4. Модальное окно переименования
         'static/js/modules/chat-list.js',     # 5. Список чатов
         'static/js/modules/context-menu.js',  # 6. Контекстное меню

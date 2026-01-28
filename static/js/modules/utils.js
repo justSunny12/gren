@@ -81,7 +81,7 @@ window.loadScript = function(src, callback) {
 document.addEventListener('DOMContentLoaded', function() {
     // Загружаем модальные окна если они еще не загружены
     if (!window.deleteConfirmationModal) {
-        window.loadScript('static/js/modules/modal.js');
+        window.loadScript('static/js/modules/delete-modal.js');
     }
     if (!window.renameChatModal) {
         window.loadScript('static/js/modules/rename-modal.js');
