@@ -247,16 +247,19 @@ class RenameChatModal {
             }
             
             .rename-modal-btn {
-                padding: 8px 16px;
-                border-radius: 6px;
-                font-size: 13px;
+                padding: 10px 20px;
+                border-radius: 8px;
+                font-size: 14px;
                 font-weight: 500;
                 cursor: pointer;
                 border: none;
-                transition: all 0.12s ease;
-                min-width: 70px;
-                height: 32px;
-                line-height: 1;
+                transition: all 0.2s ease;
+                min-width: 80px;
+            }
+            
+            .rename-modal-btn:focus {
+                outline: 2px solid #8d8d8d;
+                outline-offset: 1px;
             }
             
             .rename-modal-btn.rename-cancel-btn {
@@ -268,7 +271,6 @@ class RenameChatModal {
             .rename-modal-btn.rename-cancel-btn:hover {
                 background: #e5e7eb;
                 border-color: #9ca3af;
-                transform: translateY(-1px);
                 box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
             }
             
@@ -279,7 +281,6 @@ class RenameChatModal {
             
             .rename-modal-btn.rename-confirm-btn:hover {
                 background: #2563eb;
-                transform: translateY(-1px);
                 box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
             }
             

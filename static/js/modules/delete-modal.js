@@ -151,7 +151,6 @@ class DeleteConfirmationModal {
             .delete-modal-btn.delete-cancel-btn:hover {
                 background: #e5e7eb;
                 border-color: #9ca3af;
-                transform: translateY(-1px);
                 box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
             }
             
@@ -162,18 +161,16 @@ class DeleteConfirmationModal {
             
             .delete-modal-btn.delete-confirm-btn:hover {
                 background: #b91c1c;
-                transform: translateY(-1px);
                 box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
             }
             
             .delete-modal-btn:active {
-                transform: translateY(0);
                 box-shadow: none;
             }
             
             .delete-modal-btn:focus {
-                outline: 2px solid #3b82f6;
-                outline-offset: 2px;
+                outline: 2px solid #8d8d8d;
+                outline-offset: 1px;
             }
             
             @keyframes delete-modal-fade-in {
@@ -240,9 +237,6 @@ class DeleteConfirmationModal {
             // Показываем модальное окно
             this.modal.style.display = 'flex';
             document.body.style.overflow = 'hidden';
-            
-            // Фокусируем на кнопке Отмена для удобства
-            this.cancelBtn.focus();
         });
     }
     
