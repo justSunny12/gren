@@ -1,4 +1,4 @@
-/* static/js/modules/modal.js - Кастомное модальное окно */
+/* static/js/modules/delete-modal.js - Кастомное модальное окно */
 
 class DeleteConfirmationModal {
     constructor() {
@@ -15,19 +15,19 @@ class DeleteConfirmationModal {
     }
     
     init() {
-        // Создаем HTML структуру модального окна
+        // Создаем HTML структуру модального окна с уникальными классами
         const modalHTML = `
-            <div id="deleteConfirmModal" class="modal-overlay" style="display: none;">
-                <div class="modal-container">
-                    <div class="modal-header">
-                        <h3 class="modal-title">Подтверждение удаления</h3>
+            <div id="deleteConfirmModal" class="delete-modal-overlay" style="display: none;">
+                <div class="delete-modal-container">
+                    <div class="delete-modal-header">
+                        <h3 class="delete-modal-title">Подтверждение удаления</h3>
                     </div>
-                    <div class="modal-content">
-                        <p id="deleteModalMessage">Вы уверены, что хотите удалить этот чат?</p>
+                    <div class="delete-modal-content">
+                        <p id="deleteModalMessage" class="delete-modal-message">Вы уверены, что хотите удалить этот чат?</p>
                     </div>
-                    <div class="modal-footer">
-                        <button id="cancelDeleteBtn" class="modal-btn cancel-btn">Отмена</button>
-                        <button id="confirmDeleteBtn" class="modal-btn delete-btn">Удалить</button>
+                    <div class="delete-modal-footer">
+                        <button id="cancelDeleteBtn" class="delete-modal-btn delete-cancel-btn">Отмена</button>
+                        <button id="confirmDeleteBtn" class="delete-modal-btn delete-confirm-btn">Удалить</button>
                     </div>
                 </div>
             </div>
@@ -44,7 +44,7 @@ class DeleteConfirmationModal {
         this.cancelBtn = document.getElementById('cancelDeleteBtn');
         this.confirmBtn = document.getElementById('confirmDeleteBtn');
         
-        // Добавляем стили
+        // Добавляем стили с уникальными классами
         this.addStyles();
         
         // Назначаем обработчики
@@ -67,9 +67,16 @@ class DeleteConfirmationModal {
     }
     
     addStyles() {
+        // Проверяем, не добавлены ли уже стили
+        if (document.getElementById('delete-modal-styles')) {
+            return;
+        }
+        
         const style = document.createElement('style');
+        style.id = 'delete-modal-styles';
         style.textContent = `
-            .modal-overlay {
+            /* Стили для модального окна удаления */
+            .delete-modal-overlay {
                 position: fixed;
                 top: 0;
                 left: 0;
@@ -79,40 +86,44 @@ class DeleteConfirmationModal {
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                z-index: 99999;
+                z-index: 1001; /* Чуть выше чем у rename-modal */
                 backdrop-filter: blur(4px);
-                animation: modalFadeIn 0.2s ease;
+                animation: delete-modal-fade-in 0.2s ease;
             }
             
-            .modal-container {
+            .delete-modal-container {
                 background: white;
                 border-radius: 12px;
                 box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
                 width: 400px;
                 max-width: 90vw;
                 overflow: hidden;
-                animation: modalSlideUp 0.3s ease;
+                animation: delete-modal-slide-up 0.3s ease;
             }
             
-            .modal-header {
+            .delete-modal-header {
                 padding: 24px 24px 16px 24px;
             }
             
-            .modal-title {
+            .delete-modal-title {
                 margin: 0;
                 font-size: 18px;
                 font-weight: 600;
                 color: #111827;
             }
             
-            .modal-content {
+            .delete-modal-content {
                 padding: 0 24px 20px 24px;
+            }
+            
+            .delete-modal-message {
                 color: #374151;
                 line-height: 1.5;
                 font-size: 15px;
+                margin: 0;
             }
             
-            .modal-footer {
+            .delete-modal-footer {
                 padding: 0 24px 24px 24px;
                 display: flex;
                 justify-content: flex-end;
@@ -120,7 +131,7 @@ class DeleteConfirmationModal {
                 background: white;
             }
             
-            .modal-btn {
+            .delete-modal-btn {
                 padding: 10px 20px;
                 border-radius: 8px;
                 font-size: 14px;
@@ -131,46 +142,46 @@ class DeleteConfirmationModal {
                 min-width: 80px;
             }
             
-            .modal-btn.cancel-btn {
+            .delete-modal-btn.delete-cancel-btn {
                 background: #f3f4f6;
                 color: #374151;
                 border: 1px solid #d1d5db;
             }
             
-            .modal-btn.cancel-btn:hover {
+            .delete-modal-btn.delete-cancel-btn:hover {
                 background: #e5e7eb;
                 border-color: #9ca3af;
                 transform: translateY(-1px);
                 box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
             }
             
-            .modal-btn.delete-btn {
+            .delete-modal-btn.delete-confirm-btn {
                 background: #dc2626;
                 color: white;
             }
             
-            .modal-btn.delete-btn:hover {
+            .delete-modal-btn.delete-confirm-btn:hover {
                 background: #b91c1c;
                 transform: translateY(-1px);
                 box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
             }
             
-            .modal-btn:active {
+            .delete-modal-btn:active {
                 transform: translateY(0);
                 box-shadow: none;
             }
             
-            .modal-btn:focus {
+            .delete-modal-btn:focus {
                 outline: 2px solid #3b82f6;
                 outline-offset: 2px;
             }
             
-            @keyframes modalFadeIn {
+            @keyframes delete-modal-fade-in {
                 from { opacity: 0; }
                 to { opacity: 1; }
             }
             
-            @keyframes modalSlideUp {
+            @keyframes delete-modal-slide-up {
                 from {
                     opacity: 0;
                     transform: translateY(20px);
@@ -182,28 +193,31 @@ class DeleteConfirmationModal {
             }
             
             @media (max-width: 480px) {
-                .modal-container {
+                .delete-modal-container {
                     width: 90vw;
                     margin: 16px;
                 }
                 
-                .modal-header {
+                .delete-modal-header {
                     padding: 20px 20px 12px 20px;
                 }
                 
-                .modal-content {
+                .delete-modal-content {
                     padding: 0 20px 16px 20px;
+                }
+                
+                .delete-modal-message {
                     font-size: 14px;
                 }
                 
-                .modal-footer {
+                .delete-modal-footer {
                     padding: 0 20px 20px 20px;
                     flex-direction: row;
                     justify-content: flex-end;
                     gap: 8px;
                 }
                 
-                .modal-btn {
+                .delete-modal-btn {
                     min-width: 70px;
                     padding: 10px 16px;
                     font-size: 13px;
@@ -225,7 +239,7 @@ class DeleteConfirmationModal {
             
             // Показываем модальное окно
             this.modal.style.display = 'flex';
-            document.body.style.overflow = 'hidden'; // Блокируем скролл
+            document.body.style.overflow = 'hidden';
             
             // Фокусируем на кнопке Отмена для удобства
             this.cancelBtn.focus();
