@@ -20,6 +20,19 @@ class Dialog(BaseModel):
     created: datetime = Field(default_factory=datetime.now)
     updated: datetime = Field(default_factory=datetime.now)
     status: str = "active"
+    pinned: bool = False  # ← НОВОЕ ПОЛЕ для закрепления
+    pinned_position: Optional[int] = None  # ← ПОЗИЦИЯ в закрепленных (чем меньше, тем выше)
+    
+    def pin(self, position: int):
+        """Закрепляет диалог на указанной позиции"""
+        self.pinned = True
+        self.pinned_position = position
+        # Не обновляем updated!
+    
+    def unpin(self):
+        """Открепляет диалог"""
+        self.pinned = False
+        self.pinned_position = None
     
     def add_message(self, role: MessageRole, content: str) -> Message:
         """Добавляет сообщение в диалог и возвращает его"""
@@ -94,5 +107,7 @@ class Dialog(BaseModel):
             ],
             "created": self.created.isoformat(),
             "updated": self.updated.isoformat(),
-            "status": self.status
+            "status": self.status,
+            "pinned": self.pinned,
+            "pinned_position": self.pinned_position
         }

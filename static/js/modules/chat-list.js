@@ -21,6 +21,7 @@ window.renderChatList = function(chats) {
         try {
             chats = JSON.parse(chats);
         } catch (e) {
+            console.error('Ошибка парсинга JSON:', e);
             chats = { groups: {}, flat: [] };
         }
     }
@@ -46,7 +47,7 @@ window.renderChatList = function(chats) {
     }
     
     // Отображаем группы в правильном порядке
-    const groupOrder = ['Сегодня', 'Вчера', '7 дней', 'Месяц', 'Более месяца'];
+    const groupOrder = ['Закрепленные', 'Сегодня', 'Вчера', '7 дней', 'Месяц', 'Более месяца'];
     
     groupOrder.forEach(groupName => {
         if (chatGroups[groupName] && chatGroups[groupName].length > 0) {
@@ -77,6 +78,7 @@ function createChatElement(container, chat) {
     chatDiv.className = 'chat-item';
     chatDiv.setAttribute('data-chat-id', chat.id);
     
+    // УБИРАЕМ иконку закрепления - достаточно группы "Закрепленные"
     // Структура с элементом управления
     chatDiv.innerHTML = `
         <div class="chat-name-wrapper">
@@ -118,9 +120,9 @@ function createChatElement(container, chat) {
     controlBtn.onclick = function(e) {
         e.stopPropagation();
         
-        // Просто вызываем toggleContextMenu - вся логика там
+        // Передаем информацию о закреплении
         if (window.toggleContextMenu) {
-            window.toggleContextMenu(chatDiv, chat.id, chat.name);
+            window.toggleContextMenu(chatDiv, chat.id, chat.name, chat.pinned || false);
         }
     };
     

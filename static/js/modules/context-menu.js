@@ -4,34 +4,28 @@ if (!window.SELECTORS) {
     console.error('SELECTORS не определены! Загрузите selectors.js первым');
 }
 
-// Ждем загрузки DOM для инициализации модальных окон
-document.addEventListener('DOMContentLoaded', function() {
-    // Динамически загружаем модальные окна если они еще не загружены
-    const loadScript = (src) => {
-        if (!document.querySelector(`script[src="${src}"]`)) {
-            const script = document.createElement('script');
-            script.src = src;
-            document.head.appendChild(script);
-        }
-    };
-    
-    // Загружаем delete-modal.js если еще не загружен
-    if (!window.deleteConfirmationModal) {
-        loadScript('static/js/modules/delete-modal.js');
-    }
-    
-    // Загружаем rename-modal.js если еще не загружен
-    if (!window.renameChatModal) {
-        loadScript('static/js/modules/rename-modal.js');
-    }
-});
-
-window.createContextMenu = function(chatId, chatName) {
+window.createContextMenu = function(chatId, chatName, isPinned) {
     if (!window.SELECTORS) return null;
     
     const menu = document.createElement('div');
     menu.className = 'chat-context-menu';
     menu.setAttribute('data-chat-id', chatId);
+    
+    // Меняем текст и иконку в зависимости от состояния закрепления
+    const pinText = isPinned ? "Открепить" : "Закрепить";
+    const pinIcon = isPinned ? `
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 17v5"/>
+            <path d="M15 9.34V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H7.89"/>
+            <path d="m2 2 20 20"/>
+            <path d="M9 9v1.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h11"/>
+        </svg>
+    ` : `
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 17v5"/>
+            <path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/>
+        </svg>
+    `;
     
     menu.innerHTML = `
         <div class="chat-context-menu-item rename">
@@ -46,12 +40,9 @@ window.createContextMenu = function(chatId, chatName) {
         </div>
         <div class="chat-context-menu-item pin">
             <span class="menu-icon">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M12 17v5"/>
-                    <path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/>
-                </svg>
+                ${pinIcon}
             </span>
-            <span>Закрепить</span>
+            <span>${pinText}</span>
         </div>
         <div class="chat-context-menu-divider"></div>
         <div class="chat-context-menu-item delete">
@@ -68,12 +59,12 @@ window.createContextMenu = function(chatId, chatName) {
     `;
     
     // Добавляем обработчики для пунктов меню
-    setupMenuHandlers(menu, chatId, chatName);
+    setupMenuHandlers(menu, chatId, chatName, isPinned);
     
     return menu;
 };
 
-function setupMenuHandlers(menu, chatId, chatName) {
+function setupMenuHandlers(menu, chatId, chatName, isPinned) {
     const renameBtn = menu.querySelector('.rename');
     const pinBtn = menu.querySelector('.pin');
     const deleteBtn = menu.querySelector('.delete');
@@ -108,6 +99,7 @@ function setupMenuHandlers(menu, chatId, chatName) {
     
     pinBtn.onclick = function(e) {
         e.stopPropagation();
+        
         // Находим родительский элемент чата и закрываем меню
         const chatItem = document.querySelector(`[data-chat-id="${chatId}"]`);
         if (chatItem && chatItem.classList.contains('context-menu-open')) {
@@ -118,8 +110,9 @@ function setupMenuHandlers(menu, chatId, chatName) {
             menu.parentNode.removeChild(menu);
         }
         
-        // TODO: Реализовать закрепление чата
-        alert('Функция закрепления чата скоро будет доступна!');
+        // Отправляем запрос на закрепление/открепление
+        const action = isPinned ? 'unpin' : 'pin';
+        pinChatRequest(chatId, action);
     };
     
     deleteBtn.onclick = async function(e) {
@@ -195,6 +188,47 @@ async function renameChatRequest(chatId, newName) {
     }
 }
 
+async function pinChatRequest(chatId, action) {
+    try {
+        // Находим поле ввода для отправки данных
+        const textarea = window.getChatInputField ? window.getChatInputField() : null;
+        if (!textarea) {
+            throw new Error('Не найдено поле для отправки данных');
+        }
+        
+        // Отправляем специальный запрос на закрепление/открепление
+        // Формат: "pin:<chat_id>:<action>" или "unpin:<chat_id>:<action>"
+        const pinCommand = `${action}:${chatId}:${action}`;
+        textarea.value = pinCommand;
+        
+        // Запускаем событие изменения
+        try {
+            const event = new Event('input', { 
+                bubbles: true,
+                cancelable: true 
+            });
+            textarea.dispatchEvent(event);
+        } catch (e) {
+            const changeEvent = new Event('change', {
+                bubbles: true,
+                cancelable: true
+            });
+            textarea.dispatchEvent(changeEvent);
+        }
+        
+        // Обновляем список чатов через 500мс
+        setTimeout(() => {
+            if (window.chatListData && window.renderChatList) {
+                window.renderChatList(window.chatListData);
+            }
+        }, 500);
+        
+    } catch (error) {
+        console.error('Ошибка при закреплении/откреплении:', error);
+        alert('Не удалось закрепить/открепить чат. Попробуйте снова.');
+    }
+}
+
 async function deleteChatRequest(chatId, isActive) {
     try {
         // Находим поле ввода для отправки ID чата
@@ -236,7 +270,7 @@ async function deleteChatRequest(chatId, isActive) {
     }
 }
 
-window.toggleContextMenu = function(chatItem, chatId, chatName) {
+window.toggleContextMenu = function(chatItem, chatId, chatName, isPinned) {
     if (!window.SELECTORS) return;
     
     // Проверяем, есть ли у этого элемента чата открытое меню
@@ -263,7 +297,7 @@ window.toggleContextMenu = function(chatItem, chatId, chatName) {
     
     // Создаем новое меню
     if (window.createContextMenu) {
-        const menu = window.createContextMenu(chatId, chatName);
+        const menu = window.createContextMenu(chatId, chatName, isPinned);
         
         // Добавляем меню в body для абсолютного позиционирования
         document.body.appendChild(menu);

@@ -127,6 +127,67 @@ class DialogService:
         self._save_all_silent()
         return True
     
+    def pin_dialog(self, dialog_id: str) -> bool:
+        """Закрепляет диалог (ставит на первую позицию в закрепленных)"""
+        if dialog_id not in self.dialogs:
+            return False
+        
+        dialog = self.dialogs[dialog_id]
+        
+        # Если уже закреплен - ничего не делаем
+        if dialog.pinned:
+            return True
+        
+        # Сдвигаем все существующие закрепленные чаты вниз
+        for other_id, other_dialog in self.dialogs.items():
+            if other_dialog.pinned:
+                if other_dialog.pinned_position is None:
+                    other_dialog.pinned_position = 0
+                other_dialog.pinned_position += 1
+        
+        # Закрепляем текущий чат на позиции 0
+        dialog.pinned = True
+        dialog.pinned_position = 0
+        
+        self._save_dialog(dialog)
+        
+        # Сохраняем сдвинутые чаты
+        for other_id, other_dialog in self.dialogs.items():
+            if other_dialog.pinned and other_id != dialog_id:
+                self._save_dialog(other_dialog)
+        
+        return True
+    
+    def unpin_dialog(self, dialog_id: str) -> bool:
+        """Открепляет диалог и перестраивает позиции"""
+        if dialog_id not in self.dialogs:
+            return False
+        
+        dialog = self.dialogs[dialog_id]
+        
+        # Если не закреплен - ничего не делаем
+        if not dialog.pinned:
+            return True
+        
+        # Запоминаем позицию открепляемого чата
+        unpinned_position = dialog.pinned_position
+        
+        # Открепляем
+        dialog.pinned = False
+        dialog.pinned_position = None
+        
+        self._save_dialog(dialog)
+        
+        # Сдвигаем все чаты ниже открепленного вверх
+        for other_id, other_dialog in self.dialogs.items():
+            if (other_dialog.pinned and 
+                other_dialog.pinned_position is not None and 
+                other_dialog.pinned_position > unpinned_position):
+                other_dialog.pinned_position -= 1
+                self._save_dialog(other_dialog)
+        
+        return True
+    
     def rename_dialog(self, dialog_id: str, new_name: str) -> bool:
         """Переименовывает диалог с валидацией"""
         if dialog_id not in self.dialogs:
@@ -181,24 +242,32 @@ class DialogService:
         return self.dialogs.get(dialog_id)
     
     def get_dialog_list(self) -> List[Dict[str, Any]]:
-        """Получает список всех диалогов"""
+        """Получает список всех диалогов с информацией о закреплении"""
         dialogs_list = []
         for dialog_id, dialog in self.dialogs.items():
-            dialogs_list.append({
+            dialog_info = {
                 "id": dialog_id,
                 "name": dialog.name,
                 "history_length": len(dialog.history),
                 "created": dialog.created.isoformat(),
                 "updated": dialog.updated.isoformat(),
-                "is_current": (dialog_id == self.current_dialog_id)
-            })
+                "is_current": (dialog_id == self.current_dialog_id),
+                "pinned": dialog.pinned,  # ← Убедитесь что это есть
+                "pinned_position": dialog.pinned_position  # ← Убедитесь что это есть
+            }
+            dialogs_list.append(dialog_info)
         
-        # Сортируем по дате обновления (свежие сверху)
-        dialogs_list.sort(key=lambda x: x["updated"], reverse=True)
+        # Сортируем: сначала закрепленные (по позиции), потом обычные
+        dialogs_list.sort(key=lambda x: (
+            -1 if x["pinned"] else 0,  # Закрепленные вверху
+            x["pinned_position"] if x["pinned"] and x["pinned_position"] is not None else 999,  # Сортировка по позиции
+            x["updated"]  # Обычные сортируем по updated
+        ), reverse=True)
+        
         return dialogs_list
     
     def get_dialog_list_with_groups(self) -> Dict[str, List[Dict[str, Any]]]:
-        """Получает список всех диалогов с группировкой по датам последнего сообщения"""
+        """Получает список всех диалогов с группировкой по датам и закрепленными"""
         dialogs_list = self.get_dialog_list()
         if not dialogs_list:
             return {}
@@ -208,8 +277,9 @@ class DialogService:
         week_ago_date = today_date - timedelta(days=7)
         month_ago_date = today_date - timedelta(days=30)
         
-        # Группируем диалоги
+        # Группируем диалоги - сначала отделяем закрепленные
         groups = {
+            "pinned": [],  # НОВАЯ ГРУППА: Закрепленные
             "today": [],  # Сегодня
             "yesterday": [],  # Вчера  
             "week": [],  # Последние 7 дней (кроме сегодня и вчера)
@@ -218,7 +288,12 @@ class DialogService:
         }
         
         for dialog_info in dialogs_list:
-            # Парсим дату последнего обновления (updated содержит timestamp последнего сообщения)
+            # Если диалог закреплен - добавляем в группу "pinned"
+            if dialog_info.get("pinned", False):
+                groups["pinned"].append(dialog_info)
+                continue  # ← Ключевое слово! Закрепленные не попадают в другие группы
+            
+            # Парсим дату последнего обновления
             try:
                 last_update = datetime.fromisoformat(dialog_info["updated"].replace('Z', '+00:00'))
                 last_update_date = last_update.date()
@@ -236,11 +311,16 @@ class DialogService:
                     groups["older"].append(dialog_info)
                     
             except Exception:
-                # Если ошибка парсинга даты, кладем в "older"
                 groups["older"].append(dialog_info)
+        
+        # Сортируем закрепленные по pinned_position (чем меньше, тем выше)
+        if groups["pinned"]:
+            groups["pinned"].sort(key=lambda x: x.get("pinned_position", 999))
         
         # Убираем пустые группы
         result = {}
+        if groups["pinned"]:
+            result["Закрепленные"] = groups["pinned"]
         if groups["today"]:
             result["Сегодня"] = groups["today"]
         if groups["yesterday"]:
@@ -317,7 +397,7 @@ class DialogService:
             self._save_dialog(dialog)
     
     def load_dialogs(self):
-        """Загружает сохраненные диалогов"""
+        """Загружает сохраненные диалоги"""
         try:
             if not os.path.exists(self.config.save_dir):
                 os.makedirs(self.config.save_dir, exist_ok=True)
@@ -345,8 +425,13 @@ class DialogService:
                         
                         dialog_data = json.loads(file_content)
                 
+                    # Существующие поля
                     dialog_data["created"] = datetime.fromisoformat(dialog_data["created"])
                     dialog_data["updated"] = datetime.fromisoformat(dialog_data["updated"])
+                    
+                    # НОВЫЕ ПОЛЯ: pinned и pinned_position
+                    dialog_data["pinned"] = dialog_data.get("pinned", False)
+                    dialog_data["pinned_position"] = dialog_data.get("pinned_position")
                     
                     messages = []
                     for msg_data in dialog_data.get("history", []):

@@ -61,7 +61,9 @@ class UIHandlers:
                         "name": d['name'].replace('\n', ' ').replace('\r', ' '),
                         "history_length": d['history_length'],
                         "updated": d['updated'],
-                        "is_current": d['is_current']
+                        "is_current": d['is_current'],
+                        "pinned": d.get('pinned', False),
+                        "pinned_position": d.get('pinned_position')
                     }
                     group_dialogs.append(js_dialog)
                     js_data["flat"].append(js_dialog)
@@ -81,6 +83,10 @@ class UIHandlers:
         # Проверяем, не запрос ли это на переименование
         if chat_id and chat_id.startswith('rename:'):
             return self.handle_chat_rename(chat_id)
+        
+        # Проверяем, не запрос ли это на закрепление/открепление
+        if chat_id and (chat_id.startswith('pin:') or chat_id.startswith('unpin:')):
+            return self.handle_chat_pinning(chat_id)
         
         current_time = time.time() * 1000
         
@@ -111,6 +117,59 @@ class UIHandlers:
             return history, chat_id, status_text, chat_list_data
         else:
             return [], chat_id, f"⚠️ Ошибка переключения на: {chat_id}", self.get_chat_list_data()
+    
+    def handle_chat_pinning(self, pin_command: str):
+        """Обработчик закрепления/открепления чата"""
+        try:
+            # Парсим команду: "pin:<chat_id>:<action>" где action = pin/unpin
+            parts = pin_command.split(':')
+            if len(parts) != 3:
+                return [], "", "⚠️ Неверный формат команды", self.get_chat_list_data()
+            
+            action_type = parts[0]  # pin или unpin
+            chat_id = parts[1]
+            action = parts[2]  # тоже pin или unpin
+            
+            # Проверяем согласованность
+            if action_type != action:
+                return [], "", "⚠️ Несогласованные действия", self.get_chat_list_data()
+            
+            # Получаем информацию о чате
+            dialog = self.dialog_service.get_dialog(chat_id)
+            if not dialog:
+                return [], "", "⚠️ Чат не найден", self.get_chat_list_data()
+            
+            chat_name = dialog.name
+            
+            if action == 'pin':
+                # Закрепляем чат
+                success = self.dialog_service.pin_dialog(chat_id)
+                if success:
+                    status_text = f"📌 Чат закреплен: {chat_name}"
+                else:
+                    status_text = f"⚠️ Ошибка закрепления чата: {chat_name}"
+            else:  # unpin
+                # Открепляем чат
+                success = self.dialog_service.unpin_dialog(chat_id)
+                if success:
+                    status_text = f"📌 Чат откреплен: {chat_name}"
+                else:
+                    status_text = f"⚠️ Ошибка открепления чата: {chat_name}"
+            
+            # Получаем обновленный диалог
+            updated_dialog = self.dialog_service.get_dialog(chat_id)
+            
+            # Формируем ответ
+            if updated_dialog:
+                history = updated_dialog.to_ui_format()
+            else:
+                history = []
+            
+            chat_list_data = self.get_chat_list_data()
+            return history, chat_id, status_text, chat_list_data
+            
+        except Exception as e:
+            return [], "", f"⚠️ Ошибка при закреплении/откреплении: {str(e)}", self.get_chat_list_data()
     
     def handle_chat_deletion(self, delete_command: str):
         """Обработчик удаления чата из контекстного меню"""
