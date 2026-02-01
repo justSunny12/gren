@@ -14,7 +14,6 @@
     flex-direction: column !important;
 }
 
-/* Новые стили для списка чатов */
 .chat-list-container {
     flex: 1;
     display: flex;

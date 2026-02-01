@@ -1,15 +1,25 @@
 /* chat_window.css - ЕДИНЫЕ СТИЛИ ДЛЯ ВСЕХ ПУЗЫРЕЙ */
 .chat-window-container {
     flex: 1 !important;
+    min-height: 0 !important;
     overflow-y: auto !important;
     padding: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    background: white !important;
+    box-sizing: border-box !important;
 }
 
 /* Чатбот */
 .chat-window-container .chatbot {
     display: flex !important;
     flex-direction: column !important;
-    height: 100%
+    gap: 12px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    background: transparent !important;
+    height: 100%;
 }
 
 /* Контейнеры сообщений */
@@ -19,26 +29,8 @@
     width: 100% !important;
     min-height: auto !important;
     height: auto !important;
-}
-
-/* СООБЩЕНИЯ ПОЛЬЗОВАТЕЛЯ - отличные стили, оставляем как есть */
-.chat-window-container .message.user {
-    border-radius: 12px 12px 0 12px !important;
-    padding: 10px 14px !important;
-    max-width: 75% !important;
-    min-width: fit-content !important;
-    word-wrap: break-word !important;
-    white-space: pre-wrap !important;
-}
-
-/* СООБЩЕНИЯ АССИСТЕНТА - КОПИРУЕМ СТИЛИ С ПОЛЬЗОВАТЕЛЬСКИХ, но с другими углами */
-.chat-window-container .message.bot {
-    border-radius: 12px 12px 12px 0 !important; /* Только углы разные! */
-    padding: 10px 14px !important;
-    max-width: 75% !important;                   /* Такой же max-width */
-    min-width: fit-content !important;           /* Такой же min-width */
-    word-wrap: break-word !important;            /* Такой же перенос */
-    white-space: pre-wrap !important;            /* Такой же white-space */
+    margin: 0 !important;
+    padding: 0 !important;
 }
 
 /* КОНТЕЙНЕРЫ для разных типов */
@@ -52,13 +44,47 @@
     align-items: flex-start !important;
 }
 
-/* ВНУТРЕННИЕ ЭЛЕМЕНТЫ сообщений - одинаковые для всех */
+/* СООБЩЕНИЯ ПОЛЬЗОВАТЕЛЯ */
+.chat-window-container .message.user {
+    background-color: #e3f2fd !important;
+    border: 1px solid #bbdefb !important;
+    border-radius: 12px 12px 0 12px !important;
+    padding: 10px 14px !important;
+    max-width: 75% !important;
+    min-width: fit-content !important;
+    word-wrap: break-word !important;
+    white-space: pre-wrap !important;
+    line-height: 1.4 !important;
+    margin-bottom: 0 !important;
+    padding-bottom: 10px !important;
+    display: inline-block !important;
+    position: relative !important;
+}
+
+/* СООБЩЕНИЯ АССИСТЕНТА */
+.chat-window-container .message.bot {
+    background-color: #f5f5f5 !important;
+    border: 1px solid #e0e0e0 !important;
+    border-radius: 12px 12px 12px 0 !important;
+    padding: 10px 14px !important;
+    max-width: 75% !important;
+    min-width: fit-content !important;
+    word-wrap: break-word !important;
+    white-space: pre-wrap !important;
+    line-height: 1.4 !important;
+    margin-bottom: 0 !important;
+    padding-bottom: 10px !important;
+    display: inline-block !important;
+    position: relative !important;
+}
+
+/* ВНУТРЕННИЕ ЭЛЕМЕНТЫ сообщений */
 .chat-window-container .message {
     display: inline-block !important;
     position: relative !important;
 }
 
-/* Текст в сообщениях - одинаковые для всех */
+/* Текст в сообщениях */
 .chat-window-container .message p {
     margin: 0 0 4px 0 !important;
     line-height: 1.4 !important;
@@ -103,7 +129,22 @@
     background: #adb5bd !important;
 }
 
-/* Просто скрываем ВСЕ кнопки с классом icon-button - кнопки копирования сообщения */
+/* ФИКС для Gradio контейнеров */
+.chatbot .wrap.s {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.chat-window-container .chatbot > div .wrap,
+.chat-window-container .chatbot > div .wrap.s,
+.chat-window-container .chatbot > div .wrap.s.column {
+    margin: 0 !important;
+    padding: 0 !important;
+    gap: 0 !important;
+    border: none !important;
+}
+
+/* Просто скрываем ВСЕ кнопки с классом icon-button */
 .chatbot .icon-button,
 .chatbot button.icon-button {
     display: none !important;

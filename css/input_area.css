@@ -1,9 +1,9 @@
 /* input_area.css - ФИКС ДЛЯ КРУГЛОЙ КНОПКИ */
 .input-plate {
     flex-shrink: 0 !important;
-    height: 110px !important;
-    min-height: 110px !important;
-    max-height: 110px !important;
+    height: 150px !important;
+    min-height: 150px !important;
+    max-height: 150px !important;
     box-sizing: border-box !important;
     background: transparent !important;
     border: none !important;
@@ -12,7 +12,7 @@
     align-items: stretch !important;
     justify-content: stretch !important;
     margin: 0 !important;
-    padding: 0 !important;
+    padding: 0 0 10px 0 !important;
     overflow: hidden !important;
     position: relative !important;
 }
