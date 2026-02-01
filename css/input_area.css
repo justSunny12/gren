@@ -7,14 +7,16 @@
     box-sizing: border-box !important;
     background: transparent !important;
     border: none !important;
-    border-radius: 0 !important;
+    border-radius: 26px !important;
     display: flex !important;
     align-items: stretch !important;
     justify-content: stretch !important;
-    margin: 0 !important;
-    padding: 0 0 10px 0 !important;
+    margin: 0 0 10px 0 !important;
+    padding: 0 !important;
     overflow: hidden !important;
     position: relative !important;
+    /* НОВОЕ: Добавляем тень */
+    box-shadow: 0px 2px 8px rgba(0, 0, 0, 0.08) !important;
 }
 
 .input-container {
@@ -89,8 +91,8 @@
     resize: none !important;
     padding: 16px 60px 16px 18px !important;
     line-height: 1.4 !important;
-    background: #f9f9f9 !important;
-    border: 1px solid #d0d0d0 !important;
+    background: white !important;
+    border: 1px solid #e5e7eb !important;
     border-radius: 26px !important;
     font-family: inherit !important;
     font-size: 16px !important;
