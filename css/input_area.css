@@ -1,4 +1,4 @@
-/* input_area.css - Нормальные стили */
+/* input_area.css - ФИКС ДЛЯ КРУГЛОЙ КНОПКИ */
 .input-plate {
     flex-shrink: 0 !important;
     height: 110px !important;
@@ -9,11 +9,12 @@
     border: none !important;
     border-radius: 0 !important;
     display: flex !important;
-    align-items: stretch !important; /* ← Изменить с center на stretch */
-    justify-content: stretch !important; /* ← Добавить */
+    align-items: stretch !important;
+    justify-content: stretch !important;
     margin: 0 !important;
     padding: 0 !important;
-    overflow: hidden !important; /* ← Добавить */
+    overflow: hidden !important;
+    position: relative !important;
 }
 
 .input-container {
@@ -22,24 +23,25 @@
 
 .input-row {
     display: flex !important;
-    align-items: stretch !important; /* ← Изменить с center на stretch */
-    justify-content: stretch !important; /* ← Добавить */
+    align-items: stretch !important;
+    justify-content: stretch !important;
     gap: 0px !important;
     width: 100% !important;
     height: 100% !important;
     box-sizing: border-box !important;
     padding: 0 !important;
     margin: 0 !important;
-    flex: 1 !important; /* ← Добавить */
-    overflow: hidden !important; /* ← Добавить */
+    flex: 1 !important;
+    overflow: hidden !important;
+    position: relative !important;
 }
 
 .chat-input {
     padding: 0 !important;
     margin: 0 !important;
-    flex: 1 !important; /* ← Добавить */
+    flex: 1 !important;
     display: flex !important;
-    align-items: stretch !important; /* ← Добавить */
+    align-items: stretch !important;
 }
 
 .chat-input-wrapper {
@@ -51,9 +53,9 @@
     border: none !important;
     position: relative !important;
     display: flex !important;
-    align-items: stretch !important; /* ← Изменить с center на stretch */
-    justify-content: stretch !important; /* ← Добавить */
-    overflow: hidden !important; /* ← Добавить */
+    align-items: stretch !important;
+    justify-content: stretch !important;
+    overflow: hidden !important;
 }
 
 /* УБИРАЕМ ВСЕ внутренние обертки Gradio */
@@ -85,75 +87,86 @@
     max-height: 100% !important;
     box-sizing: border-box !important;
     resize: none !important;
-    padding: 10px 14px !important;
+    padding: 16px 60px 16px 18px !important;
     line-height: 1.4 !important;
     background: #f9f9f9 !important;
     border: 1px solid #d0d0d0 !important;
-    border-radius: 6px 0 0 6px !important;
+    border-radius: 26px !important;
     font-family: inherit !important;
-    font-size: 14px !important;
+    font-size: 16px !important;
     transition: all 0.2s ease !important;
     margin: 0 !important;
     display: block !important;
     overflow: hidden !important;
-    align-self: stretch !important; /* ← Ключевое для растягивания */
-    flex: 1 !important; /* ← Добавить */
+    align-self: stretch !important;
+    flex: 1 !important;
 }
 
-/* ФИКС ДЛЯ FLEXBOX BASELINE ISSUE */
-.chat-input-wrapper textarea::before,
-.chat-input-wrapper textarea::after {
-    content: none !important;
-    display: none !important;
-}
-
-.chat-input-wrapper textarea {
-    vertical-align: top !important; /* ← Исправить baseline alignment */
-    line-height: normal !important; /* ← Исправить baseline alignment */
-}
-
+/* КРУГЛАЯ КНОПКА - АБСОЛЮТНОЕ ПОЗИЦИОНИРОВАНИЕ БЕЗ FLEX РАСТЯЖКИ */
 .send-btn-wrapper {
-    height: 100% !important;
-    width: 120px !important;
-    min-width: 120px !important;
-    max-width: 120px !important;
+    position: absolute !important;
+    right: 10px !important;
+    bottom: 10px !important;
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
+    max-width: 40px !important;
+    min-height: 40px !important;
+    max-height: 40px !important;
+    flex: none !important;          /* ВАЖНО: отключаем flex растягивание */
     flex-shrink: 0 !important;
+    flex-grow: 0 !important;
+    align-self: flex-end !important;
     box-sizing: border-box !important;
     margin: 0 !important;
     padding: 0 !important;
-    display: flex !important;
-    align-items: stretch !important; /* ← Изменить с center на stretch */
-    justify-content: stretch !important; /* ← Добавить */
-    overflow: hidden !important; /* ← Добавить */
+    display: block !important;      /* Меняем на block вместо flex */
+    overflow: hidden !important;
+    z-index: 10 !important;
 }
 
-/* УБИРАЕМ ВСЕ внутренние обертки Gradio для кнопки */
+/* ЯДЕРНЫЙ ХАК: Убираем ВСЕ flex свойства у всех оберток кнопки */
+.send-btn-wrapper,
+.send-btn-wrapper *,
 .send-btn-wrapper > div,
 .send-btn-wrapper > .gr-button,
 .send-btn-wrapper > .wrap,
-.send-btn-wrapper > * {
+.send-btn-wrapper > .wrap.s,
+.send-btn-wrapper > .block,
+.send-btn-wrapper > .block > * {
+    display: block !important;
+    position: static !important;
+    flex: none !important;
+    flex-shrink: 0 !important;
+    flex-grow: 0 !important;
+    align-self: auto !important;
+    align-items: normal !important;
+    justify-content: normal !important;
     margin: 0 !important;
     padding: 0 !important;
     border: none !important;
     background: transparent !important;
-    width: 100% !important;
-    height: 100% !important;
-    display: flex !important;
-    align-items: stretch !important;
-    justify-content: stretch !important;
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
+    max-width: 40px !important;
+    min-height: 40px !important;
+    max-height: 40px !important;
     box-sizing: border-box !important;
     overflow: hidden !important;
-    flex: 1 !important;
 }
 
+/* КНОПКА - КРУГЛАЯ И ФИКСИРОВАННОГО РАЗМЕРА */
 .send-btn-wrapper button {
-    width: 100% !important;
-    height: 100% !important;
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
+    max-width: 40px !important;
+    min-height: 40px !important;
+    max-height: 40px !important;
+    padding: 0 !important;
     margin: 0 !important;
-    padding: 12px 8px !important;
-    border-radius: 0 6px 6px 0 !important;
-    font-size: 14px !important;
-    font-weight: 500 !important;
+    border-radius: 50% !important;
     background: #007bff !important;
     border: none !important;
     color: white !important;
@@ -162,22 +175,18 @@
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    line-height: 1.2 !important;
-    text-align: center !important;
-    white-space: normal !important;
-    word-wrap: break-word !important;
-    align-self: stretch !important; /* ← Ключевое для растягивания */
-    flex: 1 !important; /* ← Добавить */
+    font-size: 0 !important; /* Убираем любой текст */
+    line-height: 0 !important;
+    position: relative !important;
+    flex: none !important;
 }
 
 .send-btn-wrapper button:hover {
     background: #0056b3 !important;
-    transform: translateY(-1px) !important;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
 }
 
 .send-btn-wrapper button:active {
-    transform: translateY(0) !important;
     box-shadow: none !important;
 }
 
@@ -188,7 +197,34 @@
     box-shadow: none !important;
 }
 
-/* СТРОГИЙ ХАК ДЛЯ GRADIO COLUMN */
+/* ИКОНКА В КНОПКЕ */
+.send-btn-wrapper button svg {
+    width: 20px !important;
+    height: 20px !important;
+    stroke-width: 2.5px !important;
+    display: block !important;
+    position: absolute !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    margin: 0 !important;
+}
+
+/* АЛЬТЕРНАТИВНО: Если проблема сохраняется, попробуйте это */
+.send-btn-wrapper button::before {
+    content: '' !important;
+    display: block !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    border-radius: 50% !important;
+    background: #007bff !important;
+    z-index: -1 !important;
+}
+
+/* ФИКС ДЛЯ GRADIO COLUMN */
 .gr-column.chat-input-wrapper,
 div[class*="chat-input-wrapper"] {
     align-items: stretch !important;
@@ -201,6 +237,7 @@ div[class*="chat-input-wrapper"] {
     max-height: 100% !important;
     height: 100% !important;
     overflow: hidden !important;
+    position: relative !important; /* Для абсолютного позиционирования кнопки */
 }
 
 /* Убираем все псевдоэлементы которые могут создавать отступы */
@@ -219,13 +256,6 @@ div[class*="chat-input-wrapper"] {
 
 /* ФИКС ДЛЯ ВЕРТИКАЛЬНЫХ ОТСТУПОВ В FLEXBOX */
 .chat-input-wrapper {
-    min-height: 0 !important; /* ← Ключевое для flex containers */
-    max-height: 100% !important;
-}
-
-/* Принудительное растягивание ВСЕХ вложенных элементов */
-.input-plate * {
-    box-sizing: border-box !important;
     min-height: 0 !important;
     max-height: 100% !important;
 }
@@ -246,4 +276,41 @@ div[class*="chat-input-wrapper"] {
     gap: 0 !important;
     row-gap: 0 !important;
     column-gap: 0 !important;
+}
+
+/* ДОПОЛНИТЕЛЬНАЯ ЗАЩИТА: Изоляция кнопки от flex-контейнеров */
+.input-plate,
+.input-row,
+.chat-input,
+.chat-input-wrapper {
+    position: relative !important;
+}
+
+.send-btn-wrapper {
+    display: block !important;
+    position: absolute !important;
+}
+
+/* Добавьте в конец css/input_area.css */
+/* ЖЕСТКИЙ КОНТРОЛЬ РАЗМЕРА ИКОНКИ */
+.send-btn-wrapper button svg {
+    width: 20px !important;
+    height: 20px !important;
+    min-width: 20px !important;
+    min-height: 20px !important;
+    max-width: 20px !important;
+    max-height: 20px !important;
+    display: block !important;
+    color: white !important;
+    stroke: white !important;
+    fill: none !important;
+    pointer-events: none !important;
+}
+
+/* Также фиксируем размер всего что внутри кнопки */
+.send-btn-wrapper button * {
+    width: 12px !important;
+    height: 12px !important;
+    max-width: 12px !important;
+    max-height: 12px !important;
 }

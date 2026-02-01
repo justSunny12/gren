@@ -19,27 +19,25 @@ def create_main_layout():
                         height=None,
                         avatar_images=(None, "https://avatars.githubusercontent.com/u/1024"),
                         elem_classes="chatbot",
-                        container=True,  # ← Ключевой параметр
+                        container=True,
                     )
                 
-                # Область ввода
+                # Область ввода (с круглой кнопкой внутри)
                 with gr.Column(elem_classes="input-plate"):
                     with gr.Row(elem_classes="input-row"):
                         with gr.Column(elem_classes="chat-input-wrapper"):
                             user_input = gr.Textbox(
                                 placeholder="Введите сообщение...",
-                                lines=4,
                                 show_label=False,
                                 elem_classes="chat-input",
                                 max_lines=4,
                                 scale=9
                             )
-                        with gr.Column(elem_classes="send-btn-wrapper"):
-                            submit_btn = gr.Button(
-                                "Отправить", 
-                                variant="primary", 
-                                elem_classes="send-btn",
-                                scale=1
-                            )
+                            # Круглая кнопка отправки
+                            with gr.Column(elem_classes="send-btn-wrapper"):
+                                submit_btn = gr.Button(
+                                    elem_classes="send-btn",
+                                    scale=1
+                                )
     
     return sidebar_components, chatbot, user_input, submit_btn

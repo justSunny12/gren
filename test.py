@@ -1,36 +1,86 @@
-import requests
+# test_minimal.py - Минимальный тест интерфейса без модели
+import gradio as gr
 import time
-import json
+import random
 
-def test_api():
-    """Тестирует API endpoint"""
-    print("🔍 Тестирование API endpoint...")
+# Заглушка вместо реальной модели
+class MockModel:
+    def __init__(self):
+        self.responses = [
+            "Это тестовый ответ от модели.",
+            "Привет! Я тестовый чат-бот.",
+            "Как у вас дела?",
+            "Я могу отвечать на вопросы в тестовом режиме.",
+            "Модель не загружена, но интерфейс работает!",
+            "Это демонстрация работы чат-интерфейса."
+        ]
     
-    # Даем время серверу запуститься
-    time.sleep(2)
-    
-    url = "http://127.0.0.1:7860/custom/chat-list"
-    
-    try:
-        response = requests.get(url)
-        print(f"📊 Статус: {response.status_code}")
-        print(f"📄 Заголовки: {dict(response.headers)}")
-        
-        if response.status_code == 200:
-            try:
-                data = response.json()
-                print(f"✅ Успешно! Получено {len(data)} чатов")
-                for i, chat in enumerate(data[:3]):  # Показываем первые 3
-                    print(f"  {i+1}. {chat['name']} (ID: {chat['id']})")
-            except json.JSONDecodeError:
-                print(f"❌ Ошибка парсинга JSON: {response.text[:200]}")
-        else:
-            print(f"❌ Ошибка HTTP: {response.text[:200]}")
-            
-    except requests.exceptions.ConnectionError:
-        print("❌ Не удалось подключиться к серверу. Убедитесь что сервер запущен.")
-    except Exception as e:
-        print(f"❌ Общая ошибка: {e}")
+    def generate(self, message):
+        # Имитация задержки ответа
+        time.sleep(0.5)
+        # Случайный ответ из списка
+        return random.choice(self.responses)
 
+# Создаем заглушку модели
+mock_model = MockModel()
+
+# История чата (просто список сообщений)
+chat_history = []
+
+def send_message(message, history):
+    """Обработчик отправки сообщения"""
+    if not message.strip():
+        return "", history
+    
+    # Добавляем сообщение пользователя в историю
+    history.append([message, None])
+    
+    # Получаем ответ от заглушки модели
+    response = mock_model.generate(message)
+    
+    # Добавляем ответ в историю
+    history[-1][1] = response
+    
+    return "", history
+
+def clear_chat():
+    """Очистить чат"""
+    return []
+
+# Создаем интерфейс
+with gr.Blocks(title="Тестовый чат (без модели)") as demo:
+    gr.Markdown("# 🧪 Тестовый чат-интерфейс")
+    gr.Markdown("Модель не загружена - используется заглушка")
+    
+    # Чат
+    chatbot = gr.Chatbot(label="Чат", height=500)
+    
+    # Поле ввода и кнопки
+    with gr.Row():
+        msg = gr.Textbox(
+            placeholder="Введите сообщение...",
+            show_label=False,
+            scale=8,
+            container=False
+        )
+        submit_btn = gr.Button("Отправить", variant="primary", scale=1)
+        clear_btn = gr.Button("Очистить", variant="secondary", scale=1)
+    
+    # Обработчики
+    msg.submit(send_message, [msg, chatbot], [msg, chatbot])
+    submit_btn.click(send_message, [msg, chatbot], [msg, chatbot])
+    clear_btn.click(clear_chat, None, [chatbot])
+    
+    # Информация
+    gr.Markdown("---")
+    gr.Markdown("### Информация:")
+    gr.Markdown("- Модель: Заглушка (не загружена)")
+    gr.Markdown("- Режим: Тестовый")
+    gr.Markdown("- Ответы: Рандомные из предустановленного списка")
+
+# Запуск
 if __name__ == "__main__":
-    test_api()
+    print("🚀 Запуск тестового приложения...")
+    print("📌 Ссылка: http://localhost:7860")
+    print("⚠️  Модель не загружена - используется заглушка")
+    demo.launch(server_port=7860, share=False)
