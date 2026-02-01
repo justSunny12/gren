@@ -147,5 +147,15 @@
 /* Просто скрываем ВСЕ кнопки с классом icon-button */
 .chatbot .icon-button,
 .chatbot button.icon-button {
-    display: none !important;
+    color: #6b7280 !important;
+    stroke: #6b7280 !important;
+    fill: none !important;
+    transition: color 0.2s ease, stroke 0.2s ease !important;
+}
+
+.chatbot .icon-button:hover,
+.chatbot button.icon-button:hover {
+    color: #374151 !important; /* Темнее при наведении */
+    stroke: #374151 !important;
+    background-color: rgba(0, 0, 0, 0.05) !important;
 }

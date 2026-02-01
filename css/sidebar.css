@@ -1,12 +1,11 @@
 /* css/sidebar.css - Стили сайдбара */
 #sidebar_container {
     height: 100vh !important;
-    max-height: 100vh !important;
     overflow-y: auto !important;
     padding: 15px !important;
     background: rgb(249, 250, 251);
-    min-width: 320px !important;
-    max-width: 350px !important;
+    min-width: 300px !important;
+    max-width: 300px !important;
     flex-shrink: 0 !important;
     position: relative !important;
     z-index: 10 !important;
@@ -226,12 +225,19 @@
     padding: 12px !important;
     font-size: 15px !important;
     font-weight: 600 !important;
-    border-radius: 8px !important;
+    border-radius: 32px !important;
     height: 48px !important;
-    margin-bottom: 15px !important; /* Увеличиваем отступ снизу */
+    margin-bottom: 0 !important;
+    background-color: white;
+    color: black;
+    box-shadow: 0 2 6px rgba(0, 0, 4, 0.08);
+    font-weight: normal !important;
+    font-size: 16px !important;
 }
 
-/* УДАЛЯЕМ ВСЕ СТИЛИ ДЛЯ .delete-chat-btn */
+.new-chat-btn:hover {
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15) !important;
+}
 
 /* Аккордеон параметров */
 .params-accordion {

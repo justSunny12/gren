@@ -34,3 +34,11 @@
     flex: 1 !important;
     gap: 0 !important;
 }
+
+footer {
+    display: none !important;
+}
+
+.gr-footer {
+    display: none !important;
+}
