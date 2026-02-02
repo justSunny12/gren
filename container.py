@@ -147,7 +147,6 @@ class Container:
             if hasattr(service, 'force_cleanup'):
                 service.force_cleanup()
                 cleaned_count += 1
-                # print("✅ Модель выгружена из памяти")
         
         # Затем очищаем остальные сервисы
         for name, service in list(self._services.items()):

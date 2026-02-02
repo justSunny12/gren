@@ -127,8 +127,7 @@ class ModelService:
             self._initialized = True
             
             load_time = time.time() - start_time
-            # print(f"✅ Модель загружена за {load_time:.2f} секунд")
-            
+                        
             return self.generator.model, self.tokenizer, self.generate_lock
             
         except Exception as e:

@@ -57,9 +57,7 @@ def initialize_model():
     try:
         # Получаем сервис модели
         model_service = container.get_model_service()
-        
-        # print(f"📊 Используется: {type(model_service).__name__}")
-        
+                
         # Получаем конфигурацию для отображения примененных настроек
         config = container.get_config()
         user_settings = container.get("config_service").get_user_settings()
@@ -75,9 +73,6 @@ def initialize_model():
                 if "enable_thinking" in gen:
                     print(f"   Thinking: {gen['enable_thinking']}")
         
-        # Выводим память до загрузки
-        # print_memory_stats("До загрузки модели: ")
-        
         # Загружаем модель
         start_time = time.time()
         model, tokenizer, lock = model_service.initialize()
@@ -86,9 +81,6 @@ def initialize_model():
         if model is not None:
             print(f"✅ Модель загружена за {load_time:.2f} секунд")
             print("💾 Модель останется в памяти для быстрых ответов")
-            
-            # Память после загрузки
-            # print_memory_stats("После загрузки модели: ")
             
             # Прогрев модели С ВЫКЛЮЧЕННЫМИ РАЗМЫШЛЕНИЯМИ (enable_thinking=False)
             print("🔥 Прогрев модели...")
