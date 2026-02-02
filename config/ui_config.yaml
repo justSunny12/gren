@@ -2,26 +2,22 @@
 sidebar:
   width: "300px"
   min_width: "300px"
-  max_width: "350px"
+  max_width: "300px"
   background: "#f8f9fa"
-  border_color: "#e0e0e0"
+  border_color: "#eff0f1"
 
 chat_window:
   background: "white"
-  border_color: "#e0e0e0"
-  border_radius: "8px"
-  padding: "12px"
 
 input_area:
-  height: "110px"
-  min_height: "110px"
-  max_height: "110px"
+  height: "150px"
+  min_height: "150px"
+  max_height: "150px"
   background: "white"
-  border_color: "#e0e0e0"
-  border_radius: "6px"
+  border_radius: "26px"
 
 buttons:
-  primary_color: "#007bff"
+  primary_color: "#4363f5"
   primary_hover: "#0056b3"
   secondary_color: "#6c757d"
   danger_color: "#dc3545"

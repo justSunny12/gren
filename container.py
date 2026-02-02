@@ -16,21 +16,10 @@ class Container:
                 self._services["config_service"] = ConfigService()
                 # Загружаем пользовательскую конфигурацию при первом обращении
                 self._services["config_service"].get_config()
-                print("✅ Конфигурация загружена (пользовательские настройки применены)")
             elif name == "model_service":
-                # Пробуем использовать оптимизированный сервис
-                try:
-                    from services.optimized_model_service import OptimizedModelService
-                    service = OptimizedModelService()
-                    self._services["model_service"] = service
-                except ImportError:
-                    from services.model_service import ModelService
-                    service = ModelService()
-                    self._services["model_service"] = service
-                except Exception:
-                    from services.model_service import ModelService
-                    service = ModelService()
-                    self._services["model_service"] = service
+                from services.model_service import ModelService
+                service = ModelService()
+                self._services["model_service"] = service
             elif name == "dialog_service":
                 from services.dialog_service import dialog_service
                 self._services["dialog_service"] = dialog_service
@@ -109,14 +98,9 @@ class Container:
             del self._services["model_service"]
             
             # Создаем новый
-            try:
-                from services.optimized_model_service import OptimizedModelService
-                self._services["model_service"] = OptimizedModelService()
-                print("✅ Модель перезагружена с OptimizedModelService")
-            except ImportError:
-                from services.model_service import ModelService
-                self._services["model_service"] = ModelService()
-                print("✅ Модель перезагружена с ModelService")
+            from services.model_service import ModelService
+            self._services["model_service"] = ModelService()
+            print("✅ Модель перезагружена")
         
         # Также пересоздаем chat_service
         if "chat_service" in self._services:
@@ -163,7 +147,7 @@ class Container:
             if hasattr(service, 'force_cleanup'):
                 service.force_cleanup()
                 cleaned_count += 1
-                print("✅ Модель выгружена из памяти")
+                # print("✅ Модель выгружена из памяти")
         
         # Затем очищаем остальные сервисы
         for name, service in list(self._services.items()):
