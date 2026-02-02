@@ -18,7 +18,6 @@
     display: flex;
     flex-direction: column;
     height: 50vh;
-    margin-bottom: 15px !important;
 }
 
 .chat-list {
@@ -32,31 +31,31 @@
 
 /* Стили для разделителей групп */
 .group-divider {
-    margin: 12px 0 6px 0;
-    padding: 6px 8px;
+    margin: 12px 0 0 0;
+    padding: 6px 13px;
     font-size: 11px;
-    font-weight: 600;
+    font-weight: normal;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    color: rgb(107, 114, 128);
+    color: rgb(130, 133, 139);
     background-color: transparent;
-    border-bottom: 1px solid rgb(229, 231, 235);
+    /* border-bottom: 1px solid rgb(229, 231, 235); */
 }
 
 /* Первый разделитель без отступа сверху */
-.chat-list > .group-divider:first-child {
+/* .chat-list > .group-divider:first-child {
     margin-top: 0;
-}
+} */
 
 .chat-item {
-    padding: 6px 8px;
-    margin: 4px 0;
-    border-radius: 6px;
+    padding: 8px 8px 8px 12px;
+    margin: 0;
+    border-radius: 14px;
+    height: 46px;
     cursor: pointer;
     transition: all 0.15s ease;
     border: none;
     background: rgb(249, 250, 251);
-    min-height: 32px;
     display: flex;
     align-items: center;
     position: relative;
@@ -80,20 +79,21 @@
 }
 
 .chat-item .chat-name {
-    font-size: 14px;
+    font-size: 16px;
     font-weight: 500;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     line-height: 1.4;
+    font-weight: normal;
     flex: 1;
 }
 
 /* Элемент управления - круг с троеточием */
 .chat-control {
     display: none; /* Скрыт по умолчанию */
-    width: 20px;
-    height: 20px;
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
     background: transparent;
     border: none;
