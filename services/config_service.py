@@ -68,7 +68,7 @@ class ConfigService:
         return success
     
     def update_user_settings_batch(self, settings: Dict[str, Dict[str, Any]]) -> bool:
-        """Обновляет несколько пользовательских настроек за один раз"""
+        """Обновляет несколько пользовательских настроек за один раз (тихо)"""
         try:
             # Получаем текущую конфигурацию
             user_config = self._user_config_service.get_user_config()
@@ -89,8 +89,7 @@ class ConfigService:
             
             return success
             
-        except Exception as e:
-            print(f"❌ Ошибка пакетного обновления настроек: {e}")
+        except Exception:
             return False
     
     def get_user_settings(self) -> Dict[str, Any]:

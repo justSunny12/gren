@@ -32,15 +32,11 @@ class UserConfigService:
             self._user_config = user_config
             return user_config
             
-        except Exception as e:
-            print(f"⚠️ Не удалось загрузить пользовательскую конфигурацию: {e}")
-            print("   Используются стандартные настройки")
-            # Создаем пустую конфигурацию при ошибке
-            self._user_config = UserConfig()
+        except Exception:
             return None
     
     def save_user_config(self, user_config: UserConfig) -> bool:
-        """Сохраняет пользовательскую конфигурацию"""
+        """Сохраняет пользовательскую конфигурацию (тихо)"""
         try:
             # Создаем директорию если не существует
             os.makedirs(self.config_dir, exist_ok=True)
@@ -63,8 +59,7 @@ class UserConfigService:
             self._user_config = user_config
             return True
             
-        except Exception as e:
-            print(f"❌ Ошибка сохранения пользовательской конфигурации: {e}")
+        except Exception:
             return False
     
     def update_user_setting(self, section: str, key: str, value: Any) -> bool:
@@ -106,9 +101,7 @@ class UserConfigService:
             self._merged_config = FullConfig(**merged_data)
             return self._merged_config
             
-        except Exception as e:
-            print(f"⚠️ Ошибка объединения конфигураций: {e}")
-            print("   Используются стандартные настройки")
+        except Exception:
             self._merged_config = default_config
             return default_config
     
@@ -123,8 +116,7 @@ class UserConfigService:
             
             return True
             
-        except Exception as e:
-            print(f"❌ Ошибка сброса настроек: {e}")
+        except Exception:
             return False
 
 # Глобальный экземпляр

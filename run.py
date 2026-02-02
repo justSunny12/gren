@@ -133,7 +133,6 @@ def main():
         print(f"   Приложение: {config.app.name} v{config.app.version}")
         print(f"   Модель: {config.model.name}")
         print(f"   Сервер: {config.server.host}:{config.server.port}")
-        print(f"   Параметры: {config.generation.default_max_tokens} токенов, температура {config.generation.default_temperature}")
     except Exception as e:
         print(f"⚠️ Ошибка загрузки конфигурации: {e}")
         return

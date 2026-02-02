@@ -57,13 +57,9 @@ def create_sidebar_layout():
         
         # Скрытый триггер для JavaScript
         js_trigger = gr.HTML(visible=False)
-        
-        # Статус
-        status_text = gr.Markdown("✅ Готов к работе", elem_classes="status-bar")
     
     return {
         "create_dialog_btn": create_dialog_btn,
-        "status_text": status_text,
         "max_tokens": max_tokens,
         "temperature": temperature,
         "enable_thinking": enable_thinking,

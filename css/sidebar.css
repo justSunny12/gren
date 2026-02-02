@@ -311,18 +311,6 @@
     border-color: rgb(209, 213, 219) !important;
 }
 
-/* Статус */
-.status-bar {
-    padding: 12px 16px;
-    background: rgb(243, 244, 246);
-    border-radius: 8px;
-    border: 1px solid rgb(229, 231, 235);
-    margin-top: auto !important; /* Прижимаем к низу */
-    font-size: 13px;
-    color: rgb(55, 65, 81);
-    font-weight: 500;
-}
-
 /* Скроллбар для сайдбара */
 #sidebar_container::-webkit-scrollbar {
     width: 6px !important;

@@ -27,7 +27,7 @@ def load_css():
     return css_content
 
 def reset_user_settings():
-    """Сбрасывает пользовательские настройки к стандартным"""
+    """Тихий сброс пользовательских настроек к стандартным"""
     try:
         config_service = container.get("config_service")
         success = config_service.reset_user_settings()
@@ -36,16 +36,34 @@ def reset_user_settings():
             default_config = config_service.get_default_config()
             gen_config = default_config.generation
             
+            # Возвращаем обновленные значения для UI
             return (
                 gen_config.default_max_tokens,
                 gen_config.default_temperature,
-                gen_config.default_enable_thinking,
-                "✅ Настройки сброшены к стандартным"
+                gen_config.default_enable_thinking
             )
         else:
-            return None, None, None, "❌ Ошибка сброса настроек"
+            # Если сброс не удался, возвращаем текущие значения
+            return gr.update(), gr.update(), gr.update()
     except Exception:
-        return None, None, None, "⚠️ Ошибка сброса настроек"
+        return gr.update(), gr.update(), gr.update()
+
+def on_slider_change(max_tokens, temperature, enable_thinking):
+    """Тихий обработчик изменения параметров - сохраняет настройки без сообщений"""
+    try:
+        config_service = container.get("config_service")
+        config_service.update_user_settings_batch({
+            "generation": {
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+                "enable_thinking": enable_thinking
+            }
+        })
+        # Возвращаем пустой кортеж (ничего не меняем в UI)
+        return gr.update(), gr.update(), gr.update()
+    except Exception:
+        # В случае ошибки тоже ничего не выводим
+        return gr.update(), gr.update(), gr.update()
 
 def create_main_ui():
     """Создает основной UI интерфейс с привязанной логикой"""
@@ -196,7 +214,6 @@ def create_main_ui():
             outputs=[
                 chatbot,
                 current_dialog_id,
-                sidebar_components["status_text"],
                 chat_list_data
             ]
         )
@@ -207,7 +224,6 @@ def create_main_ui():
             outputs=[
                 chatbot,
                 current_dialog_id,
-                sidebar_components["status_text"],
                 chat_list_data
             ]
         )
@@ -219,7 +235,6 @@ def create_main_ui():
                 chatbot,
                 user_input,
                 current_dialog_id,
-                sidebar_components["status_text"],
                 sidebar_components["js_trigger"],
                 chat_list_data
             ]
@@ -231,14 +246,11 @@ def create_main_ui():
             outputs=[
                 sidebar_components["max_tokens"],
                 sidebar_components["temperature"],
-                sidebar_components["enable_thinking"],
-                sidebar_components["status_text"]
+                sidebar_components["enable_thinking"]
             ]
         )
         
-        def on_slider_change(max_tokens, temperature, enable_thinking):
-            return ui_handlers.save_user_settings_handler(max_tokens, temperature, enable_thinking)
-        
+        # Восстанавливаем change события для параметров
         for param in ["max_tokens", "temperature", "enable_thinking"]:
             sidebar_components[param].change(
                 fn=on_slider_change,
@@ -247,7 +259,11 @@ def create_main_ui():
                     sidebar_components["temperature"],
                     sidebar_components["enable_thinking"]
                 ],
-                outputs=sidebar_components["status_text"]
+                outputs=[
+                    sidebar_components["max_tokens"],
+                    sidebar_components["temperature"],
+                    sidebar_components["enable_thinking"]
+                ]
             )
         
         def send_message(prompt, chat_id, max_tokens, temperature, enable_thinking):
