@@ -36,11 +36,11 @@ class ChatService:
             
             # Определяем параметры генерации
             if max_tokens is None:
-                max_tokens = self.config.generation.default_max_tokens
+                max_tokens = self.config.get("generation", {}).get("default_max_tokens", 512)
             if temperature is None:
-                temperature = self.config.generation.default_temperature
+                temperature = self.config.get("generation", {}).get("default_temperature", 0.7)
             if enable_thinking is None:
-                enable_thinking = self.config.generation.default_enable_thinking
+                enable_thinking = self.config.get("generation", {}).get("default_enable_thinking", False)
             
             # Форматируем историю
             formatted_history = []
@@ -66,7 +66,6 @@ class ChatService:
                 response_text = "Ошибка: сервис модели не поддерживается"
             
             # Добавляем сообщения в диалог
-            # Используем новый метод, который обновляет timestamp
             self.dialog_service.add_message(dialog_id, MessageRole.USER, prompt)
             self.dialog_service.add_message(dialog_id, MessageRole.ASSISTANT, response_text)
             

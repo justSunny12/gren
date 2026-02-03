@@ -12,13 +12,16 @@ class DialogService:
     def __init__(self):
         # Ленивый импорт container
         from container import container
-        self.config = container.get_config().dialogs
+        config = container.get_config()
+        self.config = config.get("dialogs", {})
         self.dialogs: Dict[str, Dialog] = {}
         self.current_dialog_id: Optional[str] = None
         self.next_dialog_id = 1
         
         # Создаем директорию для сохранения диалогов
-        os.makedirs(self.config.save_dir, exist_ok=True)
+        save_dir = self.config.get("save_dir", "saved_dialogs")
+        os.makedirs(save_dir, exist_ok=True)
+        
         self.load_dialogs()
     
     def create_dialog(self, name: Optional[str] = None) -> str:
@@ -27,7 +30,8 @@ class DialogService:
         self.next_dialog_id += 1
         
         if not name:
-            name = f"{self.config.default_name} {dialog_id}"
+            default_name = self.config.get("default_name", "Новый чат")
+            name = f"{default_name} {dialog_id}"
         
         dialog = Dialog(
             id=dialog_id,
@@ -68,7 +72,8 @@ class DialogService:
         # Если удаляем НЕактивный чат и хотим сохранить текущий
         if not is_current and keep_current:
             # Просто удаляем чат, не меняя текущий
-            dialog_file = os.path.join(self.config.save_dir, f"dialog_{dialog_id}.json")
+            save_dir = self.config.get("save_dir", "saved_dialogs")
+            dialog_file = os.path.join(save_dir, f"dialog_{dialog_id}.json")
             if os.path.exists(dialog_file):
                 os.remove(dialog_file)
             
@@ -85,7 +90,8 @@ class DialogService:
                 break
         
         # Удаляем файл
-        dialog_file = os.path.join(self.config.save_dir, f"dialog_{dialog_id}.json")
+        save_dir = self.config.get("save_dir", "saved_dialogs")
+        dialog_file = os.path.join(save_dir, f"dialog_{dialog_id}.json")
         if os.path.exists(dialog_file):
             os.remove(dialog_file)
         
@@ -196,12 +202,14 @@ class DialogService:
         # Получаем конфигурацию
         from container import container
         config = container.get_config()
+        chat_naming_config = config.get("chat_naming", {})
         
         # Очищаем и валидируем новое название
         new_name = new_name.strip()
         
         # Проверка минимальной длины
-        if len(new_name) < config.chat_naming.min_name_length:
+        min_length = chat_naming_config.get("min_name_length", 1)
+        if len(new_name) < min_length:
             return False
         
         # Проверка на пустое название (после trim)
@@ -209,12 +217,14 @@ class DialogService:
             return False
         
         # Проверка на только пробелы
-        if not config.chat_naming.name_validation.allow_whitespace_only and new_name.isspace():
+        name_validation = chat_naming_config.get("name_validation", {})
+        if not name_validation.get("allow_whitespace_only", True) and new_name.isspace():
             return False
         
         # Ограничение максимальной длины
-        if len(new_name) > config.chat_naming.max_name_length:
-            new_name = new_name[:config.chat_naming.max_name_length]
+        max_length = chat_naming_config.get("max_name_length", 50)
+        if len(new_name) > max_length:
+            new_name = new_name[:max_length]
         
         # Сохраняем старое название на случай ошибки
         old_name = self.dialogs[dialog_id].name
@@ -252,16 +262,16 @@ class DialogService:
                 "created": dialog.created.isoformat(),
                 "updated": dialog.updated.isoformat(),
                 "is_current": (dialog_id == self.current_dialog_id),
-                "pinned": dialog.pinned,  # ← Убедитесь что это есть
-                "pinned_position": dialog.pinned_position  # ← Убедитесь что это есть
+                "pinned": dialog.pinned,
+                "pinned_position": dialog.pinned_position
             }
             dialogs_list.append(dialog_info)
         
         # Сортируем: сначала закрепленные (по позиции), потом обычные
         dialogs_list.sort(key=lambda x: (
-            -1 if x["pinned"] else 0,  # Закрепленные вверху
-            x["pinned_position"] if x["pinned"] and x["pinned_position"] is not None else 999,  # Сортировка по позиции
-            x["updated"]  # Обычные сортируем по updated
+            -1 if x["pinned"] else 0,
+            x["pinned_position"] if x["pinned"] and x["pinned_position"] is not None else 999,
+            x["updated"]
         ), reverse=True)
         
         return dialogs_list
@@ -279,19 +289,19 @@ class DialogService:
         
         # Группируем диалоги - сначала отделяем закрепленные
         groups = {
-            "pinned": [],  # НОВАЯ ГРУППА: Закрепленные
-            "today": [],  # Сегодня
-            "yesterday": [],  # Вчера  
-            "week": [],  # Последние 7 дней (кроме сегодня и вчера)
-            "month": [],  # Месяц (кроме последних 7 дней)
-            "older": []  # Более месяца
+            "pinned": [],
+            "today": [],
+            "yesterday": [],
+            "week": [],
+            "month": [],
+            "older": []
         }
         
         for dialog_info in dialogs_list:
             # Если диалог закреплен - добавляем в группу "pinned"
             if dialog_info.get("pinned", False):
                 groups["pinned"].append(dialog_info)
-                continue  # ← Ключевое слово! Закрепленные не попадают в другие группы
+                continue
             
             # Парсим дату последнего обновления
             try:
@@ -365,9 +375,9 @@ class DialogService:
     def _save_dialog(self, dialog: Dialog):
         """Тихое сохранение диалога в файл"""
         try:
-            dialog_file = os.path.join(self.config.save_dir, f"dialog_{dialog.id}.json")
+            save_dir = self.config.get("save_dir", "saved_dialogs")
+            dialog_file = os.path.join(save_dir, f"dialog_{dialog.id}.json")
             
-            # Используем json_serialize вместо dict()
             if hasattr(dialog, 'json_serialize'):
                 dialog_data = dialog.json_serialize()
             else:
@@ -399,14 +409,15 @@ class DialogService:
     def load_dialogs(self):
         """Загружает сохраненные диалоги"""
         try:
-            if not os.path.exists(self.config.save_dir):
-                os.makedirs(self.config.save_dir, exist_ok=True)
+            save_dir = self.config.get("save_dir", "saved_dialogs")
+            if not os.path.exists(save_dir):
+                os.makedirs(save_dir, exist_ok=True)
                 return
             
             dialog_files = []
-            for f in os.listdir(self.config.save_dir):
+            for f in os.listdir(save_dir):
                 if f.startswith("dialog_") and f.endswith(".json"):
-                    file_path = os.path.join(self.config.save_dir, f)
+                    file_path = os.path.join(save_dir, f)
                     
                     if os.path.getsize(file_path) == 0:
                         os.remove(file_path)

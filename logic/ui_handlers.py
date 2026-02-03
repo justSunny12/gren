@@ -232,8 +232,10 @@ class UIHandlers:
                 return [], "", self.get_chat_list_data()
             
             # Обрезаем если слишком длинное
-            if len(new_name) > 50:
-                new_name = new_name[:50]
+            chat_naming_config = self.config.get("chat_naming", {})
+            max_length = chat_naming_config.get("max_name_length", 50)
+            if len(new_name) > max_length:
+                new_name = new_name[:max_length]
             
             # Переименовываем
             success = self.dialog_service.rename_dialog(chat_id, new_name)
@@ -316,17 +318,19 @@ class UIHandlers:
         """Загружает пользовательские настройки"""
         try:
             config = self.config
+            generation_config = config.get("generation", {})
             return (
-                config.generation.default_max_tokens,
-                config.generation.default_temperature,
-                config.generation.default_enable_thinking
+                generation_config.get("default_max_tokens", 512),
+                generation_config.get("default_temperature", 0.7),
+                generation_config.get("default_enable_thinking", False)
             )
         except Exception:
-            gen_config = self.config_service.get_default_config().generation
+            default_config = self.config_service.get_default_config()
+            generation_config = default_config.get("generation", {})
             return (
-                gen_config.default_max_tokens,
-                gen_config.default_temperature,
-                gen_config.default_enable_thinking
+                generation_config.get("default_max_tokens", 512),
+                generation_config.get("default_temperature", 0.7),
+                generation_config.get("default_enable_thinking", False)
             )
     
     def init_app_handler(self):
@@ -345,8 +349,9 @@ class UIHandlers:
             return history, chat_id, gr.update(label=chat_name), max_tokens, temperature, enable_thinking, chat_list_data
             
         except Exception:
-            gen_config = self.config_service.get_default_config().generation
-            return [], None, gr.update(), gen_config.default_max_tokens, gen_config.default_temperature, gen_config.default_enable_thinking, "[]"
+            default_config = self.config_service.get_default_config()
+            generation_config = default_config.get("generation", {})
+            return [], None, gr.update(), generation_config.get("default_max_tokens", 512), generation_config.get("default_temperature", 0.7), generation_config.get("default_enable_thinking", False), "[]"
 
 # Глобальный экземпляр
 ui_handlers = UIHandlers()

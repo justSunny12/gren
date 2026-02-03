@@ -4,19 +4,18 @@ import json
 import yaml
 from typing import Dict, Any, Optional
 from models.user_config_models import UserConfig
-from models.config_models import FullConfig
 
 class UserConfigService:
-    """Сервис для работы с пользовательскими настройками"""
+    """Сервис для работы с пользовательскими настройками (с валидацией)"""
     
     def __init__(self, config_dir: str = "config"):
         self.config_dir = config_dir
         self.user_config_path = os.path.join(config_dir, "user_config.yaml")
         self._user_config: Optional[UserConfig] = None
-        self._merged_config: Optional[FullConfig] = None
+        self._merged_config: Optional[Dict[str, Any]] = None
     
     def load_user_config(self) -> Optional[UserConfig]:
-        """Загружает пользовательскую конфигурацию"""
+        """Загружает пользовательскую конфигурацию (с валидацией)"""
         if not os.path.exists(self.user_config_path):
             return None
         
@@ -83,27 +82,21 @@ class UserConfigService:
                 self._user_config = UserConfig()
         return self._user_config
     
-    def get_merged_config(self, default_config: FullConfig) -> FullConfig:
-        """Получает объединенную конфигурацию (дефолтная + пользовательская)"""
-        if self._merged_config is not None:
-            return self._merged_config
+    def merge_with_defaults(self, user_config: UserConfig, default_config: Dict[str, Any]) -> Dict[str, Any]:
+        """Объединяет пользовательские настройки со стандартными"""
+        result = default_config.copy()
         
-        user_config = self.get_user_config()
+        # Объединяем настройки генерации
+        if user_config.generation.max_tokens is not None:
+            result.setdefault("generation", {})["default_max_tokens"] = user_config.generation.max_tokens
         
-        if not user_config.to_dict():
-            # Если пользовательских настроек нет, возвращаем дефолтную
-            self._merged_config = default_config
-            return default_config
+        if user_config.generation.temperature is not None:
+            result.setdefault("generation", {})["default_temperature"] = user_config.generation.temperature
         
-        try:
-            # Объединяем конфигурации
-            merged_data = user_config.merge_with_defaults(default_config)
-            self._merged_config = FullConfig(**merged_data)
-            return self._merged_config
-            
-        except Exception:
-            self._merged_config = default_config
-            return default_config
+        if user_config.generation.enable_thinking is not None:
+            result.setdefault("generation", {})["default_enable_thinking"] = user_config.generation.enable_thinking
+        
+        return result
     
     def reset_to_defaults(self) -> bool:
         """Сбрасывает пользовательские настройки к стандартным"""

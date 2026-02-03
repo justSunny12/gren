@@ -6,7 +6,7 @@ from logic.ui_handlers import ui_handlers
 from container import container
 
 def load_css():
-    """Загружает все CSS файлы"""
+    """Загружает все CSS файлы из static/css/"""
     css_files = [
         'css/base.css',
         'css/sidebar.css', 
@@ -21,8 +21,10 @@ def load_css():
             if os.path.exists(css_file):
                 with open(css_file, 'r', encoding='utf-8') as f:
                     css_content += f.read() + "\n"
-        except Exception:
-            pass
+            else:
+                print(f"⚠️ CSS файл не найден: {css_file}")
+        except Exception as e:
+            print(f"⚠️ Ошибка загрузки CSS файла {css_file}: {e}")
     
     return css_content
 
@@ -34,13 +36,13 @@ def reset_user_settings():
         
         if success:
             default_config = config_service.get_default_config()
-            gen_config = default_config.generation
+            gen_config = default_config.get("generation", {})
             
             # Возвращаем обновленные значения для UI
             return (
-                gen_config.default_max_tokens,
-                gen_config.default_temperature,
-                gen_config.default_enable_thinking
+                gen_config.get("default_max_tokens", 512),
+                gen_config.get("default_temperature", 0.7),
+                gen_config.get("default_enable_thinking", False)
             )
         else:
             # Если сброс не удался, возвращаем текущие значения
@@ -343,7 +345,3 @@ def create_main_ui():
         )
     
     return demo, css_content, JS_CODE
-
-def get_css_content():
-    """Возвращает CSS контент для launch()"""
-    return load_css()

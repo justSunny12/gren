@@ -6,7 +6,7 @@ class ChatBubbleComponents:
     """Фабрика компонентов чата"""
     
     def __init__(self):
-        self.config = container.get_config().ui
+        self.config = container.get_config().get("ui", {})
     
     def create_chatbot(self, **kwargs) -> gr.Chatbot:
         """Создает компонент чатбота"""

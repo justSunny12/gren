@@ -75,7 +75,7 @@ class ModelService:
         # Загрузка конфигурации
         from container import container
         self.config = container.get_config()
-        model_config = self.config.model
+        model_config = self.config.get("model", {})
         
         start_time = time.time()
         
@@ -83,7 +83,7 @@ class ModelService:
             # Используем оптимальный dtype для устройства
             dtype = self._get_dtype()
             
-            print(f"📦 Загрузка модели {model_config.name}...")
+            print(f"📦 Загрузка модели {model_config.get('name', 'Qwen/Qwen3-4B')}...")
             print(f"   device: {self.device}")
             print(f"   dtype: {dtype}")
             
@@ -95,8 +95,9 @@ class ModelService:
                 torch.mps.empty_cache()
             
             # Загружаем токенизатор
+            model_name = model_config.get("name", "Qwen/Qwen3-4B")
             self.tokenizer = AutoTokenizer.from_pretrained(
-                model_config.name,
+                model_name,
                 trust_remote_code=True
             )
             
@@ -106,8 +107,8 @@ class ModelService:
             
             # Подготавливаем параметры для pipeline
             model_kwargs = {
-                "attn_implementation": model_config.attn_implementation,
-                "low_cpu_mem_usage": model_config.low_cpu_mem_usage,
+                "attn_implementation": model_config.get("attn_implementation", "eager"),
+                "low_cpu_mem_usage": model_config.get("low_cpu_mem_usage", True),
             }
             
             if self.device == "cuda":
@@ -116,7 +117,7 @@ class ModelService:
             # Загружаем модель один раз
             self.generator = pipeline(
                 "text-generation",
-                model=model_config.name,
+                model=model_name,
                 tokenizer=self.tokenizer,
                 device=self.device if self.device != "mps" else -1,
                 batch_size=self.batch_size,
@@ -142,9 +143,9 @@ class ModelService:
             self.initialize()
         
         if max_tokens is None:
-            max_tokens = self.config.generation.default_max_tokens
+            max_tokens = self.config.get("generation", {}).get("default_max_tokens", 512)
         if temperature is None:
-            temperature = self.config.generation.default_temperature
+            temperature = self.config.get("generation", {}).get("default_temperature", 0.7)
         
         # Базовые параметры
         params = {
@@ -156,12 +157,12 @@ class ModelService:
         # Устройство-специфичные параметры
         if self.device == "cuda":
             params.update({
-                "top_p": self.config.generation.default_top_p,
-                "repetition_penalty": self.config.generation.default_repetition_penalty,
+                "top_p": self.config.get("generation", {}).get("default_top_p", 0.9),
+                "repetition_penalty": self.config.get("generation", {}).get("default_repetition_penalty", 1.1),
             })
         elif self.device == "cpu":
             params.update({
-                "top_p": self.config.generation.default_top_p,
+                "top_p": self.config.get("generation", {}).get("default_top_p", 0.9),
             })
         # MPS оставляем с базовыми параметрами
         

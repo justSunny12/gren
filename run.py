@@ -123,10 +123,14 @@ def main():
     print("\n⚙️  ЗАГРУЗКА КОНФИГУРАЦИИ...")
     try:
         config = container.get_config()
+        app_config = config.get("app", {})
+        model_config = config.get("model", {})
+        server_config = config.get("server", {})
+        
         print(f"✅ Конфигурация загружена:")
-        print(f"   Приложение: {config.app.name} v{config.app.version}")
-        print(f"   Модель: {config.model.name}")
-        print(f"   Сервер: {config.server.host}:{config.server.port}")
+        print(f"   Приложение: {app_config.get('name', 'Qwen3-4B Chat')} v{app_config.get('version', '1.0.0')}")
+        print(f"   Модель: {model_config.get('name', 'Qwen/Qwen3-4B')}")
+        print(f"   Сервер: {server_config.get('host', '0.0.0.0')}:{server_config.get('port', 7860)}")
     except Exception as e:
         print(f"⚠️ Ошибка загрузки конфигурации: {e}")
         return
@@ -165,8 +169,8 @@ def main():
     print("🌐 ЗАПУСК СЕРВЕРА...")
     print("=" * 60)
     print("\n📍 Ссылка для доступа:")
-    print(f"   Локально: http://{config.server.host}:{config.server.port}")
-    print(f"   В сети: {'Да' if config.server.share else 'Нет'}")
+    print(f"   Локально: http://{server_config.get('host', '0.0.0.0')}:{server_config.get('port', 7860)}")
+    print(f"   В сети: {'Да' if server_config.get('share', False) else 'Нет'}")
     
     if model_loaded:
         print("\n⚡ Модель в памяти - готово к работе!")
@@ -174,23 +178,25 @@ def main():
         print("\n⚠️  Модель не загружена - будет загружена при первом запросе")
     
     try:
+        queue_config = config.get("queue", {})
         demo.queue(
-            max_size=config.queue.max_size,
-            default_concurrency_limit=config.queue.concurrency_limit
+            max_size=queue_config.get("max_size", 5),
+            default_concurrency_limit=queue_config.get("concurrency_limit", 1)
         ).launch(
-            server_name=config.server.host,
-            server_port=config.server.port,
-            share=config.server.share,
-            debug=config.app.debug,
-            show_error=config.server.show_error,
-            theme=config.app.theme,
+            server_name=server_config.get("host", "0.0.0.0"),
+            server_port=server_config.get("port", 7860),
+            share=server_config.get("share", False),
+            debug=app_config.get("debug", False),
+            show_error=server_config.get("show_error", True),
+            theme=app_config.get("theme", "soft"),
             css=css_content,
             head=simple_js
         )
     except Exception as e:
         print(f"❌ Ошибка запуска сервера: {e}")
         print("\n🔧 Возможные решения:")
-        print(f"1. Проверьте, что порт {config.server.port} свободен")
+        port = server_config.get("port", 7860)
+        print(f"1. Проверьте, что порт {port} свободен")
         print("2. Попробуйте другой порт в config/app_config.yaml")
         print("3. Проверьте доступ к интернету (для загрузки модели)")
 
