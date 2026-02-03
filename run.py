@@ -40,7 +40,7 @@ def cleanup_on_exit():
     except Exception as e:
         print(f"ℹ️ Незначительная ошибка при завершении: {e}")
     
-    print(f"✅ Приложение завершено")
+    print(f"✅ Работа приложения завершена")
 
 def initialize_model():
     """Инициализирует модель один раз при старте"""
