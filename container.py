@@ -17,9 +17,9 @@ class Container:
                 # Загружаем пользовательскую конфигурацию при первом обращении
                 self._services["config_service"].get_config()
             elif name == "model_service":
-                from services.model_service import ModelService
-                service = ModelService()
-                self._services["model_service"] = service
+                # Используем MLX версию вместо оригинальной
+                from services.model_service_mlx import model_service_mlx
+                self._services["model_service"] = model_service_mlx
             elif name == "dialog_service":
                 from services.dialog_service import dialog_service
                 self._services["dialog_service"] = dialog_service

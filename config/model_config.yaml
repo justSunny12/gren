@@ -1,9 +1,8 @@
-# Настройки модели и генерации
+# config/model_config.yaml
+# Настройки модели и генерации для MLX
 model:
-  name: "Qwen/Qwen3-4B"
-  dtype: "auto"  # auto, float16, bfloat16
-  attn_implementation: "eager"
-  low_cpu_mem_usage: true
+  name: "mlx-community/Qwen2.5-3B-Instruct-4bit"  # Рекомендуемая 4-битная версия для MLX
+  dtype: "float16"  # MLX работает с float16 на Apple Silicon
 
 generation:
   default_max_tokens: 512

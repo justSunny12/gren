@@ -1,16 +1,9 @@
-# /run.py (упрощенный)
-import gradio as gr
-import atexit
-import time
-import sys
-from ui.main import create_main_ui
-from container import container
+# /run.py (обновленные функции)
 
 def print_memory_stats(prefix: str = ""):
-    """Выводит статистику памяти"""
+    """Выводит статистику памяти для MLX"""
     try:
         import psutil
-        import torch
         
         process = psutil.Process()
         memory_info = process.memory_info()
@@ -20,38 +13,22 @@ def print_memory_stats(prefix: str = ""):
         
         print(f"{prefix}💾 RAM: {ram_used:.2f} GB ({ram_percent:.1f}%)")
         
-        if torch.cuda.is_available():
-            gpu_used = torch.cuda.memory_allocated() / 1024**3
-            gpu_cached = torch.cuda.memory_reserved() / 1024**3
-            print(f"{prefix}🎮 GPU: {gpu_used:.2f} GB / кэш: {gpu_cached:.2f} GB")
+        # Для MLX показываем информацию о VRAM через Activity Monitor
+        print(f"{prefix}🎮 MLX: Apple Silicon (общая память)")
         
     except Exception as e:
         print(f"{prefix}⚠️ Не удалось получить статистику памяти: {e}")
 
-def cleanup_on_exit():
-    print("\n👋 Завершение работы")
-    
-    try:
-        # 1. Останавливаем Gradio сервер (если он запущен)
-        if hasattr(sys, '_gradio_server'):
-            sys._gradio_server.close()
-            time.sleep(0.05)
-        
-    except Exception as e:
-        print(f"ℹ️ Незначительная ошибка при завершении: {e}")
-    
-    print(f"✅ Работа приложения завершена")
-
 def initialize_model():
-    """Инициализирует модель один раз при старте"""
+    """Инициализирует модель один раз при старте через MLX"""
     print("\n" + "-" * 50)
-    print("📦 ИНИЦИАЛИЗАЦИЯ МОДЕЛИ")
+    print("📦 ИНИЦИАЛИЗАЦИЯ МОДЕЛИ (MLX)")
     print("-" * 50)
     
     try:
         # Получаем сервис модели
         model_service = container.get_model_service()
-                
+        
         # Получаем конфигурацию для отображения примененных настроек
         config = container.get_config()
         user_settings = container.get("config_service").get_user_settings()
@@ -67,138 +44,24 @@ def initialize_model():
                 if "enable_thinking" in gen:
                     print(f"   Thinking: {gen['enable_thinking']}")
         
-        # Загружаем модель
+        # Загружаем модель через MLX
         start_time = time.time()
         model, tokenizer, lock = model_service.initialize()
         load_time = time.time() - start_time
         
         if model is not None:
-            print(f"✅ Модель загружена за {load_time:.2f} секунд")
-            print("💾 Модель останется в памяти для быстрых ответов")
+            print(f"✅ Модель загружена через MLX за {load_time:.2f} секунд")
             
-            # Прогрев модели С ВЫКЛЮЧЕННЫМИ РАЗМЫШЛЕНИЯМИ (enable_thinking=False)
-            print("🔥 Прогрев модели...")
-            try:
-                # Устанавливаем флаг прогрева чтобы избежать вывода
-                if hasattr(model_service, '_warming_up'):
-                    model_service._warming_up = True
-                
-                warmup_messages = [{"role": "user", "content": "Привет"}]
-                warmup_response = model_service.generate_response(
-                    warmup_messages, 
-                    max_tokens=10,
-                    temperature=0.1,
-                    enable_thinking=False
-                )
-                
-                # Убираем флаг прогрева
-                if hasattr(model_service, '_warming_up'):
-                    model_service._warming_up = False
-                
-                print("✅ Модель прогрета успешно")
-                
-            except Exception as e:
-                print(f"ℹ️ Прогрев не удался: {e}, но модель загружена")
+            # MLX автоматически использует GPU/Neural Engine
+            print("⚡ Модель оптимизирована для Apple Silicon")
             
             return True
         else:
-            print("❌ Не удалось загрузить модель")
+            print("❌ Не удалось загрузить модель через MLX")
             return False
             
     except Exception as e:
-        print(f"❌ Критическая ошибка при загрузке модели: {e}")
+        print(f"❌ Критическая ошибка при загрузке модели через MLX: {e}")
         import traceback
         traceback.print_exc()
         return False
-
-def main():
-    print("=" * 60)
-    print("🚀 ЗАПУСК QWEN3-4B CHAT")
-    print("=" * 60)
-    
-    # Регистрируем функцию очистки при выходе
-    atexit.register(cleanup_on_exit)
-    
-    # Загружаем конфигурация
-    print("\n⚙️  ЗАГРУЗКА КОНФИГУРАЦИИ...")
-    try:
-        config = container.get_config()
-        app_config = config.get("app", {})
-        model_config = config.get("model", {})
-        server_config = config.get("server", {})
-        
-        print(f"✅ Конфигурация загружена:")
-        print(f"   Приложение: {app_config.get('name', 'Qwen3-4B Chat')} v{app_config.get('version', '1.0.0')}")
-        print(f"   Модель: {model_config.get('name', 'Qwen/Qwen3-4B')}")
-        print(f"   Сервер: {server_config.get('host', '0.0.0.0')}:{server_config.get('port', 7860)}")
-    except Exception as e:
-        print(f"⚠️ Ошибка загрузки конфигурации: {e}")
-        return
-    
-    # Загружаем диалоги
-    print("\n💬 ЗАГРУЗКА ДИАЛОГОВ...")
-    try:
-        dialog_service = container.get_dialog_service()
-        dialog_count = len(dialog_service.dialogs)
-        print(f"✅ Загружено диалогов: {dialog_count}")
-        
-    except Exception as e:
-        print(f"⚠️ Ошибка загрузки диалогов: {e}")
-    
-    # Инициализируем модель ОДИН РАЗ при старте
-    model_loaded = initialize_model()
-    
-    if not model_loaded:
-        print("\n⚠️  ВНИМАНИЕ: Модель не была загружена!")
-        print("Приложение будет работать в режиме ожидания.")
-        print("Модель попытается загрузиться при первом запросе.")
-    
-    # Создаем интерфейс
-    print("\n🖥️  СОЗДАНИЕ ИНТЕРФЕЙСА...")
-    try:
-        demo, css_content, simple_js = create_main_ui()
-        print("✅ Интерфейс создан")
-    except Exception as e:
-        print(f"❌ Ошибка создания интерфейса: {e}")
-        import traceback
-        traceback.print_exc()
-        return
-    
-    # Запускаем сервер
-    print("\n" + "=" * 60)
-    print("🌐 ЗАПУСК СЕРВЕРА...")
-    print("=" * 60)
-    print("\n📍 Ссылка для доступа:")
-    print(f"   Локально: http://{server_config.get('host', '0.0.0.0')}:{server_config.get('port', 7860)}")
-    print(f"   В сети: {'Да' if server_config.get('share', False) else 'Нет'}")
-    
-    if model_loaded:
-        print("\n⚡ Модель в памяти - готово к работе!")
-    else:
-        print("\n⚠️  Модель не загружена - будет загружена при первом запросе")
-    
-    try:
-        queue_config = config.get("queue", {})
-        demo.queue(
-            max_size=queue_config.get("max_size", 5),
-            default_concurrency_limit=queue_config.get("concurrency_limit", 1)
-        ).launch(
-            server_name=server_config.get("host", "0.0.0.0"),
-            server_port=server_config.get("port", 7860),
-            share=server_config.get("share", False),
-            debug=app_config.get("debug", False),
-            show_error=server_config.get("show_error", True),
-            theme=app_config.get("theme", "soft"),
-            css=css_content,
-            head=simple_js
-        )
-    except Exception as e:
-        print(f"❌ Ошибка запуска сервера: {e}")
-        print("\n🔧 Возможные решения:")
-        port = server_config.get("port", 7860)
-        print(f"1. Проверьте, что порт {port} свободен")
-        print("2. Попробуйте другой порт в config/app_config.yaml")
-        print("3. Проверьте доступ к интернету (для загрузки модели)")
-
-if __name__ == "__main__":
-    main()
