@@ -182,12 +182,10 @@ class ModelService:
         
         self.generation_stats['total_requests'] += 1
         
-        # Временно скрываем вывод для прогрева через атрибут _warming_up
+        # Выключаем Thinking для прогрева
         if hasattr(self, '_warming_up') and self._warming_up:
             # Тихий режим для прогрева
             enable_thinking = False  # Принудительно выключаем thinking для прогрева
-        else:
-            print(f"🧠 Thinking: {enable_thinking}")
         
         try:
             # Используем встроенный параметр enable_thinking токенизатора Qwen
