@@ -340,49 +340,7 @@ class ModelService:
         
         self.generation_stats['last_cleanup'] = datetime.now()
         print("✅ Временные данные очищены (модель и кэш в памяти)")
-    
-    def force_cleanup(self):
-        """
-        ПОЛНАЯ очистка всех ресурсов
-        ТОЛЬКО при завершении приложения
-        """
-        print("🧹 ПОЛНАЯ очистка ВСЕХ ресурсов модели...")
         
-        if self.generator:
-            try:
-                # Для MPS аккуратно отключаем
-                if self.device == "mps" and hasattr(self.generator.model, 'to'):
-                    self.generator.model = self.generator.model.to('cpu')
-                
-                del self.generator
-            except Exception as e:
-                print(f"⚠️ Ошибка при удалении генератора: {e}")
-            finally:
-                self.generator = None
-        
-        if self.tokenizer:
-            try:
-                del self.tokenizer
-            except:
-                pass
-            self.tokenizer = None
-        
-        # Очищаем ВСЕ кэши (только при завершении!)
-        self.param_cache.clear()
-        self.temp_buffers.clear()
-        self.temp_tensors.clear()
-        
-        # Системная очистка
-        if self.device == "cuda":
-            torch.cuda.empty_cache()
-        elif self.device == "mps":
-            torch.mps.empty_cache()
-        
-        gc.collect()
-        
-        self._initialized = False
-        print("✅ Все ресурсы модели выгружены из памяти")
-    
     def is_initialized(self) -> bool:
         """Проверяет, инициализирована ли модель"""
         return self._initialized
