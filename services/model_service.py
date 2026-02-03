@@ -118,8 +118,7 @@ class ModelService:
                 "text-generation",
                 model=model_config.name,
                 tokenizer=self.tokenizer,
-                dtype=dtype,
-                device=self.device,
+                device=self.device if self.device != "mps" else -1,
                 batch_size=self.batch_size,
                 model_kwargs=model_kwargs
             )

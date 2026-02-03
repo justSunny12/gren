@@ -1,86 +1,52 @@
-# test_minimal.py - Минимальный тест интерфейса без модели
-import gradio as gr
+# test_model_load.py
 import time
-import random
+import torch
+from transformers import AutoTokenizer, AutoModelForCausalLM
 
-# Заглушка вместо реальной модели
-class MockModel:
-    def __init__(self):
-        self.responses = [
-            "Это тестовый ответ от модели.",
-            "Привет! Я тестовый чат-бот.",
-            "Как у вас дела?",
-            "Я могу отвечать на вопросы в тестовом режиме.",
-            "Модель не загружена, но интерфейс работает!",
-            "Это демонстрация работы чат-интерфейса."
-        ]
+def test_direct_load():
+    """Прямая загрузка модели"""
+    print("🔍 Тест прямой загрузки модели...")
     
-    def generate(self, message):
-        # Имитация задержки ответа
-        time.sleep(0.5)
-        # Случайный ответ из списка
-        return random.choice(self.responses)
+    model_name = "Qwen/Qwen3-4B"
+    device = "mps" if torch.backends.mps.is_available() else "cpu"
+    print(f"Устройство: {device}")
+    
+    # 1. Токенизатор
+    start = time.time()
+    tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
+    tokenizer_time = time.time() - start
+    print(f"Токенизатор: {tokenizer_time:.2f} сек")
+    
+    # 2. Модель с разными параметрами
+    test_cases = [
+        {"low_cpu_mem_usage": False, "torch_dtype": torch.float32},
+        {"low_cpu_mem_usage": True, "torch_dtype": torch.float32},
+        {"low_cpu_mem_usage": True, "torch_dtype": torch.float16},
+    ]
+    
+    for i, params in enumerate(test_cases):
+        print(f"\nТест {i+1}: {params}")
+        try:
+            start = time.time()
+            model = AutoModelForCausalLM.from_pretrained(
+                model_name,
+                trust_remote_code=True,
+                **params
+            )
+            
+            if device == "mps":
+                model = model.to("mps")
+            
+            load_time = time.time() - start
+            print(f"  Загрузка: {load_time:.2f} сек")
+            print(f"  Параметры: {sum(p.numel() for p in model.parameters()):,}")
+            
+            # Очистка
+            del model
+            torch.mps.empty_cache() if device == "mps" else torch.cuda.empty_cache()
+            
+        except Exception as e:
+            print(f"  Ошибка: {e}")
 
-# Создаем заглушку модели
-mock_model = MockModel()
-
-# История чата (просто список сообщений)
-chat_history = []
-
-def send_message(message, history):
-    """Обработчик отправки сообщения"""
-    if not message.strip():
-        return "", history
-    
-    # Добавляем сообщение пользователя в историю
-    history.append([message, None])
-    
-    # Получаем ответ от заглушки модели
-    response = mock_model.generate(message)
-    
-    # Добавляем ответ в историю
-    history[-1][1] = response
-    
-    return "", history
-
-def clear_chat():
-    """Очистить чат"""
-    return []
-
-# Создаем интерфейс
-with gr.Blocks(title="Тестовый чат (без модели)") as demo:
-    gr.Markdown("# 🧪 Тестовый чат-интерфейс")
-    gr.Markdown("Модель не загружена - используется заглушка")
-    
-    # Чат
-    chatbot = gr.Chatbot(label="Чат", height=500)
-    
-    # Поле ввода и кнопки
-    with gr.Row():
-        msg = gr.Textbox(
-            placeholder="Введите сообщение...",
-            show_label=False,
-            scale=8,
-            container=False
-        )
-        submit_btn = gr.Button("Отправить", variant="primary", scale=1)
-        clear_btn = gr.Button("Очистить", variant="secondary", scale=1)
-    
-    # Обработчики
-    msg.submit(send_message, [msg, chatbot], [msg, chatbot])
-    submit_btn.click(send_message, [msg, chatbot], [msg, chatbot])
-    clear_btn.click(clear_chat, None, [chatbot])
-    
-    # Информация
-    gr.Markdown("---")
-    gr.Markdown("### Информация:")
-    gr.Markdown("- Модель: Заглушка (не загружена)")
-    gr.Markdown("- Режим: Тестовый")
-    gr.Markdown("- Ответы: Рандомные из предустановленного списка")
-
-# Запуск
 if __name__ == "__main__":
-    print("🚀 Запуск тестового приложения...")
-    print("📌 Ссылка: http://localhost:7860")
-    print("⚠️  Модель не загружена - используется заглушка")
-    demo.launch(server_port=7860, share=False)
+    test_direct_load()

@@ -1,7 +1,7 @@
 # Настройки модели и генерации
 model:
   name: "Qwen/Qwen3-4B"
-  dtype: "bfloat16"  # auto, float16, bfloat16
+  dtype: "auto"  # auto, float16, bfloat16
   attn_implementation: "eager"
   low_cpu_mem_usage: true
 
