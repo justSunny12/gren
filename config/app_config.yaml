@@ -18,3 +18,8 @@ queue:
 dialogs:
   save_dir: "saved_dialogs"
   default_name: "Новый чат"
+
+chat_naming:
+  max_name_length: 50
+  summary_max_tokens: 20
+  summary_temperature: 0.4

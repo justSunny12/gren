@@ -81,8 +81,8 @@ def main():
     # Проверяем поддержку MLX
     try:
         import mlx.core as mx
-        print(f"✅ MLX доступен: версия {mx.__version__}")
-        print(f"✅ Устройство: {mx.default_device()}")
+        # print(f"✅ MLX доступен: версия {mx.__version__}")
+        # print(f"✅ Устройство: {mx.default_device()}")
         
         # Устанавливаем MLX бэкенд
         container.set_backend(use_mlx=True)
@@ -104,9 +104,9 @@ def main():
         server_config = config.get("server", {})
         
         print(f"✅ Конфигурация загружена:")
-        print(f"   Приложение: {app_config.get('name', 'Qwen3-4B Chat')} v{app_config.get('version', '1.0.0')}")
+        # print(f"   Приложение: {app_config.get('name', 'Qwen3-4B Chat')} v{app_config.get('version', '1.0.0')}")
         print(f"   Модель: {model_config.get('name', 'Qwen/Qwen3-4B')}")
-        print(f"   Сервер: {server_config.get('host', '0.0.0.0')}:{server_config.get('port', 7860)}")
+        # print(f"   Сервер: {server_config.get('host', '0.0.0.0')}:{server_config.get('port', 7860)}")
     except Exception as e:
         print(f"⚠️ Ошибка загрузки конфигурации: {e}")
         return
@@ -144,9 +144,9 @@ def main():
     print("\n" + "=" * 60)
     print("🌐 ЗАПУСК СЕРВЕРА...")
     print("=" * 60)
-    print("\n📍 Ссылка для доступа:")
-    print(f"   Локально: http://{server_config.get('host', '0.0.0.0')}:{server_config.get('port', 7860)}")
-    print(f"   В сети: {'Да' if server_config.get('share', False) else 'Нет'}")
+    # print("\n📍 Ссылка для доступа:")
+    # print(f"   Локально: http://{server_config.get('host', '0.0.0.0')}:{server_config.get('port', 7860)}")
+    # print(f"   В сети: {'Да' if server_config.get('share', False) else 'Нет'}")
     
     if model_loaded:
         print("\n⚡ Модель в памяти - готово к работе!")

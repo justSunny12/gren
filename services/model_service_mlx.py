@@ -81,27 +81,29 @@ class ModelServiceMLX:
             traceback.print_exc()
             return None, None, self.generate_lock
     
-    def get_generation_params(self, max_tokens: int = None, 
-                             temperature: float = None) -> Dict[str, Any]:
-        """
-        Получает параметры генерации для MLX
-        """
-        if not self._initialized:
-            self.initialize()
-        
-        if max_tokens is None:
-            max_tokens = self.config.get("generation", {}).get("default_max_tokens", 512)
-        if temperature is None:
-            temperature = self.config.get("generation", {}).get("default_temperature", 0.7)
-        
-        # Базовые параметры для MLX
-        params = {
-            "max_tokens": max_tokens,
-            "temp": max(temperature, 0.01),
-            "top_p": self.config.get("generation", {}).get("default_top_p", 0.9),
-        }
-        
-        return params
+def _get_generation_parameters(self, max_tokens, temperature, enable_thinking):
+    """Возвращает параметры генерации БЕЗ привязки к режиму размышлений"""
+    gen_config = self.config.get("generation", {})
+    
+    # Используем переданные значения или значения по умолчанию
+    final_max_tokens = max_tokens if max_tokens is not None \
+        else gen_config.get("default_max_tokens", 1024)
+    
+    final_temp = temperature if temperature is not None \
+        else gen_config.get("default_temperature", 0.7)
+    
+    # Top-p всегда одинаковый, независимо от режима
+    final_top_p = gen_config.get("default_top_p", 0.8)
+    
+    return {
+        "max_tokens": final_max_tokens,
+        "temperature": final_temp,
+        "top_p": final_top_p,
+        "repetition_penalty": gen_config.get("repetition_penalty", 1.1),
+        "top_k": gen_config.get("top_k", 40),
+        "enable_thinking": enable_thinking if enable_thinking is not None \
+            else gen_config.get("default_enable_thinking", False)
+    }
     
     def generate_response(self, messages: list, max_tokens: int = 512, 
                         temperature: float = 0.7, enable_thinking: bool = False) -> str:
