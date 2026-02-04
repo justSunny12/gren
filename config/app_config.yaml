@@ -1,6 +1,6 @@
 # Основные настройки приложения
 app:
-  name: "Qwen3-4B Chat"
+  name: "Qwen3-30B Chat"
   version: "1.0.0"
   debug: false
   theme: "soft"
