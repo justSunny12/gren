@@ -2,24 +2,34 @@
 from typing import Dict, Any
 
 class Container:
-    """Упрощенный контейнер зависимостей с поддержкой оптимизированной модели"""
-    
     def __init__(self):
         self._services: Dict[str, Any] = {}
+        self._use_mlx = True  # Флаг для использования MLX
     
     def get(self, name: str) -> Any:
-        """Получает сервис по имени БЕЗ лишнего вывода"""
+        """Получает сервис по имени"""
         if name not in self._services:
-            # Ленивая загрузка сервисов
             if name == "config_service":
                 from services.config_service import ConfigService
                 self._services["config_service"] = ConfigService()
-                # Загружаем пользовательскую конфигурацию при первом обращении
                 self._services["config_service"].get_config()
             elif name == "model_service":
-                # Используем MLX версию вместо оригинальной
-                from services.model_service_mlx import model_service_mlx
-                self._services["model_service"] = model_service_mlx
+                # Используем MLX сервис если флаг установлен
+                if self._use_mlx:
+                    try:
+                        from services.mlx_model_service import MLXModelService
+                        service = MLXModelService()
+                        self._services["model_service"] = service
+                        print("✅ Используется MLX бэкенд")
+                    except ImportError as e:
+                        print(f"⚠️ MLX не доступен, используем PyTorch: {e}")
+                        from services.model_service import ModelService
+                        service = ModelService()
+                        self._services["model_service"] = service
+                else:
+                    from services.model_service import ModelService
+                    service = ModelService()
+                    self._services["model_service"] = service
             elif name == "dialog_service":
                 from services.dialog_service import dialog_service
                 self._services["dialog_service"] = dialog_service
@@ -33,6 +43,12 @@ class Container:
                 raise ValueError(f"Сервис не найден: {name}")
         
         return self._services[name]
+    
+    def set_backend(self, use_mlx: bool):
+        """Устанавливает бэкенд (MLX или PyTorch)"""
+        self._use_mlx = use_mlx
+        if "model_service" in self._services:
+            del self._services["model_service"]  # Принудительная перезагрузка
     
     def get_config(self):
         """Быстрый доступ к конфигурации (теперь возвращает словарь)"""

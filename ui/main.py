@@ -33,19 +33,18 @@ def reset_user_settings():
     try:
         config_service = container.get("config_service")
         success = config_service.reset_user_settings()
-        
+
         if success:
             default_config = config_service.get_default_config()
             gen_config = default_config.get("generation", {})
-            
-            # Возвращаем обновленные значения для UI
+
+            # Возвращаем обновленные значения для всех трёх параметров
             return (
                 gen_config.get("default_max_tokens", 512),
                 gen_config.get("default_temperature", 0.7),
                 gen_config.get("default_enable_thinking", False)
             )
         else:
-            # Если сброс не удался, возвращаем текущие значения
             return gr.update(), gr.update(), gr.update()
     except Exception:
         return gr.update(), gr.update(), gr.update()
@@ -61,10 +60,8 @@ def on_slider_change(max_tokens, temperature, enable_thinking):
                 "enable_thinking": enable_thinking
             }
         })
-        # Возвращаем пустой кортеж (ничего не меняем в UI)
         return gr.update(), gr.update(), gr.update()
     except Exception:
-        # В случае ошибки тоже ничего не выводим
         return gr.update(), gr.update(), gr.update()
 
 def create_main_ui():
@@ -199,7 +196,7 @@ def create_main_ui():
     </script>
     """
     
-    with gr.Blocks(title="Qwen3-4B Chat", fill_width=True) as demo:
+    with gr.Blocks(title="Qwen3-30B Chat", fill_width=True) as demo:
         current_dialog_id = gr.State(value=None)
         
         sidebar_components, chatbot, user_input, submit_btn = create_main_layout()
@@ -269,6 +266,7 @@ def create_main_ui():
             )
         
         def send_message(prompt, chat_id, max_tokens, temperature, enable_thinking):
+            # Обёртка для вызова ui_handlers.send_message_handler
             return ui_handlers.send_message_handler(
                 prompt, 
                 chat_id, 

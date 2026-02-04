@@ -1,8 +1,13 @@
 # /ui/layouts/sidebar_layout.py
 import gradio as gr
+from container import container
 
 def create_sidebar_layout():
     """Создает layout боковой панели с новым списком чатов"""
+    # Загружаем конфиг для диапазонов
+    config = container.get_config()
+    gen_config = config.get("generation", {})
+
     with gr.Column(scale=1, min_width=380, elem_id="sidebar_container"):
         # 1. Кнопка создания нового чата
         create_dialog_btn = gr.Button(
@@ -11,7 +16,7 @@ def create_sidebar_layout():
             size="lg",
             elem_classes="new-chat-btn"
         )
-        
+
         # 2. Контейнер списка чатов
         gr.HTML("""
         <div class="chat-list-container">
@@ -22,27 +27,33 @@ def create_sidebar_layout():
             </div>
         </div>
         """)
-        
+
         # 3. Параметры модели (аккордеон)
         with gr.Accordion("⚙️ Параметры генерации", open=True, elem_classes="params-accordion") as params_accordion:
             max_tokens = gr.Slider(
-                minimum=64, maximum=2048, value=512, step=64,
+                minimum=gen_config.get("min_max_tokens", 64),
+                maximum=gen_config.get("max_max_tokens", 2048),
+                value=gen_config.get("default_max_tokens", 512),
+                step=64,
                 label="Макс. токенов"
             )
             temperature = gr.Slider(
-                minimum=0.1, maximum=1.5, value=0.7, step=0.1,
+                minimum=gen_config.get("min_temperature", 0.1),
+                maximum=gen_config.get("max_temperature", 1.5),
+                value=gen_config.get("default_temperature", 0.7),
+                step=0.1,
                 label="Температура"
             )
             enable_thinking = gr.Checkbox(
                 label="🧠 Глубокое размышление",
-                value=False,
+                value=gen_config.get("default_enable_thinking", False),
                 info="Включает внутренние размышления модели"
             )
-            
+
             # Кнопка сброса настроек
             with gr.Row():
                 reset_settings_btn = gr.Button("🔄 Сбросить к стандартным", variant="secondary", size="sm")
-        
+
         # Скрытое поле для передачи ID выбранного чата
         chat_input = gr.Textbox(
             elem_id="chat_input_field",
@@ -54,10 +65,10 @@ def create_sidebar_layout():
             elem_classes="hidden-input",
             interactive=True
         )
-        
+
         # Скрытый триггер для JavaScript
         js_trigger = gr.HTML(visible=False)
-    
+
     return {
         "create_dialog_btn": create_dialog_btn,
         "max_tokens": max_tokens,
