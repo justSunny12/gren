@@ -10,8 +10,9 @@ __pycache__/
 # C extensions
 *.so
 
-# saved dialogs cache
+#cache
 saved_dialogs/
+llm_cache/
 
 #tests
 test.py
