@@ -25,8 +25,8 @@ class Container:
                 service = DialogService(config)  # Создаем экземпляр с конфигом
                 self._services["dialog_service"] = service
             elif name == "chat_service":
-                from services.chat_service import chat_service
-                self._services["chat_service"] = chat_service
+                from services.chat.manager import ChatManager
+                self._services["chat_service"] = ChatManager()
             elif name == "ui_handlers":
                 from handlers import ui_handlers
                 self._services["ui_handlers"] = ui_handlers
