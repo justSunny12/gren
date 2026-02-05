@@ -5,7 +5,7 @@
 
 # Экспортируем сервисы
 from .config_service import ConfigService, config_service
-from .model_service import ModelService
+from .model.manager import ModelService
 from .user_config_service import UserConfigService, user_config_service
 from .dialogs import DialogService
 

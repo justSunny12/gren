@@ -1,23 +1,21 @@
-# config/model_config.yaml (исправленная версия)
 model:
   name: "Qwen/Qwen3-30B-A3B-MLX-4bit"
   local_path: "./llm_cache/models--Qwen--Qwen3-30B-A3B-MLX-4bit/snapshots/4e2776a4cc73a8a251d0b797010a5b07fd541a3e"
   unified_memory_limit: 80 #в процентах
 
 generation:
-
-generation:
+  # Основные параметры (всегда используются)
   default_max_tokens: 2048
   default_temperature: 0.7
-  default_enable_thinking: false
-  
-  # Статические параметры (не управляются через UI)
   default_top_p: 0.8
   repetition_penalty: 1.1
   top_k: 40
   
+  # Тоггл мышления (не влияет на другие параметры!)
+  default_enable_thinking: false
+  
   # Диапазоны для UI
   min_max_tokens: 64
-  max_max_tokens: 4096  # Настройте под ваше железо
+  max_max_tokens: 4096
   min_temperature: 0.1
   max_temperature: 1.5
