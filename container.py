@@ -1,10 +1,10 @@
-# /container.py
+# /container.py (полностью обновленный)
 from typing import Dict, Any
 
 class Container:
     def __init__(self):
         self._services: Dict[str, Any] = {}
-        self._use_mlx = True  # Флаг для использования MLX
+        # Убрано: self._use_mlx = True
     
     def get(self, name: str) -> Any:
         """Получает сервис по имени"""
@@ -14,22 +14,11 @@ class Container:
                 self._services["config_service"] = ConfigService()
                 self._services["config_service"].get_config()
             elif name == "model_service":
-                # Используем MLX сервис если флаг установлен
-                if self._use_mlx:
-                    try:
-                        from services.mlx_model_service import MLXModelService
-                        service = MLXModelService()
-                        self._services["model_service"] = service
-                        print("✅ Используется MLX бэкенд")
-                    except ImportError as e:
-                        print(f"⚠️ MLX не доступен, используем PyTorch: {e}")
-                        from services.model_service import ModelService
-                        service = ModelService()
-                        self._services["model_service"] = service
-                else:
-                    from services.model_service import ModelService
-                    service = ModelService()
-                    self._services["model_service"] = service
+                # ВСЕГДА используем ModelService (ранее MLXModelService)
+                from services.model_service import ModelService
+                service = ModelService()
+                self._services["model_service"] = service
+                print("✅ Используется ModelService (MLX бэкенд)")
             elif name == "dialog_service":
                 from services.dialog_service import dialog_service
                 self._services["dialog_service"] = dialog_service
@@ -44,14 +33,10 @@ class Container:
         
         return self._services[name]
     
-    def set_backend(self, use_mlx: bool):
-        """Устанавливает бэкенд (MLX или PyTorch)"""
-        self._use_mlx = use_mlx
-        if "model_service" in self._services:
-            del self._services["model_service"]  # Принудительная перезагрузка
+    # Убрано: метод set_backend
     
     def get_config(self):
-        """Быстрый доступ к конфигурации (теперь возвращает словарь)"""
+        """Быстрый доступ к конфигурации"""
         return self.get("config_service").get_config()
     
     def get_chat_service(self):

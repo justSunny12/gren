@@ -1,254 +1,237 @@
 # /services/model_service.py
-import torch
-import gc
 import time
-import platform
+import os
+import re
 from typing import Dict, Any, List, Optional
 from threading import Lock
 from datetime import datetime
-from transformers import pipeline, AutoTokenizer
-import psutil
+import mlx.core as mx
+from mlx_lm import load, generate
+from mlx_lm.sample_utils import make_sampler, make_logits_processors
 
 class ModelService:
-    """
-    Оптимизированный сервис для работы с моделями
-    Модель загружается один раз и остается в памяти
-    """
-    
+    """Сервис для работы с моделями на MLX с поддержкой enable_thinking"""
+
     def __init__(self):
-        self.config = None
-        self.generator = None
+        # Лениво загружаем конфиг и сервисы
+        self._config = None
+        self.model = None
         self.tokenizer = None
         self.generate_lock = Lock()
         self._initialized = False
-        self._warming_up = False
         
-        # Определяем устройство
-        self.device = self._get_device()
-        
-        # Мониторинг производительности
+        # Статистика
         self.generation_stats = {
             'total_requests': 0,
-            'batch_requests': 0,
             'avg_generation_time': 0,
             'total_tokens_generated': 0,
             'last_cleanup': datetime.now()
         }
-        
-        # Кэш параметров генерации - НИКОГДА не очищаем между запросами!
-        self.param_cache = {}
-        
-        # Временные буферы (можно очищать)
-        self.temp_buffers = []
-        self.temp_tensors = []
-        
-        # Batch очередь
-        self.batch_size = 1
-    
-    def _get_device(self):
-        """Определяет лучшее устройство для запуска"""
-        if torch.cuda.is_available():
-            return "cuda"
-        elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
-            print("Device set to use mps")
-            return "mps"
-        else:
-            return "cpu"
-    
-    def _get_dtype(self):
-        """Определяет оптимальный dtype для устройства"""
-        if self.device == "cuda":
-            return torch.float16
-        elif self.device == "mps":
-            return torch.float16
-        else:
-            return torch.float32
-    
-    def initialize(self, force_reload: bool = False):
-        """
-        Инициализирует модель один раз при первом вызове
-        Возвращает кортеж для совместимости
-        """
-        if self._initialized and not force_reload:
-            return self.generator.model if self.generator else None, self.tokenizer, self.generate_lock
-        
-        # Загрузка конфигурации
-        from container import container
-        self.config = container.get_config()
+
+    @property
+    def config(self) -> Dict[str, Any]:
+        """Ленивая загрузка конфигурации"""
+        if self._config is None:
+            from container import container
+            self._config = container.get_config()
+        return self._config
+
+    def _setup_memory_limit(self):
+        """Устанавливает лимит памяти для MLX на Apple Silicon"""
         model_config = self.config.get("model", {})
+        memory_limit = model_config.get("unified_memory_limit")
         
+        if memory_limit and hasattr(mx.metal, 'set_cache_limit'):
+            try:
+                # Конвертируем MB в байты
+                total_memory = mx.device_info().get('memory_size', 0)
+                limit_bytes = int(total_memory * 0.8)
+                mx.set_cache_limit(limit_bytes)
+                print(f"💾 Установлен лимит памяти MLX: {limit_bytes/1024**3:.2f} GB")
+            except Exception as e:
+                print(f"⚠️ Не удалось установить лимит памяти: {e}")
+
+    def initialize(self, force_reload: bool = False):
+        """Инициализирует модель"""
+        if self._initialized and not force_reload:
+            return self.model, self.tokenizer, self.generate_lock
+
+        model_config = self.config.get("model", {})
         start_time = time.time()
-        
+
         try:
-            # Используем оптимальный dtype для устройства
-            dtype = self._get_dtype()
+            # 1. Устанавливаем лимит памяти
+            self._setup_memory_limit()
             
-            print(f"📦 Загрузка модели {model_config.get('name', 'Qwen/Qwen3-4B')}...")
-            print(f"   device: {self.device}")
-            print(f"   dtype: {dtype}")
+            # 2. Определяем путь для загрузки
+            local_path = model_config.get("local_path")
+            model_name = model_config.get("name", "Qwen/Qwen3-30B-A3B-MLX-4bit")
+
+            # 3. Проверяем локальный путь
+            load_path = None
+            if local_path and os.path.exists(local_path):
+                load_path = local_path
+                print(f"📂 Загрузка модели из локального пути: {local_path}")
+            elif local_path:
+                # Локальный путь указан, но не существует
+                print(f"⚠️ Локальный путь не существует: {local_path}")
+                print(f"📡 Попытка загрузки из Hugging Face: {model_name}")
+                load_path = model_name
+            else:
+                # Локальный путь не указан - загружаем из HF
+                print(f"📡 Загрузка модели из Hugging Face: {model_name}")
+                load_path = model_name
             
-            # Оптимизации для разных устройств
-            if self.device == "cuda":
-                torch.backends.cuda.matmul.allow_tf32 = True
-                torch.backends.cudnn.benchmark = True
-            elif self.device == "mps":
-                torch.mps.empty_cache()
-            
-            # Загружаем токенизатор
-            model_name = model_config.get("name", "Qwen/Qwen3-4B")
-            self.tokenizer = AutoTokenizer.from_pretrained(
-                model_name,
-                trust_remote_code=True
+            # 4. Загружаем модель (исправленный вызов load)
+            self.model, self.tokenizer = load(
+                model_name
             )
-            
+
+            # Настройка токенизатора
             if self.tokenizer.pad_token is None:
                 self.tokenizer.pad_token = self.tokenizer.eos_token
             self.tokenizer.padding_side = "left"
-            
-            # Подготавливаем параметры для pipeline
-            model_kwargs = {
-                "attn_implementation": model_config.get("attn_implementation", "eager"),
-                "low_cpu_mem_usage": model_config.get("low_cpu_mem_usage", True),
-            }
-            
-            if self.device == "cuda":
-                model_kwargs["device_map"] = "auto"
-            
-            # Загружаем модель один раз
-            self.generator = pipeline(
-                "text-generation",
-                model=model_name,
-                tokenizer=self.tokenizer,
-                device=self.device if self.device != "mps" else -1,
-                batch_size=self.batch_size,
-                model_kwargs=model_kwargs
-            )
-            
+
             self._initialized = True
-            
             load_time = time.time() - start_time
-                        
-            return self.generator.model, self.tokenizer, self.generate_lock
+            print(f"✅ Модель загружена за {load_time:.2f} секунд")
             
+            # 5. Если скачали из HF и указан локальный путь - сохраняем локально
+            if load_path == model_name and local_path and not os.path.exists(local_path):
+                print(f"💾 Сохранение модели в локальный путь: {local_path}")
+                self._save_model_locally(local_path)
+
+            return self.model, self.tokenizer, self.generate_lock
+
         except Exception as e:
             print(f"❌ Ошибка загрузки модели: {e}")
+            import traceback
+            traceback.print_exc()
             return None, None, self.generate_lock
-    
-    def get_generation_params(self, max_tokens: Optional[int] = None, 
-                             temperature: Optional[float] = None) -> Dict[str, Any]:
-        """
-        Получает параметры генерации
-        """
-        if not self._initialized:
-            self.initialize()
+
+    def _save_model_locally(self, local_path: str):
+        """Сохраняет модель локально для последующего использования"""
+        try:
+            os.makedirs(local_path, exist_ok=True)
+            
+            # Сохраняем модель
+            if hasattr(self.model, 'save_pretrained'):
+                self.model.save_pretrained(local_path)
+            
+            # Сохраняем токенизатор
+            if hasattr(self.tokenizer, 'save_pretrained'):
+                self.tokenizer.save_pretrained(local_path)
+            
+            print(f"✅ Модель сохранена в: {local_path}")
+            
+        except Exception as e:
+            print(f"⚠️ Не удалось сохранить модель локально: {e}")
+
+    def _get_generation_parameters(
+        self, 
+        max_tokens: Optional[int] = None,
+        temperature: Optional[float] = None,
+        enable_thinking: Optional[bool] = None
+    ) -> Dict[str, Any]:
+        """Определяет итоговые параметры генерации с учётом конфига и режима"""
         
-        if max_tokens is None:
-            max_tokens = self.config.get("generation", {}).get("default_max_tokens", 512)
-        if temperature is None:
-            temperature = self.config.get("generation", {}).get("default_temperature", 0.7)
+        gen_config = self.config.get("generation", {})
+        thinking_config = gen_config.get("thinking_params", {})
         
-        # Базовые параметры
-        params = {
-            "max_new_tokens": max_tokens,
-            "temperature": max(temperature, 0.01),
-            "do_sample": temperature > 0.1,
+        # 1. Определяем режим размышлений
+        use_thinking = enable_thinking if enable_thinking is not None \
+            else gen_config.get("default_enable_thinking", False)
+        
+        # 2. Выбираем температуру и top_p в зависимости от режима
+        if use_thinking:
+            final_temp = temperature if temperature is not None \
+                else thinking_config.get("temperature", 0.6)
+            final_top_p = thinking_config.get("top_p", 0.95)
+        else:
+            final_temp = temperature if temperature is not None \
+                else gen_config.get("default_temperature", 0.7)
+            final_top_p = gen_config.get("default_top_p", 0.8)
+        
+        # 3. Остальные параметры
+        final_max_tokens = max_tokens if max_tokens is not None \
+            else gen_config.get("default_max_tokens", 512)
+        repetition_penalty = gen_config.get("repetition_penalty", 1.1)
+        top_k = gen_config.get("top_k", 40)
+        
+        return {
+            "max_tokens": final_max_tokens,
+            "temperature": final_temp,
+            "top_p": final_top_p,
+            "repetition_penalty": repetition_penalty,
+            "top_k": top_k,
+            "enable_thinking": use_thinking
         }
+
+    def generate_response(
+        self, 
+        messages: List[Dict[str, str]], 
+        max_tokens: Optional[int] = None,
+        temperature: Optional[float] = None,
+        enable_thinking: Optional[bool] = None
+    ) -> str:
+        """Генерирует ответ с учётом параметров из конфига"""
         
-        # Устройство-специфичные параметры
-        if self.device == "cuda":
-            params.update({
-                "top_p": self.config.get("generation", {}).get("default_top_p", 0.9),
-                "repetition_penalty": self.config.get("generation", {}).get("default_repetition_penalty", 1.1),
-            })
-        elif self.device == "cpu":
-            params.update({
-                "top_p": self.config.get("generation", {}).get("default_top_p", 0.9),
-            })
-        # MPS оставляем с базовыми параметрами
-        
-        if self.tokenizer:
-            params["pad_token_id"] = self.tokenizer.pad_token_id
-            params["eos_token_id"] = self.tokenizer.eos_token_id
-        
-        return params
-    
-    def generate_response(self, messages: list, max_tokens: int = 512, 
-                        temperature: float = 0.7, enable_thinking: bool = False) -> str:
-        """
-        Генерирует ответ с использованием enable_thinking параметра токенизатора Qwen
-        """
         if not self._initialized:
             self.initialize()
         
         self.generation_stats['total_requests'] += 1
-        
-        # Выключаем Thinking для прогрева
-        if hasattr(self, '_warming_up') and self._warming_up:
-            # Тихий режим для прогрева
-            enable_thinking = False  # Принудительно выключаем thinking для прогрева
+        params = self._get_generation_parameters(max_tokens, temperature, enable_thinking)
         
         try:
-            # Используем встроенный параметр enable_thinking токенизатора Qwen
+            # Формируем промпт с учётом enable_thinking
             prompt = self.tokenizer.apply_chat_template(
                 messages,
                 tokenize=False,
                 add_generation_prompt=True,
-                enable_thinking=enable_thinking  # ← Штатный параметр модели
+                enable_thinking=params["enable_thinking"]
             )
-        except TypeError as e:
-            # Если токенизатор не поддерживает enable_thinking (старая версия)
-            if not (hasattr(self, '_warming_up') and self._warming_up):
-                print(f"⚠️ Токенизатор не поддерживает enable_thinking: {e}")
-            prompt = self.tokenizer.apply_chat_template(
-                messages,
-                tokenize=False,
-                add_generation_prompt=True
-            )
+            
+        except Exception as e:
+            # Fallback на простую конкатенацию, если apply_chat_template не поддерживает enable_thinking
+            prompt = "\n".join([f"{m['role']}: {m['content']}" for m in messages])
+            prompt += "\nassistant: "
+            if params["enable_thinking"]:
+                prompt += "<think>"
         
-        # Получаем параметры генерации
-        params = self.get_generation_params(max_tokens, temperature)
+        # Создаём сэмплер и процессоры на основе параметров
+        sampler = make_sampler(
+            temp=params["temperature"],
+            top_p=params["top_p"],
+            top_k=params["top_k"]
+        )
         
+        logits_processors = make_logits_processors(
+            repetition_penalty=params["repetition_penalty"]
+        )
+        
+        # Генерация
         start_time = time.time()
         
         with self.generate_lock:
             try:
-                # Базовые параметры
-                gen_params = {
-                    "max_new_tokens": params["max_new_tokens"],
-                    "temperature": params.get("temperature", 0.7),
-                    "do_sample": params.get("do_sample", True),
-                    "return_full_text": False,
-                }
+                response = generate(
+                    model=self.model,
+                    tokenizer=self.tokenizer,
+                    prompt=prompt,
+                    sampler=sampler,
+                    logits_processors=logits_processors,
+                    max_tokens=params["max_tokens"],
+                    verbose=False
+                )
                 
-                # Для MPS убираем параметры которые могут вызывать предупреждения
-                if self.device == "cuda":
-                    gen_params.update({
-                        "top_p": params.get("top_p", 0.9),
-                        "repetition_penalty": params.get("repetition_penalty", 1.1),
-                    })
-                elif self.device == "mps":
-                    # MPS имеет ограниченную поддержку параметров
-                    # Убираем параметры вызывающие предупреждения при прогреве
-                    if hasattr(self, '_warming_up') and self._warming_up:
-                        gen_params = {
-                            "max_new_tokens": params["max_new_tokens"],
-                            "return_full_text": False,
-                        }
+                # Удаляем возможные остатки тегов размышлений
+                response_text = self._clean_thinking_tags(response.strip())
+                response_tokens = len(self.tokenizer.encode(response_text))
+                self.generation_stats['total_tokens_generated'] += response_tokens
                 
-                # Генерируем
-                results = self.generator(prompt, **gen_params)
-                
-                if results and len(results) > 0:
-                    response = results[0]['generated_text'].strip()
-                    response_tokens = len(self.tokenizer.encode(response))
-                    self.generation_stats['total_tokens_generated'] += response_tokens
-                else:
-                    response = ""
-                    
             except Exception as e:
-                if not (hasattr(self, '_warming_up') and self._warming_up):
-                    print(f"❌ Ошибка генерации: {e}")
-                response = "Извините, произошла ошибка при генерации ответа."
+                print(f"❌ Ошибка генерации: {e}")
+                response_text = "Извините, произошла ошибка при генерации ответа."
         
         generation_time = time.time() - start_time
         
@@ -260,36 +243,43 @@ class ModelService:
                 old_avg * (new_count - 1) + generation_time
             ) / new_count
         
-        return response
-    
-    def _print_memory_info(self):
-        """Выводит информацию об использовании памяти"""
-        try:
-            # Не выводим если в режиме прогрева
-            if hasattr(self, '_warming_up') and self._warming_up:
-                return
-                
-            if self.device == "cuda":
-                gpu_memory = torch.cuda.memory_allocated() / 1024**3
-                gpu_memory_max = torch.cuda.max_memory_allocated() / 1024**3
-                print(f"💾 GPU память: {gpu_memory:.2f} GB (пик: {gpu_memory_max:.2f} GB)")
-            elif self.device == "mps":
-                print(f"💾 MPS устройство: доступно")
+        return response_text
+
+    def _clean_thinking_tags(self, text: str) -> str:
+        """Форматирует текст размышлений с использованием HTML span"""
+        import re
+        
+        think_pattern = r'<think>(.*?)</think>'
+        
+        def replace_with_span(match):
+            think_text = match.group(1).strip()
+            if not think_text:
+                return ""
             
-            process = psutil.Process()
-            memory_info = process.memory_info()
-            ram_usage = memory_info.rss / 1024**3
-            print(f"💾 RAM использование: {ram_usage:.2f} GB")
+            # Разбиваем на строки и каждую строку оборачиваем в span
+            lines = think_text.split('\n')
+            span_lines = []
+            for line in lines:
+                line = line.strip()
+                if line:
+                    span_lines.append(f"<span class='thinking-text'>{line}</span>")
+                else:
+                    span_lines.append('')
             
-        except Exception as e:
-            # Не выводим ошибку если в режиме прогрева
-            if not (hasattr(self, '_warming_up') and self._warming_up):
-                print(f"⚠️ Не удалось получить информацию о памяти: {e}")
-    
+            return '\n'.join(span_lines)
+        
+        text = re.sub(think_pattern, replace_with_span, text, flags=re.DOTALL)
+        
+        # Удаляем оставшиеся теги
+        text = text.replace('<think>', '').replace('</think>', '')
+        
+        # Убираем множественные пустые строки
+        text = re.sub(r'\n{3,}', '\n\n', text)
+        
+        return text.strip()
+
     def get_stats(self) -> Dict[str, Any]:
-        """
-        Возвращает статистику генерации
-        """
+        """Возвращает статистику генерации"""
         if self.generation_stats['total_requests'] > 0:
             tokens_per_request = (
                 self.generation_stats['total_tokens_generated'] / 
@@ -300,48 +290,14 @@ class ModelService:
             tokens_per_request = 0
         
         return {
-            'device': self.device,
+            'backend': 'mlx',
             'total_requests': self.generation_stats['total_requests'],
-            'batch_requests': self.generation_stats['batch_requests'],
-            'avg_generation_time_ms': self.generation_stats['avg_generation_time'] * 1000,
+            'avg_generation_time_ms': round(self.generation_stats['avg_generation_time'] * 1000, 2),
             'total_tokens_generated': self.generation_stats['total_tokens_generated'],
-            'tokens_per_request': tokens_per_request,
-            'param_cache_size': len(self.param_cache),
+            'tokens_per_request': round(tokens_per_request, 2),
             'model_initialized': self._initialized,
         }
-    
-    def cleanup(self):
-        """
-        Очищает только временные данные
-        Модель и кэш параметров остаются в памяти
-        """
-        print("🧹 Очистка временных данных...")
-        
-        # Очищаем только временные буферы
-        self.temp_buffers.clear()
-        
-        # Освобождаем временные тензоры
-        for tensor in self.temp_tensors:
-            try:
-                if hasattr(tensor, 'detach'):
-                    tensor.detach()
-                if hasattr(tensor, 'cpu'):
-                    tensor.cpu()
-            except:
-                pass
-        self.temp_tensors.clear()
-        
-        # Очищаем системный кэш (не модель!)
-        if self.device == "cuda":
-            torch.cuda.empty_cache()
-        elif self.device == "mps":
-            torch.mps.empty_cache()
-        
-        gc.collect()
-        
-        self.generation_stats['last_cleanup'] = datetime.now()
-        print("✅ Временные данные очищены (модель и кэш в памяти)")
-        
+
     def is_initialized(self) -> bool:
         """Проверяет, инициализирована ли модель"""
         return self._initialized

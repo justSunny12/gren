@@ -1,4 +1,4 @@
-# /run.py (упрощенный)
+# /run.py (упрощенная версия)
 import gradio as gr
 import atexit
 import time
@@ -10,7 +10,7 @@ def cleanup_on_exit():
     print("\n👋 Завершение работы")
     
     try:
-        # 1. Останавливаем Gradio сервер (если он запущен)
+        # Останавливаем Gradio сервер
         if hasattr(sys, '_gradio_server'):
             sys._gradio_server.close()
             time.sleep(0.05)
@@ -21,17 +21,14 @@ def cleanup_on_exit():
     print(f"✅ Работа приложения завершена")
 
 def initialize_model():
-    """Инициализирует модель на MLX"""
+    """Инициализирует модель (только MLX)"""
     print("\n" + "-" * 50)
-    print("📦 ИНИЦИАЛИЗАЦИЯ МОДЕЛИ (MLX)")
+    print("📦 ИНИЦИАЛИЗАЦИЯ МОДЕЛИ")
     print("-" * 50)
     
     try:
         # Получаем сервис модели
         model_service = container.get_model_service()
-        
-        # Получаем конфигурацию
-        config = container.get_config()
         
         # Загружаем модель
         start_time = time.time()
@@ -39,9 +36,10 @@ def initialize_model():
         load_time = time.time() - start_time
         
         if model is not None:
+            print(f"✅ Модель загружена за {load_time:.2f} секунд")
             
             # Прогрев модели
-            print("🔥 Прогрев модели MLX...")
+            print("🔥 Прогрев модели...")
             try:
                 if hasattr(model_service, '_warming_up'):
                     model_service._warming_up = True
@@ -64,7 +62,7 @@ def initialize_model():
             
             return True
         else:
-            print("❌ Не удалось загрузить модель на MLX")
+            print("❌ Не удалось загрузить модель")
             return False
             
     except Exception as e:
@@ -75,22 +73,10 @@ def initialize_model():
 
 def main():
     print("=" * 60)
-    print("🚀 ЗАПУСК QWEN3-30B-A3B CHAT (MLX)")
+    print("🚀 ЗАПУСК QWEN3-30B-A3B CHAT")
     print("=" * 60)
     
-    # Проверяем поддержку MLX
-    try:
-        import mlx.core as mx
-        # print(f"✅ MLX доступен: версия {mx.__version__}")
-        # print(f"✅ Устройство: {mx.default_device()}")
-        
-        # Устанавливаем MLX бэкенд
-        container.set_backend(use_mlx=True)
-        
-    except ImportError:
-        print("⚠️ MLX не установлен, используем PyTorch")
-        print("⚠️ Установите: pip install mlx-lm mlx")
-        container.set_backend(use_mlx=False)
+    # Убрана проверка MLX/PyTorch, всегда используем MLX
     
     # Регистрируем функцию очистки при выходе
     atexit.register(cleanup_on_exit)
@@ -104,9 +90,7 @@ def main():
         server_config = config.get("server", {})
         
         print(f"✅ Конфигурация загружена:")
-        # print(f"   Приложение: {app_config.get('name', 'Qwen3-4B Chat')} v{app_config.get('version', '1.0.0')}")
         print(f"   Модель: {model_config.get('name', 'Qwen/Qwen3-4B')}")
-        # print(f"   Сервер: {server_config.get('host', '0.0.0.0')}:{server_config.get('port', 7860)}")
     except Exception as e:
         print(f"⚠️ Ошибка загрузки конфигурации: {e}")
         return
@@ -121,7 +105,7 @@ def main():
     except Exception as e:
         print(f"⚠️ Ошибка загрузки диалогов: {e}")
     
-    # Инициализируем модель ОДИН РАЗ при старте
+    # Инициализируем модель
     model_loaded = initialize_model()
     
     if not model_loaded:
@@ -144,9 +128,6 @@ def main():
     print("\n" + "=" * 60)
     print("🌐 ЗАПУСК СЕРВЕРА...")
     print("=" * 60)
-    # print("\n📍 Ссылка для доступа:")
-    # print(f"   Локально: http://{server_config.get('host', '0.0.0.0')}:{server_config.get('port', 7860)}")
-    # print(f"   В сети: {'Да' if server_config.get('share', False) else 'Нет'}")
     
     if model_loaded:
         print("\n⚡ Модель в памяти - готово к работе!")
