@@ -1,4 +1,4 @@
-# handlers/__init__.py
+# handlers/__init__.py (ИСПРАВЛЕННАЯ ВЕРСИЯ)
 from .commands import CommandHandler
 from .chat_operations import ChatOperationsHandler
 from .chat_list import ChatListHandler
@@ -15,7 +15,7 @@ class UIHandlers:
         self._chat_list_handler = ChatListHandler()
         self._init_handler = InitializationHandler()
         self._naming_utils = NamingUtils()
-        self.message_handler = MessageHandler()  # Публичный атрибут (без подчеркивания!)
+        self.message_handler = MessageHandler()
     
     def get_chat_list_data(self):
         """Возвращает данные списка чатов с группировкой"""
@@ -23,7 +23,6 @@ class UIHandlers:
     
     def handle_chat_selection(self, chat_id: str):
         """Обработчик выбора чата из списка"""
-        # Проверяем, не команда ли это
         if chat_id and chat_id.startswith('delete:'):
             return self._command_handler.handle_chat_deletion(chat_id)
         
@@ -33,7 +32,6 @@ class UIHandlers:
         if chat_id and (chat_id.startswith('pin:') or chat_id.startswith('unpin:')):
             return self._command_handler.handle_chat_pinning(chat_id)
         
-        # Обычное переключение чата
         return self._chat_ops_handler.handle_chat_switch(chat_id)
     
     def handle_chat_pinning(self, pin_command: str):
@@ -53,16 +51,18 @@ class UIHandlers:
         return self._chat_ops_handler.create_chat_with_js_handler()
     
     def send_message_handler(self, prompt, chat_id, max_tokens, temperature, enable_thinking):
-        """Синхронный обработчик отправки сообщения (для обратной совместимости)"""
+        """Синхронный обработчик отправки сообщения"""
         return self.message_handler.send_message_handler(
             prompt, chat_id, max_tokens, temperature, enable_thinking
         )
     
     async def send_message_stream_handler(self, prompt, chat_id, max_tokens, temperature, enable_thinking):
         """Асинхронный обработчик для потоковой генерации"""
-        return self.message_handler.send_message_stream_handler(
+        # ВАЖНО: Это должен быть асинхронный генератор, а не обычный async метод
+        async for result in self.message_handler.send_message_stream_handler(
             prompt, chat_id, max_tokens, temperature, enable_thinking
-        )
+        ):
+            yield result
     
     def get_chat_name_from_id(self, dialog_id: str) -> str:
         """Получает название чата по ID"""
@@ -78,7 +78,7 @@ class UIHandlers:
     
     def stop_active_generation(self):
         """Останавливает активную генерацию сообщения"""
-        return self.message_handler.stop_active_generation()  # Используем message_handler, а не _message_handler
+        return self.message_handler.stop_active_generation()
 
 # Глобальный экземпляр для обратной совместимости
 ui_handlers = UIHandlers()

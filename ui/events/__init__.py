@@ -1,4 +1,4 @@
-# ui/events/__init__.py
+# ui/events/__init__.py (проверяем, что все правильно)
 import gradio as gr
 from .chat_events import ChatEvents
 from .sidebar_events import SidebarEvents
@@ -41,7 +41,7 @@ class EventBinder:
             components["reset_settings_btn"]
         )
         
-        # 3. События сообщений
+        # 3. События сообщений - теперь используется асинхронный стриминг
         self.message_events.bind_message_events(
             components["submit_btn"],
             components["user_input"],
