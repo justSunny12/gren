@@ -37,7 +37,7 @@ class Container:
                 from services.chat_service import chat_service
                 self._services["chat_service"] = chat_service
             elif name == "ui_handlers":
-                from logic.ui_handlers import ui_handlers
+                from handlers import ui_handlers
                 self._services["ui_handlers"] = ui_handlers
             else:
                 raise ValueError(f"Сервис не найден: {name}")

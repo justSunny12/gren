@@ -2,7 +2,7 @@
 import gradio as gr
 import os
 from ui.layouts.main_layout import create_main_layout
-from logic.ui_handlers import ui_handlers
+from handlers import ui_handlers
 from container import container
 
 def load_css():
@@ -188,11 +188,10 @@ def create_main_ui():
                 sidebar_components["enable_thinking"]
             ],
             outputs=[
-                chatbot,
-                user_input,
-                current_dialog_id,
-                chatbot,
-                chat_list_data
+                chatbot,          # history
+                user_input,       # очистка ввода
+                current_dialog_id, # new_chat_id
+                chat_list_data    # данные списка чатов
             ]
         )
 
@@ -206,21 +205,19 @@ def create_main_ui():
                 sidebar_components["enable_thinking"]
             ],
             outputs=[
-                chatbot,
-                user_input,
-                current_dialog_id,
-                chatbot,
-                chat_list_data
+                chatbot,          # history
+                user_input,       # очистка ввода
+                current_dialog_id, # new_chat_id
+                chat_list_data    # данные списка чатов
             ]
         )
         
         demo.load(
             fn=ui_handlers.init_app_handler,
             outputs=[
-                chatbot,
-                current_dialog_id,
-                chatbot,
-                sidebar_components["max_tokens"],
+                chatbot,          # history
+                current_dialog_id, # chat_id
+                sidebar_components["max_tokens"],  # было: chatbot для chat_name
                 sidebar_components["temperature"],
                 sidebar_components["enable_thinking"],
                 chat_list_data
