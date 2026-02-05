@@ -16,4 +16,5 @@ __all__ = [
     'GenerationParameters',
     'ThinkingHandler',
     'MLXMemoryManager',
+    'create_generation_components',
 ]

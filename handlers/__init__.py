@@ -13,9 +13,9 @@ class UIHandlers:
         self._command_handler = CommandHandler()
         self._chat_ops_handler = ChatOperationsHandler()
         self._chat_list_handler = ChatListHandler()
-        self._message_handler = MessageHandler()
         self._init_handler = InitializationHandler()
         self._naming_utils = NamingUtils()
+        self.message_handler = MessageHandler()  # Публичный атрибут (без подчеркивания!)
     
     def get_chat_list_data(self):
         """Возвращает данные списка чатов с группировкой"""
@@ -53,8 +53,14 @@ class UIHandlers:
         return self._chat_ops_handler.create_chat_with_js_handler()
     
     def send_message_handler(self, prompt, chat_id, max_tokens, temperature, enable_thinking):
-        """Обработчик отправки сообщения"""
-        return self._message_handler.send_message_handler(
+        """Синхронный обработчик отправки сообщения (для обратной совместимости)"""
+        return self.message_handler.send_message_handler(
+            prompt, chat_id, max_tokens, temperature, enable_thinking
+        )
+    
+    async def send_message_stream_handler(self, prompt, chat_id, max_tokens, temperature, enable_thinking):
+        """Асинхронный обработчик для потоковой генерации"""
+        return self.message_handler.send_message_stream_handler(
             prompt, chat_id, max_tokens, temperature, enable_thinking
         )
     
@@ -69,6 +75,10 @@ class UIHandlers:
     def init_app_handler(self):
         """Обработчик инициализации приложения"""
         return self._init_handler.init_app_handler()
+    
+    def stop_active_generation(self):
+        """Останавливает активную генерацию сообщения"""
+        return self.message_handler.stop_active_generation()  # Используем message_handler, а не _message_handler
 
 # Глобальный экземпляр для обратной совместимости
 ui_handlers = UIHandlers()

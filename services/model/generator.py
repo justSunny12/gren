@@ -1,10 +1,23 @@
 """
 Генерация ответов модели
 """
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Tuple
 from mlx_lm import generate
 from mlx_lm.sample_utils import make_sampler, make_logits_processors
 
+def create_generation_components(params: Dict[str, Any]) -> Tuple[Any, Any]:
+    """Создает sampler и logits_processors из параметров генерации."""
+    sampler = make_sampler(
+        temp=params["temperature"],
+        top_p=params["top_p"],
+        top_k=params["top_k"]
+    )
+    
+    logits_processors = make_logits_processors(
+        repetition_penalty=params["repetition_penalty"]
+    )
+    
+    return sampler, logits_processors
 
 class ResponseGenerator:
     """Генератор ответов модели"""
