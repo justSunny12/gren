@@ -20,8 +20,10 @@ class Container:
                 self._services["model_service"] = service
                 print("✅ Используется ModelService (MLX бэкенд)")
             elif name == "dialog_service":
-                from services.dialog_service import dialog_service
-                self._services["dialog_service"] = dialog_service
+                from services.dialogs import DialogService
+                config = self.get_config()
+                service = DialogService(config)  # Создаем экземпляр с конфигом
+                self._services["dialog_service"] = service
             elif name == "chat_service":
                 from services.chat_service import chat_service
                 self._services["chat_service"] = chat_service
