@@ -1,4 +1,4 @@
-# /ui/layouts/sidebar_layout.py
+# ui/layouts/sidebar_layout.py
 import gradio as gr
 from container import container
 
@@ -66,8 +66,14 @@ def create_sidebar_layout():
             interactive=True
         )
 
-        # Скрытый триггер для JavaScript
+        # Скрытый триггер для JavaScript (старый)
         js_trigger = gr.HTML(visible=False)
+        
+        # НОВЫЙ: Специальный JS триггер для событий генерации
+        generation_js_trigger = gr.HTML(
+            visible=False,
+            elem_id="generation_js_trigger"
+        )
 
     return {
         "create_dialog_btn": create_dialog_btn,
@@ -77,5 +83,6 @@ def create_sidebar_layout():
         "reset_settings_btn": reset_settings_btn,
         "chat_input": chat_input,
         "js_trigger": js_trigger,
+        "generation_js_trigger": generation_js_trigger,  # <-- Новый триггер
         "params_accordion": params_accordion
     }

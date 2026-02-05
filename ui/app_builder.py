@@ -9,8 +9,8 @@ def create_app():
     with gr.Blocks(title="Qwen3-30B Chat", fill_width=True) as demo:
         current_dialog_id = gr.State(value=None)
         
-        # Создаем layout
-        sidebar_components, chatbot, user_input, submit_btn = create_main_layout()
+        # Создаем layout (теперь возвращаем 5 значений)
+        sidebar_components, chatbot, user_input, submit_btn, stop_btn = create_main_layout()
         
         # Дополнительные компоненты
         chat_list_data = gr.Textbox(
@@ -21,6 +21,12 @@ def create_app():
         
         js_trigger = gr.HTML(visible=False)
         
+        # НОВЫЙ: Специальный триггер для JS событий генерации
+        generation_js_trigger = gr.HTML(
+            visible=False,
+            elem_id="generation_js_trigger"
+        )
+        
         # Собираем все компоненты в словарь
         components = {
             "demo": demo,
@@ -28,8 +34,10 @@ def create_app():
             "chatbot": chatbot,
             "user_input": user_input,
             "submit_btn": submit_btn,
+            "stop_btn": stop_btn,
             "chat_list_data": chat_list_data,
             "js_trigger": js_trigger,
+            "generation_js_trigger": generation_js_trigger,  # <-- Новый триггер
             **sidebar_components
         }
         

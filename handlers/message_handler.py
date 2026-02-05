@@ -41,24 +41,23 @@ class MessageHandler(BaseHandler):
         max_tokens: Optional[int],
         temperature: Optional[float],
         enable_thinking: Optional[bool]
-    ) -> AsyncGenerator[Tuple[List[Dict], str, str, str], None]:
-        """Асинхронный обработчик для потоковой генерации (вариант B).
-        
-        Yields:
-            Кортеж (history, "", dialog_id, chat_list_data):
-            - history: полная история для UI, где последнее сообщение ассистента нарастает
-            - "": пустая строка (заглушка для обратной совместимости)
-            - dialog_id: ID текущего диалога
-            - chat_list_data: JSON строка с актуальным списком чатов
-        """
+    ) -> AsyncGenerator[Tuple[List[Dict], str, str, str, str], None]:
+        """Асинхронный обработчик для потоковой генерации с JS триггером"""
         from models.enums import MessageRole
         
-        # 1. Захватываем блокировку для защиты состояния
+        # 1. Захватываем блокировку
         if not self._stream_lock.acquire(blocking=False):
-            # Если уже идет стриминг, возвращаем ошибку через yield
             error_history = [{"role": MessageRole.ASSISTANT.value, 
-                              "content": "⚠️ Уже выполняется другая генерация. Подождите."}]
-            yield error_history, "", chat_id or "", self.get_chat_list_data()
+                            "content": "⚠️ Уже выполняется другая генерация. Подождите."}]
+            # При ошибке тоже отправляем JS код для переключения кнопок
+            js_code = """
+            <script>
+            if (window.toggleGenerationButtons) {
+                window.toggleGenerationButtons(false);
+            }
+            </script>
+            """
+            yield error_history, "", chat_id or "", self.get_chat_list_data(), js_code
             return
         
         try:
@@ -67,36 +66,66 @@ class MessageHandler(BaseHandler):
             self._active_stop_event = stop_event
             self._active_dialog_id = chat_id
             
-            # 3. Запускаем потоковую генерацию через ChatManager
-            async for history, accumulated_text, current_dialog_id in self.chat_service.process_message_stream(
+            # 3. Получаем поток от ChatManager
+            stream_generator = self.chat_service.process_message_stream(
                 prompt=prompt,
                 dialog_id=chat_id,
                 max_tokens=max_tokens,
                 temperature=temperature,
                 enable_thinking=enable_thinking,
                 stop_event=stop_event
-            ):
-                # 4. Форматируем ответ в нужном для UI формате
-                # history уже содержит нарастающий ответ ассистента (формат B)
+            )
+            
+            # 4. Итерируем и добавляем chat_list_data
+            last_yield_data = None
+            async for history, accumulated_text, current_dialog_id in stream_generator:
                 chat_list_data = self.get_chat_list_data()
-                yield history, "", current_dialog_id, chat_list_data
-                
-            # 5. Финальный yield после завершения
-            final_chat_list_data = self.get_chat_list_data()
-            yield history, "", current_dialog_id, final_chat_list_data
+                # Сохраняем последние данные для финального yield
+                last_yield_data = (history, "", current_dialog_id, chat_list_data)
+                # Промежуточные yield без JS кода
+                yield history, "", current_dialog_id, chat_list_data, ""
+            
+            # 5. После завершения цикла (генерация завершена естественным путем)
+            if last_yield_data:
+                history, _, current_dialog_id, chat_list_data = last_yield_data
+                # Добавляем JS код для переключения кнопок
+                js_code = """
+                <script>
+                if (window.toggleGenerationButtons) {
+                    window.toggleGenerationButtons(false);
+                }
+                </script>
+                """
+                yield history, "", current_dialog_id, chat_list_data, js_code
+            else:
+                # Если не было ни одного yield, отправляем пустой результат с JS кодом
+                js_code = """
+                <script>
+                if (window.toggleGenerationButtons) {
+                    window.toggleGenerationButtons(false);
+                }
+                </script>
+                """
+                yield [], "", chat_id or "", self.get_chat_list_data(), js_code
             
         except Exception as e:
-            print(f"❌ Критическая ошибка в send_message_stream_handler: {e}")
+            print(f"❌ Ошибка в send_message_stream_handler: {e}")
             import traceback
             traceback.print_exc()
             
-            # Возвращаем историю с ошибкой
             error_history = [{"role": MessageRole.ASSISTANT.value, 
-                              "content": f"⚠️ Ошибка генерации: {str(e)[:100]}"}]
-            yield error_history, "", chat_id or "", self.get_chat_list_data()
+                            "content": f"⚠️ Ошибка генерации: {str(e)[:100]}"}]
+            # При ошибке тоже отправляем JS код для переключения кнопок
+            js_code = """
+            <script>
+            if (window.toggleGenerationButtons) {
+                window.toggleGenerationButtons(false);
+            }
+            </script>
+            """
+            yield error_history, "", chat_id or "", self.get_chat_list_data(), js_code
             
         finally:
-            # 6. Очищаем состояние
             self._active_stop_event = None
             self._active_dialog_id = None
             self._stream_lock.release()
@@ -104,8 +133,11 @@ class MessageHandler(BaseHandler):
     def stop_active_generation(self) -> bool:
         """Останавливает активную генерацию. Вызывается из UI по нажатию кнопки 'Стоп'."""
         if self._active_stop_event and not self._active_stop_event.is_set():
-            print("[MessageHandler] Останавливаю активную генерацию...")
+            # print("[MessageHandler] Останавливаю активную генерацию...")
             self._active_stop_event.set()
+            
+            # Также возвращаем JS код для немедленного переключения кнопок
+            # (хотя это будет обработано в stop_btn.click)
             return True
         return False
     

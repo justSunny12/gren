@@ -3,6 +3,7 @@ import gradio as gr
 from .chat_events import ChatEvents
 from .sidebar_events import SidebarEvents
 from .message_events import MessageEvents
+from .genereation_events import GenerationEvents  # <-- Импортируем новый класс
 from handlers import ui_handlers
 
 class EventBinder:
@@ -12,6 +13,7 @@ class EventBinder:
         self.chat_events = ChatEvents()
         self.sidebar_events = SidebarEvents()
         self.message_events = MessageEvents()
+        self.generation_events = GenerationEvents()  # <-- Новый объект
     
     def bind_all_events(self, demo, components, current_dialog_id):
         """Привязывает все события к интерфейсу"""
@@ -44,16 +46,26 @@ class EventBinder:
         # 3. События сообщений - теперь используется асинхронный стриминг
         self.message_events.bind_message_events(
             components["submit_btn"],
+            components["stop_btn"],
             components["user_input"],
             current_dialog_id,
             components["chatbot"],
             components["max_tokens"],
             components["temperature"],
             components["enable_thinking"],
-            components["chat_list_data"]
+            components["chat_list_data"],
+            components["generation_js_trigger"]  # <-- Передаем новый триггер
         )
         
-        # 4. Инициализация приложения
+        # 4. Привязываем обработчик JS триггера для генерации
+        self.generation_events.bind_generation_js_events(
+            components["generation_js_trigger"]
+        )
+        
+        # 5. Обновление списка чатов через JS
+        self.chat_events.bind_chat_list_update(components["chat_list_data"])
+        
+        # 6. Инициализация приложения
         demo.load(
             fn=ui_handlers.init_app_handler,
             outputs=[
@@ -65,6 +77,3 @@ class EventBinder:
                 components["chat_list_data"]
             ]
         )
-        
-        # 5. Обновление списка чатов через JS
-        self.chat_events.bind_chat_list_update(components["chat_list_data"])

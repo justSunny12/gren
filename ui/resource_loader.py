@@ -11,7 +11,7 @@ class ResourceLoader:
             'css/base.css',
             'css/sidebar.css', 
             'css/chat_window.css',
-            'css/input_area.css'
+            'css/input_area.css'  # <-- Уже обновлен с generation-buttons-wrapper
         ]
         
         css_content = ""
@@ -38,7 +38,7 @@ class ResourceLoader:
             'static/js/modules/rename-modal.js',  # 4. Модальное окно переименования
             'static/js/modules/chat-list.js',     # 5. Список чатов
             'static/js/modules/context-menu.js',  # 6. Контекстное меню
-            'static/js/modules/send-button.js',   # 7. Модуль для круглой кнопки
+            'static/js/modules/generation-control.js',  # 7. НОВЫЙ: Управление кнопками генерации
             'static/js/main.js'                   # 8. Основной код
         ]
         

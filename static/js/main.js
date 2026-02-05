@@ -54,6 +54,8 @@ window.addEventListener('resize', function() {
 
 // Инициализация при загрузке
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('Main.js: DOM загружен');
+    
     // Закрытие модального окна при клике на оверлей (дополнительная защита)
     document.addEventListener('click', function(e) {
         if (window.deleteConfirmationModal && window.deleteConfirmationModal.isVisible && 
@@ -65,6 +67,13 @@ document.addEventListener('DOMContentLoaded', function() {
             window.renameChatModal.hide(false);
         }
     });
+    
+    // Инициализация кнопок генерации
+    if (window.initGenerationButtons) {
+        setTimeout(() => {
+            window.initGenerationButtons();
+        }, 500);
+    }
 });
 
 // Обработчик обновления списка чатов
@@ -84,10 +93,6 @@ setTimeout(() => {
         }
         if (!window.renameChatModal) {
             window.loadScript('static/js/modules/rename-modal.js');
-        }
-        // Добавляем загрузку модуля для кнопки отправки
-        if (!window.initButtons) {
-            window.loadScript('static/js/modules/send-button.js');
         }
     }
 }, 1000);
