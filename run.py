@@ -3,7 +3,7 @@ import gradio as gr
 import atexit
 import time
 import sys
-from ui.main import create_main_ui
+from ui import create_main_ui
 from container import container
 
 def cleanup_on_exit():
