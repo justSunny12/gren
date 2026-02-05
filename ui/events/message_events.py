@@ -24,9 +24,7 @@ class MessageEvents:
         if not saved_prompt or saved_prompt.strip() == "":
             yield [], chat_id, "[]"
             return
-        
-        print(f"🚀 Начинаю стриминг для промпта: '{saved_prompt}'")
-        
+                
         try:
             async for history, _, dialog_id, chat_list_data in ui_handlers.send_message_stream_handler(
                 saved_prompt, chat_id, max_tokens, temperature, enable_thinking
