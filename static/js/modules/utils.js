@@ -86,4 +86,8 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!window.renameChatModal) {
         window.loadScript('static/js/modules/rename-modal.js');
     }
+    // Добавляем загрузку модуля для кнопки отправки
+    if (!window.setupSendButtonIcon || !window.updateSendButtonState) {
+        window.loadScript('static/js/modules/send-button.js');
+    }
 });
