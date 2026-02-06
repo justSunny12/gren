@@ -42,7 +42,7 @@ class ChatManager:
         prompt = sanitize_user_input(prompt)
         
         # 2. Получаем диалог (сообщение пользователя уже должно быть добавлено в MessageHandler)
-        dialog = self.operations.get_dialog(dialog_id)
+        dialog = self.operations.dialog_service.get_dialog(dialog_id)
         if not dialog:
             yield [], "Диалог не найден", dialog_id
             return
@@ -95,10 +95,10 @@ class ChatManager:
             if is_default_name(dialog.name, config):
                 new_name = generate_simple_name(prompt, config)
                 if new_name and new_name != dialog.name:
-                    self.operations.rename_dialog(dialog_id, new_name)
+                    self.operations.dialog_service.rename_dialog(dialog_id, new_name)
             
             # 10. Финальный yield
-            updated_dialog = self.operations.get_dialog(dialog_id)
+            updated_dialog = self.operations.dialog_service.get_dialog(dialog_id)
             final_history = format_history_for_ui(updated_dialog.history)
             yield (final_history, final_text, dialog_id)
             
@@ -120,16 +120,12 @@ class ChatManager:
         if not dialog_id:
             dialog = self.operations.dialog_service.get_current_dialog()
         else:
-            dialog = self.operations.get_dialog(dialog_id)
+            dialog = self.operations.dialog_service.get_dialog(dialog_id)
         
         if dialog:
             from .formatter import format_history_for_ui
             return format_history_for_ui(dialog.history)
         return []
-    
-    def get_stats(self) -> Dict[str, any]:
-        """Возвращает статистику"""
-        return self.operations.get_model_stats()
     
     # Дополнительные методы для удобства
     def get_formatted_stats(self) -> Dict[str, Any]:
@@ -150,7 +146,7 @@ class ChatManager:
         from .formatter import format_history_for_ui
                 
         # Получаем диалог
-        dialog = self.operations.get_dialog(dialog_id)
+        dialog = self.operations.dialog_service.get_dialog(dialog_id)
         if not dialog:
             print(f"❌ [ChatManager.stream_response_only] Диалог {dialog_id} не найден")
             return
@@ -204,10 +200,10 @@ class ChatManager:
                     last_user_message = user_messages[-1].content
                     new_name = generate_simple_name(last_user_message, config)
                     if new_name and new_name != dialog.name:
-                        self.operations.rename_dialog(dialog_id, new_name)
+                        self.operations.dialog_service.rename_dialog(dialog_id, new_name)
                         
             # Финальный yield с полной историей
-            updated_dialog = self.operations.get_dialog(dialog_id)
+            updated_dialog = self.operations.dialog_service.get_dialog(dialog_id)
             final_history = format_history_for_ui(updated_dialog.history)
             yield final_history, final_text, dialog_id
             

@@ -61,24 +61,3 @@ def truncate_with_ellipsis(text: str, max_length: int) -> str:
     if len(text) <= max_length:
         return text
     return text[:max_length-3] + "..."
-
-
-def format_model_stats(stats: dict) -> Dict[str, Any]:
-    """Форматирует статистику модели для отображения"""
-    if not stats:
-        return {"status": "Статистика недоступна"}
-    
-    formatted = {}
-    for key, value in stats.items():
-        if isinstance(value, (int, float)):
-            # Округляем числа для красивого отображения
-            if isinstance(value, float):
-                formatted[key] = round(value, 2)
-            else:
-                formatted[key] = value
-        elif isinstance(value, str):
-            formatted[key] = value
-        else:
-            formatted[key] = str(value)
-    
-    return formatted

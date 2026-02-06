@@ -1,5 +1,6 @@
 # /models/message.py
 from pydantic import BaseModel, Field, ConfigDict
+from typing import Dict, Any
 from datetime import datetime
 from .enums import MessageRole
 

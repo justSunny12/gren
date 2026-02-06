@@ -32,27 +32,6 @@ class ChatOperations:
     def config_service(self):
         return self._get_service("config_service")
     
-    # Диалоги
-    def get_dialog(self, dialog_id: str):
-        """Получает диалог"""
-        return self.dialog_service.get_dialog(dialog_id)
-    
-    def create_dialog(self, name: Optional[str] = None) -> str:
-        """Создает новый диалог"""
-        return self.dialog_service.create_dialog(name)
-    
-    def rename_dialog(self, dialog_id: str, new_name: str) -> bool:
-        """Переименовывает диалог"""
-        return self.dialog_service.rename_dialog(dialog_id, new_name)
-    
-    def add_messages(self, dialog_id: str, user_message: str, assistant_message: str) -> bool:
-        """Добавляет пару сообщений в диалог"""
-        from models.enums import MessageRole
-        
-        success1 = self.dialog_service.add_message(dialog_id, MessageRole.USER, user_message)
-        success2 = self.dialog_service.add_message(dialog_id, MessageRole.ASSISTANT, assistant_message)
-        return success1 and success2
-    
     # Модель
     def generate_response(self, messages: List[Dict], **params) -> str:
         """Генерирует ответ модели"""

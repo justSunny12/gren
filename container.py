@@ -54,17 +54,6 @@ class Container:
     def get_ui_handlers(self):
         """Быстрый доступ к UI обработчикам"""
         return self.get("ui_handlers")
-    
-    def get_model_stats(self) -> Dict[str, Any]:
-        """Получает статистику модели, если доступна"""
-        try:
-            model_service = self.get_model_service()
-            if hasattr(model_service, 'get_stats'):
-                return model_service.get_stats()
-            else:
-                return {"status": "Статистика не поддерживается"}
-        except Exception as e:
-            return {"status": f"Ошибка получения статистики: {str(e)}"}
 
 # Глобальный контейнер
 container = Container()
