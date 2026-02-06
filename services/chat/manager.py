@@ -223,3 +223,91 @@ class ChatManager:
     def get_formatted_stats(self) -> Dict[str, Any]:
         """Возвращает отформатированную статистику"""
         return self.operations.get_model_stats()
+    
+    async def stream_response_only(
+        self,
+        messages: List[Dict[str, str]],  # Уже содержит сообщение пользователя!
+        dialog_id: str,
+        max_tokens: Optional[int] = None,
+        temperature: Optional[float] = None,
+        enable_thinking: Optional[bool] = None,
+        stop_event: Optional[threading.Event] = None
+    ) -> AsyncGenerator[Tuple[List[Dict], str, str], None]:
+        """Стримит только ответ модели (без добавления сообщения пользователя)"""
+        from models.enums import MessageRole
+        from .formatter import format_history_for_ui
+                
+        # Получаем диалог
+        dialog = self.operations.get_dialog(dialog_id)
+        if not dialog:
+            print(f"❌ [ChatManager.stream_response_only] Диалог {dialog_id} не найден")
+            return
+        
+        # Подготавливаем накопители
+        accumulated_response = ""
+        
+        try:
+            # Запускаем стриминг ответа модели
+            async for chunk in self.operations.stream_response(
+                messages=messages,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                enable_thinking=enable_thinking,
+                stop_event=stop_event
+            ):
+                accumulated_response += chunk
+                
+                # Создаем временную историю для yield
+                temp_dialog = dialog
+                # Создаем временную историю: все старые сообщения + текущий накопленный ответ
+                temp_history = format_history_for_ui(temp_dialog.history)
+                temp_history.append({
+                    "role": MessageRole.ASSISTANT.value,
+                    "content": accumulated_response
+                })
+                
+                yield temp_history, accumulated_response, dialog_id
+            
+            # После завершения стрима
+            was_stopped = stop_event and stop_event.is_set()
+            final_text = accumulated_response
+            
+            if was_stopped:
+                final_text += "...<генерация прервана пользователем>"
+            
+            # Сохраняем финальное сообщение ассистента
+            self.operations.dialog_service.add_message(
+                dialog_id, 
+                MessageRole.ASSISTANT, 
+                final_text
+            )
+            
+            # Генерируем название если нужно
+            from .naming import generate_simple_name, is_default_name
+            config = self.operations.get_config()
+            if is_default_name(dialog.name, config):
+                # Берем последнее сообщение пользователя для генерации названия
+                user_messages = [msg for msg in dialog.history if msg.role == MessageRole.USER]
+                if user_messages:
+                    last_user_message = user_messages[-1].content
+                    new_name = generate_simple_name(last_user_message, config)
+                    if new_name and new_name != dialog.name:
+                        self.operations.rename_dialog(dialog_id, new_name)
+                        
+            # Финальный yield с полной историей
+            updated_dialog = self.operations.get_dialog(dialog_id)
+            final_history = format_history_for_ui(updated_dialog.history)
+            yield final_history, final_text, dialog_id
+            
+        except Exception as e:
+            print(f"❌ [ChatManager.stream_response_only] Ошибка: {e}")
+            import traceback
+            traceback.print_exc()
+            
+            # Возвращаем историю с ошибкой
+            error_history = format_history_for_ui(dialog.history)
+            error_history.append({
+                "role": MessageRole.ASSISTANT.value,
+                "content": f"⚠️ Ошибка генерации: {str(e)[:100]}"
+            })
+            yield error_history, "", dialog_id

@@ -79,6 +79,19 @@ class UIHandlers:
     def stop_active_generation(self):
         """Останавливает активную генерацию сообщения"""
         return self.message_handler.stop_active_generation()
+    
+    # В классе UIHandlers, добавьте метод:
+    async def stream_response_only(self, messages, dialog_id, max_tokens, temperature, enable_thinking, stop_event):
+        """Делегирует вызов ChatManager.stream_response_only"""
+        async for result in self._chat_service.stream_response_only(
+            messages=messages,
+            dialog_id=dialog_id,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            enable_thinking=enable_thinking,
+            stop_event=stop_event
+        ):
+            yield result
 
 # Глобальный экземпляр для обратной совместимости
 ui_handlers = UIHandlers()
