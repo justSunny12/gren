@@ -29,14 +29,7 @@ class ChatManager:
         enable_thinking: Optional[bool] = None,
         stop_event: Optional[threading.Event] = None
     ) -> AsyncGenerator[Tuple[List[Dict], str, str], None]:
-        """Обрабатывает входящее сообщение и асинхронно стримит ответ.
-        
-        Yields:
-            Кортеж (history, accumulated_text, current_dialog_id):
-            - history: история для UI (список сообщений) с накопленным ответом
-            - accumulated_text: текущий накопленный текст ответа ассистента
-            - current_dialog_id: ID диалога
-        """
+        """Обрабатывает входящее сообщение и асинхронно стримит ответ."""
         from models.enums import MessageRole
         
         # 1. Валидация
@@ -48,28 +41,21 @@ class ChatManager:
         
         prompt = sanitize_user_input(prompt)
         
-        # 2. Получаем/создаем диалог
-        if not dialog_id:
-            dialog_id = self.operations.create_dialog()
-        
+        # 2. Получаем диалог (сообщение пользователя уже должно быть добавлено в MessageHandler)
         dialog = self.operations.get_dialog(dialog_id)
         if not dialog:
             yield [], "Диалог не найден", dialog_id
             return
         
-        # 3. НЕМЕДЛЕННО добавляем сообщение пользователя
-        self.operations.dialog_service.add_message(dialog_id, MessageRole.USER, prompt)
-        dialog = self.operations.get_dialog(dialog_id)  # Обновляем ссылку
-        
-        # 4. Форматируем историю для модели
+        # 3. Форматируем историю для модели (уже содержит сообщение пользователя)
         from .formatter import format_history_for_model, format_history_for_ui
         formatted_history = format_history_for_model(dialog.history)
         
-        # 5. Подготавливаем накопители
+        # 4. Подготавливаем накопители
         accumulated_response = ""
         suffix_on_stop = "...<генерация прервана пользователем>"
         
-        # 6. Запускаем стриминг
+        # 5. Запускаем стриминг
         try:
             async for chunk in self.operations.stream_response(
                 messages=formatted_history,
@@ -80,8 +66,7 @@ class ChatManager:
             ):
                 accumulated_response += chunk
                 
-                # 7. Yield обновленной истории (вариант B: только последнее сообщение)
-                # Создаем историю: все старые сообщения + текущий накопленный ответ
+                # 6. Yield обновленной истории
                 history_for_ui = format_history_for_ui(dialog.history)
                 history_for_ui.append({
                     "role": MessageRole.ASSISTANT.value,
@@ -90,21 +75,21 @@ class ChatManager:
                 
                 yield (history_for_ui, accumulated_response, dialog_id)
             
-            # 8. После завершения стрима
+            # 7. После завершения стрима
             was_stopped = stop_event and stop_event.is_set()
             final_text = accumulated_response
             
             if was_stopped:
                 final_text += suffix_on_stop
             
-            # 9. Сохраняем финальное сообщение ассистента
+            # 8. Сохраняем финальное сообщение ассистента
             self.operations.dialog_service.add_message(
                 dialog_id, 
                 MessageRole.ASSISTANT, 
                 final_text
             )
             
-            # 10. Генерируем название если нужно
+            # 9. Генерируем название если нужно
             from .naming import generate_simple_name, is_default_name
             config = self.operations.get_config()
             if is_default_name(dialog.name, config):
@@ -112,7 +97,7 @@ class ChatManager:
                 if new_name and new_name != dialog.name:
                     self.operations.rename_dialog(dialog_id, new_name)
             
-            # 11. Финальный yield
+            # 10. Финальный yield
             updated_dialog = self.operations.get_dialog(dialog_id)
             final_history = format_history_for_ui(updated_dialog.history)
             yield (final_history, final_text, dialog_id)

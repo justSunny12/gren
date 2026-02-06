@@ -6,18 +6,10 @@ class BaseHandler:
     """Базовый класс с общими сервисами и состоянием"""
     
     def __init__(self):
-        self._chat_service = None
         self._dialog_service = None
         self._config_service = None
         self._last_chat_switch = 0
         self._switch_debounce_ms = 300
-    
-    @property
-    def chat_service(self):
-        """Ленивая загрузка сервиса чата"""
-        if self._chat_service is None:
-            self._chat_service = container.get_chat_service()
-        return self._chat_service
     
     @property
     def dialog_service(self):
