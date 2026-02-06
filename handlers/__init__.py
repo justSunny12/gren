@@ -50,12 +50,6 @@ class UIHandlers:
         """Обработчик создания нового чата"""
         return self._chat_ops_handler.create_chat_with_js_handler()
     
-    def send_message_handler(self, prompt, chat_id, max_tokens, temperature, enable_thinking):
-        """Синхронный обработчик отправки сообщения"""
-        return self.message_handler.send_message_handler(
-            prompt, chat_id, max_tokens, temperature, enable_thinking
-        )
-    
     async def send_message_stream_handler(self, prompt, chat_id, max_tokens, temperature, enable_thinking):
         """Асинхронный обработчик для потоковой генерации"""
         # ВАЖНО: Это должен быть асинхронный генератор, а не обычный async метод

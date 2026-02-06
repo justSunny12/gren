@@ -14,26 +14,6 @@ class MessageHandler(BaseHandler):
         self._active_dialog_id = None   # ID диалога, в котором идет генерация
         self._stream_lock = threading.Lock()  # Защита состояния
     
-    def send_message_handler(self, prompt, chat_id, max_tokens, temperature, enable_thinking):
-        """Синхронный обработчик для обратной совместимости (оставляем как есть)."""
-        try:
-            if not prompt.strip():
-                return [], "", chat_id or "", self.get_chat_list_data()
-
-            if not chat_id:
-                chat_id = self.dialog_service.create_dialog()
-
-            history, _, new_chat_id = self.chat_service.process_message(
-                prompt, chat_id, max_tokens, temperature, enable_thinking
-            )
-
-            chat_list_data = self.get_chat_list_data()
-            return history, "", new_chat_id, chat_list_data
-
-        except Exception as e:
-            print(f"❌ Ошибка в send_message_handler: {e}")
-            return [], "", chat_id or "", self.get_chat_list_data()
-    
     async def send_message_stream_handler(
         self,
         prompt: str,

@@ -14,11 +14,9 @@ class Container:
                 self._services["config_service"] = ConfigService()
                 self._services["config_service"].get_config()
             elif name == "model_service":
-                # ВСЕГДА используем ModelService (ранее MLXModelService)
                 from services.model.manager import ModelService
                 service = ModelService()
                 self._services["model_service"] = service
-                print("✅ Используется ModelService (MLX бэкенд)")
             elif name == "dialog_service":
                 from services.dialogs import DialogService
                 config = self.get_config()

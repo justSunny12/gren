@@ -4,7 +4,7 @@
 """
 import asyncio
 import threading
-from typing import AsyncGenerator, Optional, Dict, Any, List
+from typing import AsyncGenerator, Optional, Dict, Any, List, Tuple
 from container import container
 
 
@@ -72,7 +72,7 @@ class ChatOperations:
         temperature: Optional[float] = None,
         enable_thinking: Optional[bool] = None,
         stop_event: Optional[threading.Event] = None
-    ) -> AsyncGenerator[str, None]:
+    ) -> AsyncGenerator[str, None]:  # Изменено: теперь только строка
         """Прокси-метод для stream_response модели."""
         async for chunk in self.model_service.stream_response(
             messages=messages,
