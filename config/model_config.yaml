@@ -19,3 +19,17 @@ generation:
   max_max_tokens: 4096
   min_temperature: 0.1
   max_temperature: 1.5
+
+stream_batching:
+  # Оптимальные параметры для 50 токенов/сек с анимацией
+  min_chars_per_batch: 12      # ~3 токена (минимальная порция)
+  target_chars_per_batch: 24   # ~6 токенов (оптимальный размер с анимацией)
+  max_chars_per_batch: 32      # ~8 токенов (максимум)
+  
+  # Тайминги для плавности
+  min_batch_wait_ms: 25.0      # Минимальная задержка 25мс
+  max_batch_wait_ms: 80.0      # Максимальная задержка 80мс
+  
+  # Адаптивные настройки
+  adaptive_mode: true          # Автоподстройка под скорость
+  speed_history_size: 5        # Размер истории для расчета скорости

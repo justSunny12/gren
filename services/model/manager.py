@@ -47,7 +47,15 @@ class ModelService:
         """Ленивая загрузка конфигурации"""
         if self._config is None:
             self._config = container.get_config()
+            # Настраиваем батчинг при первой загрузке конфига
+            self._setup_batching()
         return self._config
+    
+    def _setup_batching(self):
+        """Настраивает параметры батчинга"""
+        stream_batching_config = self._config.get("stream_batching")
+        if stream_batching_config:
+            self.stream_manager.set_batch_config(stream_batching_config)
 
     @property
     def model_config(self) -> Dict[str, Any]:
@@ -148,7 +156,7 @@ class ModelService:
         enable_thinking: Optional[bool] = None,
         stop_event: Optional[threading.Event] = None
     ) -> AsyncGenerator[str, None]:
-        """Асинхронно стримит ответ модели (только чанки)"""
+        """Асинхронно стримит ответ модели с умным батчингом (только чанки)"""
         
         # Убеждаемся, что модель инициализирована
         model, tokenizer = self.lifecycle_manager.get_model_and_tokenizer()
@@ -163,15 +171,15 @@ class ModelService:
             enable_thinking=enable_thinking
         )
         
-        # Делегируем стриминг StreamManager
-        async for chunk in self.stream_manager.stream_response(
+        # Делегируем стриминг StreamManager с батчингом
+        async for batch in self.stream_manager.stream_response(
             messages=messages,
             model=model,
             tokenizer=tokenizer,
             params=params,
             stop_event=stop_event
         ):
-            yield chunk
+            yield batch
 
     def get_stats(self) -> Dict[str, Any]:
         """Возвращает статистику модели"""

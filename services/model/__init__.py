@@ -10,6 +10,7 @@ from .thinking_handler import ThinkingHandler
 from .memory_manager import MLXMemoryManager
 from .lifecycle import ModelLifecycleManager, model_lifecycle_manager
 from .streamer import StreamManager, stream_manager
+from .fast_batcher import FastBatcher, BatchConfig  # НОВОЕ: экспорт батчера
 from .protocol import (
     IModelLoader,
     IResponseGenerator,
@@ -31,6 +32,8 @@ __all__ = [
     'model_lifecycle_manager',
     'StreamManager',
     'stream_manager',
+    'FastBatcher',      # НОВОЕ
+    'BatchConfig',      # НОВОЕ
     # Protocols
     'IModelLoader',
     'IResponseGenerator',
