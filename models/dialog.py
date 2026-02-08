@@ -68,26 +68,6 @@ class Dialog(BaseModel):
             for msg in self.history
         ]
     
-    def get_summary(self, max_length: int = 100) -> str:
-        """Получает краткое описание диалога"""
-        if not self.history:
-            return "Пустой диалог"
-        
-        # Пытаемся взять последнее сообщение пользователя
-        for msg in reversed(self.history):
-            if msg.role == MessageRole.USER:
-                content = msg.content
-                if len(content) > max_length:
-                    return content[:max_length] + "..."
-                return content
-        
-        # Если нет сообщений пользователя, берем любое
-        last_msg = self.history[-1]
-        content = last_msg.content
-        if len(content) > max_length:
-            return content[:max_length] + "..."
-        return content
-    
     def dict(self, *args, **kwargs) -> Dict[str, Any]:
         """Переопределяем dict для правильной сериализации"""
         return self.json_serialize()

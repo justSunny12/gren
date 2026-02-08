@@ -40,10 +40,6 @@ class ChatOperations:
         
         return self.model_service.generate_response(messages, **params)
     
-    def add_message_to_dialog(self, dialog_id: str, role, content: str) -> bool:
-        """Добавляет одно сообщение в диалог и сохраняет его."""
-        return self.add_messages(dialog_id, "", content) if role.value == "assistant" else self.dialog_service.add_message(dialog_id, role, content)
-    
     async def stream_response(
         self,
         messages: List[Dict[str, str]],
@@ -83,22 +79,3 @@ class ChatOperations:
         """Получает данные списка чатов"""
         from handlers import ui_handlers
         return ui_handlers.get_chat_list_data()
-    
-    async def stream_response_only(
-    self,
-    messages: List[Dict[str, str]],
-    dialog_id: str,
-    max_tokens: Optional[int] = None,
-    temperature: Optional[float] = None,
-    enable_thinking: Optional[bool] = None,
-    stop_event: Optional[threading.Event] = None
-) -> AsyncGenerator[str, None]:
-        """Прокси-метод для stream_response_only модели."""
-        async for chunk in self.model_service.stream_response(
-            messages=messages,
-            max_tokens=max_tokens,
-            temperature=temperature,
-            enable_thinking=enable_thinking,
-            stop_event=stop_event
-        ):
-            yield chunk
