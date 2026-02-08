@@ -1,17 +1,21 @@
-# /models/dialog.py
-from pydantic import BaseModel, Field, ConfigDict
+# models/dialog.py
+from pydantic import BaseModel, Field, ConfigDict, PrivateAttr
 from datetime import datetime
 from typing import List, Optional, Dict, Any
+import hashlib
+
 from .enums import MessageRole
 from .message import Message
 
+
 class Dialog(BaseModel):
-    """Модель диалога"""
+    """Модель диалога с кэшированием формата для UI"""
     
     model_config = ConfigDict(
         json_encoders={
             datetime: lambda v: v.isoformat()
-        }
+        },
+        arbitrary_types_allowed=True  # Разрешаем приватные поля
     )
     
     id: str
@@ -20,36 +24,117 @@ class Dialog(BaseModel):
     created: datetime = Field(default_factory=datetime.now)
     updated: datetime = Field(default_factory=datetime.now)
     status: str = "active"
-    pinned: bool = False  # ← НОВОЕ ПОЛЕ для закрепления
-    pinned_position: Optional[int] = None  # ← ПОЗИЦИЯ в закрепленных (чем меньше, тем выше)
+    pinned: bool = False
+    pinned_position: Optional[int] = None
     
-    def pin(self, position: int):
-        """Закрепляет диалог на указанной позиции"""
-        self.pinned = True
-        self.pinned_position = position
-        # Не обновляем updated!
+    # Приватные поля для кэширования (не сериализуются через PrivateAttr)
+    _cached_ui_format: Optional[List[Dict[str, str]]] = PrivateAttr(default=None)
+    _history_hash: Optional[str] = PrivateAttr(default=None)
     
-    def unpin(self):
-        """Открепляет диалог"""
-        self.pinned = False
-        self.pinned_position = None
+    # ========== ОСНОВНЫЕ МЕТОДЫ С КЭШИРОВАНИЕМ ==========
+    
+    def to_ui_format(self) -> List[Dict[str, str]]:
+        """
+        Конвертирует диалог в формат для UI с кэшированием.
+        
+        Возвращает кэшированное значение, если история не изменилась.
+        Кэш автоматически инвалидируется при изменении истории.
+        """
+        current_hash = self._calculate_history_hash()
+        
+        # Если кэш есть и хэш совпадает - возвращаем кэш
+        if (self._cached_ui_format is not None and 
+            self._history_hash == current_hash):
+            return self._cached_ui_format
+        
+        # Иначе форматируем заново
+        formatted = [
+            {"role": msg.role.value, "content": msg.content}
+            for msg in self.history
+        ]
+        
+        # Сохраняем в кэш
+        self._cached_ui_format = formatted
+        self._history_hash = current_hash
+        
+        return formatted
+    
+    def _calculate_history_hash(self) -> str:
+        """
+        Вычисляет быстрый хэш истории для инвалидации кэша.
+        Использует только последние сообщения и общую длину.
+        """
+        if not self.history:
+            return "empty"
+        
+        # Для пустой истории или короткой истории используем быстрый хэш
+        if len(self.history) <= 3:
+            hash_parts = [str(len(self.history))]
+            for msg in self.history:
+                # Используем роль, длину содержимого и первые 50 символов
+                content_preview = msg.content[:50] if msg.content else ""
+                hash_parts.append(f"{msg.role.value}:{len(msg.content)}:{content_preview}")
+            hash_string = "|".join(hash_parts)
+            return hashlib.md5(hash_string.encode('utf-8')).hexdigest()
+        
+        # Для длинной истории: используем только последние 3 сообщения + метаданные
+        recent = self.history[-3:]
+        hash_parts = [
+            str(len(self.history)),
+            str(self.updated.timestamp())
+        ]
+        
+        for msg in recent:
+            # Только основные метрики для скорости
+            content_len = len(msg.content)
+            content_preview = msg.content[:30] if content_len > 0 else ""
+            hash_parts.append(f"{msg.role.value}:{content_len}:{content_preview[:30]}")
+        
+        hash_string = "|".join(hash_parts)
+        return hashlib.md5(hash_string.encode('utf-8')).hexdigest()
+    
+    def _invalidate_cache(self):
+        """Инвалидирует кэш форматирования"""
+        self._cached_ui_format = None
+        self._history_hash = None
+    
+    # ========== МЕТОДЫ, ИЗМЕНЯЮЩИЕ ИСТОРИЮ (ИНВАЛИДИРУЮТ КЭШ) ==========
     
     def add_message(self, role: MessageRole, content: str) -> Message:
-        """Добавляет сообщение в диалог и возвращает его"""
+        """Добавляет сообщение в диалог и инвалидирует кэш"""
         message = Message(role=role, content=content)
         self.history.append(message)
         self.updated = datetime.now()
+        self._invalidate_cache()  # Инвалидируем кэш!
         return message
     
     def clear_history(self):
-        """Очищает историю диалога"""
+        """Очищает историю диалога и инвалидирует кэш"""
         self.history = []
         self.updated = datetime.now()
+        self._invalidate_cache()  # Инвалидируем кэш!
+    
+    # ========== МЕТОДЫ, НЕ ИЗМЕНЯЮЩИЕ ИСТОРИЮ (НЕ ИНВАЛИДИРУЮТ КЭШ) ==========
     
     def rename(self, new_name: str):
-        """Переименовывает диалог"""
+        """Переименовывает диалог (НЕ инвалидирует кэш истории)"""
         self.name = new_name
         self.updated = datetime.now()
+        # Не инвалидируем кэш истории, так как имя не влияет на форматирование
+    
+    def pin(self, position: int):
+        """Закрепляет диалог на указанной позиции (НЕ инвалидирует кэш)"""
+        self.pinned = True
+        self.pinned_position = position
+        # Не обновляем updated и не инвалидируем кэш!
+    
+    def unpin(self):
+        """Открепляет диалог (НЕ инвалидирует кэш)"""
+        self.pinned = False
+        self.pinned_position = None
+        # Не инвалидируем кэш!
+    
+    # ========== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ==========
     
     def get_last_message(self) -> Optional[Message]:
         """Получает последнее сообщение в диалоге"""
@@ -61,12 +146,24 @@ class Dialog(BaseModel):
         """Получает количество сообщений"""
         return len(self.history)
     
-    def to_ui_format(self) -> List[Dict[str, str]]:
-        """Конвертирует диалог в формат для UI (Gradio Chatbot)"""
-        return [
-            {"role": msg.role.value, "content": msg.content}
-            for msg in self.history
-        ]
+    def is_cache_valid(self) -> bool:
+        """Проверяет, действителен ли кэш"""
+        if self._cached_ui_format is None or self._history_hash is None:
+            return False
+        
+        current_hash = self._calculate_history_hash()
+        return self._history_hash == current_hash
+    
+    def get_cache_info(self) -> Dict[str, Any]:
+        """Возвращает информацию о кэше для отладки"""
+        return {
+            "cached": self._cached_ui_format is not None,
+            "hash_valid": self.is_cache_valid(),
+            "history_length": len(self.history),
+            "cache_size": len(self._cached_ui_format) if self._cached_ui_format else 0
+        }
+    
+    # ========== МЕТОДЫ СЕРИАЛИЗАЦИИ (оставляем без изменений) ==========
     
     def dict(self, *args, **kwargs) -> Dict[str, Any]:
         """Переопределяем dict для правильной сериализации"""
@@ -74,6 +171,7 @@ class Dialog(BaseModel):
 
     def json_serialize(self) -> Dict[str, Any]:
         """Сериализует диалог в JSON-совместимый словарь"""
+        # Приватные поля не сериализуются автоматически
         return {
             "id": self.id,
             "name": self.name,

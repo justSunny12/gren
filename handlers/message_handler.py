@@ -51,8 +51,8 @@ class MessageHandler(BaseHandler):
             if not dialog:
                 raise ValueError(f"Диалог {chat_id} не найден после добавления сообщения")
             
-            from services.chat.formatter import format_history_for_ui
-            history_with_user_message = format_history_for_ui(dialog.history)
+            # ИСПРАВЛЕНИЕ: создаём копию истории для первого yield'а
+            history_with_user_message = list(dialog.to_ui_format())  # Копируем список
                         
             js_code = "if (window.toggleGenerationButtons) { window.toggleGenerationButtons(true); }"
             
@@ -68,9 +68,8 @@ class MessageHandler(BaseHandler):
             messages_for_model = format_history_for_model(dialog.history)
             
             # 5. Получаем поток от ChatManager
-            # ИСПРАВЛЕНИЕ: Используем chat_service.process_message_stream
             async for history, accumulated_text, current_dialog_id in self.chat_service.process_message_stream(
-                prompt=prompt,  # Передаем prompt, а не messages
+                prompt=prompt,
                 dialog_id=chat_id,
                 max_tokens=max_tokens,
                 temperature=temperature,
@@ -85,7 +84,8 @@ class MessageHandler(BaseHandler):
             
             final_dialog = self.dialog_service.get_dialog(chat_id)
             if final_dialog:
-                final_history = format_history_for_ui(final_dialog.history)
+                # ИСПРАВЛЕНИЕ: используем final_dialog.to_ui_format() вместо format_history_for_ui
+                final_history = final_dialog.to_ui_format()
                 yield final_history, "", chat_id, self.get_chat_list_data(), js_code
             else:
                 yield history_with_user_message, "", chat_id, self.get_chat_list_data(), js_code
@@ -97,8 +97,8 @@ class MessageHandler(BaseHandler):
             try:
                 dialog = self.dialog_service.get_dialog(chat_id) if chat_id else None
                 if dialog:
-                    from services.chat.formatter import format_history_for_ui
-                    history = format_history_for_ui(dialog.history)
+                    # ИСПРАВЛЕНИЕ: используем dialog.to_ui_format() вместо format_history_for_ui
+                    history = dialog.to_ui_format()
                 else:
                     history = []
             except:

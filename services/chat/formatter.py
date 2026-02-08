@@ -3,8 +3,9 @@
 Форматирование данных для чата
 """
 
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Union
 import re
+from models.dialog import Dialog
 
 
 def format_history_for_model(history) -> List[Dict[str, str]]:
@@ -15,11 +16,21 @@ def format_history_for_model(history) -> List[Dict[str, str]]:
     ]
 
 
-def format_history_for_ui(history) -> List[Dict[str, str]]:
-    """Форматирует историю для отображения в UI"""
+def format_history_for_ui(history_or_dialog: Union[List, Dialog]) -> List[Dict[str, str]]:
+    """
+    Форматирует историю для отображения в UI.
+    
+    Поддерживает как список сообщений, так и объект Dialog.
+    Если передан Dialog, использует его кэшированный метод to_ui_format().
+    """
+    # Если передан Dialog, используем его кэшированный метод
+    if isinstance(history_or_dialog, Dialog):
+        return history_or_dialog.to_ui_format()
+    
+    # Иначе считаем, что передан список сообщений и форматируем вручную
     return [
         {"role": msg.role.value, "content": msg.content}
-        for msg in history
+        for msg in history_or_dialog
     ]
 
 

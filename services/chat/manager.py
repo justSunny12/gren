@@ -1,4 +1,4 @@
-# services/chat/manager.py
+# services/chat/manager.py (исправленная версия)
 """
 Главный менеджер для координации всех компонентов чата
 """
@@ -9,7 +9,7 @@ import traceback
 from typing import AsyncGenerator, List, Dict, Optional, Tuple, Any
 
 from .core import validate_message, sanitize_user_input
-from .formatter import format_history_for_model, format_history_for_ui
+from .formatter import format_history_for_model
 from .naming import generate_simple_name, is_default_name
 from .operations import ChatOperations
 
@@ -48,7 +48,7 @@ class ChatManager:
             return
         
         # 3. Форматируем историю для модели (уже содержит сообщение пользователя)
-        from .formatter import format_history_for_model, format_history_for_ui
+        from .formatter import format_history_for_model
         formatted_history = format_history_for_model(dialog.history)
         
         # 4. Подготавливаем накопители
@@ -67,7 +67,12 @@ class ChatManager:
                 accumulated_response += chunk
                 
                 # 6. Yield обновленной истории
-                history_for_ui = format_history_for_ui(dialog.history)
+                # ИСПРАВЛЕНИЕ: Создаём КОПИЮ базовой истории и добавляем текущий накопленный ответ
+                # Это безопасно и не нарушает кэш
+                base_history = dialog.to_ui_format()  # Кэшированная базовая история (без ответа ассистента)
+                
+                # Создаём новый список, чтобы не модифицировать кэш
+                history_for_ui = list(base_history)  # Создаём копию списка
                 history_for_ui.append({
                     "role": MessageRole.ASSISTANT.value,
                     "content": accumulated_response
@@ -97,9 +102,9 @@ class ChatManager:
                 if new_name and new_name != dialog.name:
                     self.operations.dialog_service.rename_dialog(dialog_id, new_name)
             
-            # 10. Финальный yield
+            # 10. Финальный yield - используем обновлённый диалог с кэшем
             updated_dialog = self.operations.dialog_service.get_dialog(dialog_id)
-            final_history = format_history_for_ui(updated_dialog.history)
+            final_history = updated_dialog.to_ui_format()  # Теперь содержит полный ответ ассистента
             yield (final_history, final_text, dialog_id)
             
         except Exception as e:
@@ -108,7 +113,8 @@ class ChatManager:
             traceback.print_exc()
             
             # Возвращаем историю с ошибкой
-            error_history = format_history_for_ui(dialog.history)
+            base_history = dialog.to_ui_format()
+            error_history = list(base_history)  # Копируем базовую историю
             error_history.append({
                 "role": MessageRole.ASSISTANT.value,
                 "content": f"⚠️ Ошибка: {str(e)[:100]}"
@@ -123,8 +129,7 @@ class ChatManager:
             dialog = self.operations.dialog_service.get_dialog(dialog_id)
         
         if dialog:
-            from .formatter import format_history_for_ui
-            return format_history_for_ui(dialog.history)
+            return dialog.to_ui_format()
         return []
     
     # Дополнительные методы для удобства
