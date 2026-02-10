@@ -64,6 +64,12 @@ class DialogManager:
         
         return dialog_id
     
+    def save_dialog(self, dialog_id: str) -> bool:
+        """Сохраняет диалог по ID"""
+        if dialog_id in self.dialogs:
+            return self.storage.save_dialog(self.dialogs[dialog_id])
+        return False
+    
     def switch_dialog(self, dialog_id: str) -> bool:
         if dialog_id in self.dialogs:
             self.current_dialog_id = dialog_id

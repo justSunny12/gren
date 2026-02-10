@@ -24,7 +24,8 @@ class ConfigService:
             yaml_files = [
                 "app_config.yaml",
                 "model_config.yaml", 
-                "user_config.yaml"
+                "user_config.yaml",
+                "context_config.yaml"
             ]
             
             for yaml_file in yaml_files:
@@ -49,6 +50,11 @@ class ConfigService:
     def get_default_config(self) -> Dict[str, Any]:
         """Получает стандартную конфигурацию"""
         return self.load_default_config()
+    
+    def get_context_config(self) -> Dict[str, Any]:
+        """Получает конфигурацию контекста"""
+        config = self.get_config()
+        return config.get("context", {})
     
     def get_config(self) -> Dict[str, Any]:
         """Получает объединенную конфигурацию"""

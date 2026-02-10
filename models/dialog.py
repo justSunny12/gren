@@ -1,8 +1,9 @@
-# models/dialog.py
+# models/dialog.py (исправленная версия - убираем __del__)
 from pydantic import BaseModel, Field, ConfigDict, PrivateAttr
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 import hashlib
+import weakref
 
 from .enums import MessageRole
 from .message import Message
@@ -27,9 +28,54 @@ class Dialog(BaseModel):
     pinned: bool = False
     pinned_position: Optional[int] = None
     
-    # Приватные поля для кэширования (не сериализуются через PrivateAttr)
+    # Приватные поля для кэширования
     _cached_ui_format: Optional[List[Dict[str, str]]] = PrivateAttr(default=None)
     _history_hash: Optional[str] = PrivateAttr(default=None)
+    _context_manager_ref: Optional[Any] = PrivateAttr(default=None)  # Изменено на ref
+    
+    # ========== КОНТЕКСТНЫЕ МЕТОДЫ ==========
+    
+    @property
+    def context_manager(self):
+        """Ленивое получение менеджера контекста"""
+        from services.context.factory import ContextManagerFactory
+        
+        if self._context_manager_ref is None:
+            # Создаем менеджер и сохраняем слабую ссылку
+            manager = ContextManagerFactory.get_for_dialog(self)
+            self._context_manager_ref = weakref.ref(manager)
+            return manager
+        
+        # Получаем менеджер из слабой ссылки
+        manager = self._context_manager_ref()
+        if manager is None:
+            # Ссылка устарела, создаем новую
+            manager = ContextManagerFactory.get_for_dialog(self)
+            self._context_manager_ref = weakref.ref(manager)
+        
+        return manager
+    
+    def get_context_for_generation(self) -> str:
+        """Получает контекст для генерации"""
+        return self.context_manager.get_context_for_generation()
+    
+    def add_interaction_to_context(self, user_message: str, assistant_message: str):
+        """Добавляет взаимодействие в контекст"""
+        self.context_manager.add_interaction(user_message, assistant_message)
+    
+    def get_context_stats(self) -> Dict[str, Any]:
+        """Получает статистику контекста"""
+        return self.context_manager.get_stats()
+    
+    def save_context_state(self):
+        """Сохраняет состояние контекста"""
+        return self.context_manager.save_state()
+    
+    def cleanup_context(self):
+        """Очищает контекст при удалении диалога"""
+        from services.context.factory import ContextManagerFactory
+        ContextManagerFactory.remove_for_dialog(self.id)
+        self._context_manager_ref = None
     
     # ========== ОСНОВНЫЕ МЕТОДЫ С КЭШИРОВАНИЕМ ==========
     
@@ -120,19 +166,16 @@ class Dialog(BaseModel):
         """Переименовывает диалог (НЕ инвалидирует кэш истории)"""
         self.name = new_name
         self.updated = datetime.now()
-        # Не инвалидируем кэш истории, так как имя не влияет на форматирование
     
     def pin(self, position: int):
         """Закрепляет диалог на указанной позиции (НЕ инвалидирует кэш)"""
         self.pinned = True
         self.pinned_position = position
-        # Не обновляем updated и не инвалидируем кэш!
     
     def unpin(self):
         """Открепляет диалог (НЕ инвалидирует кэш)"""
         self.pinned = False
         self.pinned_position = None
-        # Не инвалидируем кэш!
     
     # ========== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ==========
     
@@ -163,7 +206,7 @@ class Dialog(BaseModel):
             "cache_size": len(self._cached_ui_format) if self._cached_ui_format else 0
         }
     
-    # ========== МЕТОДЫ СЕРИАЛИЗАЦИИ (оставляем без изменений) ==========
+    # ========== МЕТОДЫ СЕРИАЛИЗАЦИИ ==========
     
     def dict(self, *args, **kwargs) -> Dict[str, Any]:
         """Переопределяем dict для правильной сериализации"""
@@ -171,7 +214,6 @@ class Dialog(BaseModel):
 
     def json_serialize(self) -> Dict[str, Any]:
         """Сериализует диалог в JSON-совместимый словарь"""
-        # Приватные поля не сериализуются автоматически
         return {
             "id": self.id,
             "name": self.name,

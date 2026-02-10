@@ -1,0 +1,70 @@
+# config/context_config.yaml (дополненная версия)
+# Конфигурация системы управления контекстом с многоуровневой суммаризацией
+
+context:
+  # Основные параметры
+  enabled: true
+  
+  # Сырой хвост (последние n символов)
+  raw_tail:
+    char_limit: 3000            # перед добавлением взаимодействия в переполненный tail запускается суммаризация L1
+  
+  # Чанки первого уровня
+  l1_chunks:
+    target_char_limit: 3000     # Максимальный размер чанка (может быть переполнена на размер одного взаимодействия)
+    allow_single_interaction_overflow: true  # Разрешить переполнение чанка добавлением единственного взаимодействия
+    
+  # Пороги суммаризации
+  summarization:
+    l2_trigger_count: 4         # x чанков L1 для запуска L2 суммаризации
+    
+  # Суммаризация второго уровня
+  l2_summary:
+    preserve_oldest_ratio: 0.5  # Доля старейших чанков для L2 суммаризации (50%)
+    
+  # Кумулятивная строка
+  cumulative:
+    max_blocks: 20              # Максимальное количество блоков в кумулятивной строке
+    cleanup_old_blocks: false    # Очищать старые блоки при превышении лимита. ОЧИСТКА НЕ РЕАЛИЗОВАНА
+    
+  # Модели суммаризации
+  models:
+    l1_summarizer: "Qwen/Qwen3-1.7B-MLX-4bit"
+    l2_summarizer: "Qwen/Qwen3-4B-MLX-4bit"
+    
+  # Параметры генерации для суммаризации (ОБНОВЛЕНО)
+  summarization_params:
+    l1:
+      max_tokens: 800           # Для L1 - можно больше, так как нужны детали
+      temperature: 0.4          # Низкая для более детерминированных конспектов
+      top_p: 0.9
+      top_k: 40
+      repetition_penalty: 1.1
+      enable_thinking: false    # Явно отключаем thinking для суммаризации!
+    l2:
+      max_tokens: 300           # Для L2 - меньше, так как нужно большее сжатие
+      temperature: 0.4          # Чуть выше для творческого обобщения
+      top_p: 0.9
+      top_k: 40
+      repetition_penalty: 1.1
+      enable_thinking: false    # Явно отключаем thinking для суммаризации!
+    
+  # Настройки производительности
+  performance:
+    background_summary: true    # Фоновая суммаризация
+    max_background_tasks: 2     # Максимальное количество фоновых задач
+    summary_delay_ms: 1000      # Задержка перед началом суммаризации (мс)
+    batch_size_l1: 1            # Размер батча для L1 суммаризации
+    batch_size_l2: 1            # Размер батча для L2 суммаризации
+    
+  # Сохранение состояния
+  persistence:
+    save_with_dialog: true      # Сохранять контекст вместе с диалогом
+    auto_save_interval: 60      # Автосохранение каждые N секунд
+    compression: "gzip"         # Сжатие сохраненного контекста. НЕ РЕАЛИЗОВАНО
+    
+  # Мониторинг и логирование
+  monitoring:
+    enable_stats: true
+    log_summary_events: true
+    log_compression_ratios: true
