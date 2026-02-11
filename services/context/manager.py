@@ -99,11 +99,11 @@ class ContextManager:
         """Загружает сохраненное состояние или инициализирует новое"""
         if os.path.exists(self._state_file_path):
             if self.load_state(self._state_file_path):
-                print(f"✅ Загружено состояние контекста из: {os.path.basename(self._state_file_path)}")
+                # print(f"✅ Загружено состояние контекста из: {os.path.basename(self._state_file_path)}")
                 return
         
         # Если нет сохраненного состояния, инициализируем из полной истории
-        print(f"🔄 Инициализация контекста из истории для диалога {self.dialog.id}")
+        # print(f"🔄 Инициализация контекста из истории для диалога {self.dialog.id}")
         self._rebuild_from_history()
         
         # Сохраняем начальное состояние
@@ -119,7 +119,7 @@ class ContextManager:
             cumulative_context=CumulativeContext()
         )
         
-        print(f"🆕 Инициализирован новый контекст для диалога {self.dialog.id}")
+        # print(f"🆕 Инициализирован новый контекст для диалога {self.dialog.id}")
     
     def _get_current_message_indices(self) -> List[int]:
         """Получает индексы текущих сообщений пользователя и ассистента"""
@@ -152,20 +152,18 @@ class ContextManager:
         interaction = SimpleInteraction(
             user_message=user_message,
             assistant_message=assistant_message,
-            user_timestamp=datetime.now(),
-            assistant_timestamp=datetime.now(),
             message_indices=self._get_current_message_indices()
         )
         
         interaction_text = interaction.text + "\n\n"
         interaction_chars = len(interaction_text)
         
-        print(f"📝 Добавляем взаимодействие. Текущий raw_tail: {len(self.state.raw_tail)} символов, лимит: {self.state.raw_tail_char_limit}")
+        # print(f"📝 Добавляем взаимодействие. Текущий raw_tail: {len(self.state.raw_tail)} символов, лимит: {self.state.raw_tail_char_limit}")
         
         # ВАЖНО: Проверяем, не переполнен ли УЖЕ сырой хвост ПЕРЕД добавлением
         if len(self.state.raw_tail) > self.state.raw_tail_char_limit:
             # Сырой хвост уже переполнен (например, из-за предыдущего очень длинного взаимодействия)
-            print(f"⚠️ Raw tail уже переполнен ({len(self.state.raw_tail)} > {self.state.raw_tail_char_limit}). Отправляем на суммаризацию L1")
+            # print(f"⚠️ Raw tail уже переполнен ({len(self.state.raw_tail)} > {self.state.raw_tail_char_limit}). Отправляем на суммаризацию L1")
             
             # Сохраняем переполненный хвост для суммаризации
             raw_tail_to_summarize = self.state.raw_tail
@@ -193,11 +191,12 @@ class ContextManager:
         # Сохраняем состояние
         self.save_state(self._state_file_path)
         
-        print(f"✅ Взаимодействие добавлено. Теперь raw_tail: {len(self.state.raw_tail)} символов")
+        # print(f"✅ Взаимодействие добавлено. Теперь raw_tail: {len(self.state.raw_tail)} символов")
         
         # Логируем состояние для отладки
         if len(self.state.raw_tail) > self.state.raw_tail_char_limit:
-            print(f"📊 Raw tail теперь превышает лимит на {len(self.state.raw_tail) - self.state.raw_tail_char_limit} символов")
+            #print(f"📊 Raw tail теперь превышает лимит на {len(self.state.raw_tail) - self.state.raw_tail_char_limit} символов")
+            pass
     
     async def _trigger_l1_summarization_for_full_tail(self, raw_tail_text: str):
         """Запускает суммаризацию L1 для всего переполненного сырого хвоста"""
@@ -205,10 +204,10 @@ class ContextManager:
         simple_interactions = parse_text_to_interactions(raw_tail_text)
         
         if not simple_interactions:
-            print("⚠️ Нет взаимодействий для суммаризации в переполненном raw_tail")
+            # print("⚠️ Нет взаимодействий для суммаризации в переполненном raw_tail")
             return
         
-        print(f"🚀 Запуск L1 суммаризации для {len(simple_interactions)} взаимодействий")
+        # print(f"🚀 Запуск L1 суммаризации для {len(simple_interactions)} взаимодействий")
         
         config = self.config.get("structure", {}).get("l1_chunks", {})
         target_chars = config.get("target_char_limit", 1000)
@@ -235,7 +234,7 @@ class ContextManager:
             # Логируем размер чанка
             chunk_size = len(chunk_text)
             interaction_count = len(chunk_interactions)
-            print(f"  Чанк: {interaction_count} взаимодействий, {chunk_size} символов")
+            # print(f"  Чанк: {interaction_count} взаимодействий, {chunk_size} символов")
             
             # Извлекаем индексы сообщений
             all_message_indices = extract_message_indices_from_interactions(chunk_interactions)
@@ -255,7 +254,7 @@ class ContextManager:
         compression_ratio = original_char_count / max(len(summary), 1)
         target_compression = self.config.get("l1_chunks", {}).get("compression_ratio", 12.0)
         
-        print(f"✅ L1 суммаризация завершена: {original_char_count} -> {len(summary)} символов (сжатие: {compression_ratio:.1f}x)")
+        # print(f"✅ L1 суммаризация завершена: {original_char_count} -> {len(summary)} символов (сжатие: {compression_ratio:.1f}x)")
         
         # Создаем чанк L1 (только с суммаризацией)
         chunk = InteractionChunk.create_from_summary(
@@ -295,8 +294,8 @@ class ContextManager:
         chunk_count = max(1, int(total_chunks * ratio))
         chunks_to_summarize = self.state.l1_chunks[:chunk_count]
 
-        print(f"🚀 Запуск L2 суммаризации для {len(chunks_to_summarize)} чанков "
-              f"(всего: {total_chunks}, ratio={ratio:.2f})")
+        # print(f"🚀 Запуск L2 суммаризации для {len(chunks_to_summarize)} чанков "
+            #   f"(всего: {total_chunks}, ratio={ratio:.2f})")
 
         # Получаем параметры L2 суммаризации из конфига
         summarization_params = self.config.get("summarization_params", {}).get("l2", {})
@@ -322,7 +321,7 @@ class ContextManager:
         compression_ratio = total_original_chars / max(len(summary), 1)
         target_compression = self.config.get("l2_summary", {}).get("compression_ratio", 30.0)
         
-        print(f"✅ L2 суммаризация завершена: {len(l1_chunk_ids)} чанков, {total_original_chars} -> {len(summary)} символов (сжатие: {compression_ratio:.1f}x)")
+        # print(f"✅ L2 суммаризация завершена: {len(l1_chunk_ids)} чанков, {total_original_chars} -> {len(summary)} символов (сжатие: {compression_ratio:.1f}x)")
         
         # Создаем блок L2 (только с суммаризацией)
         l2_block = L2SummaryBlock.create_from_summary(
@@ -420,8 +419,8 @@ class ContextManager:
             # Восстанавливаем состояние из словаря
             self.state = DialogContextState.model_validate(state_dict)
             
-            print(f"✅ Загружено {len(self.state.l1_chunks)} чанков L1, "
-                f"{len(self.state.l2_blocks)} блоков L2")
+            # print(f"✅ Загружено {len(self.state.l1_chunks)} чанков L1, "
+            #     f"{len(self.state.l2_blocks)} блоков L2")
             
             return True
         except Exception as e:

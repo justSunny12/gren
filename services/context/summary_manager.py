@@ -160,7 +160,7 @@ class SummaryManager:
             daemon=True
         )
         self._worker_thread.start()
-        print("🚀 Менеджер суммаризаций запущен")
+        # print("🚀 Менеджер суммаризаций запущен")
     
     def stop(self):
         """Останавливает менеджер суммаризаций"""
@@ -173,11 +173,11 @@ class SummaryManager:
         if self._summarizers:
             SummarizerFactory.unload_all()
         
-        print("🛑 Менеджер суммаризаций остановлен")
+        # print("🛑 Менеджер суммаризаций остановлен")
     
     def _worker_loop(self):
         """Основной цикл обработки задач"""
-        print("👷 Воркер суммаризаций запущен")
+        # print("👷 Воркер суммаризаций запущен")
         
         while not self._stop_event.is_set():
             try:
@@ -205,7 +205,7 @@ class SummaryManager:
                 import traceback
                 traceback.print_exc()
         
-        print("👷 Воркер суммаризаций остановлен")
+        # print("👷 Воркер суммаризаций остановлен")
     
     def _execute_task(self, task: SummaryTask):
         """Выполняет задачу суммаризации с реальной моделью"""
@@ -216,7 +216,7 @@ class SummaryManager:
             if time.time() - task.created_at < self._summary_delay:
                 time.sleep(self._summary_delay)
             
-            print(f"⚡ Выполняю задачу {task.task_id} (тип: {task.task_type})")
+            # print(f"⚡ Выполняю задачу {task.task_id} (тип: {task.task_type})")
             
             # Получаем соответствующий суммаризатор
             summarizers = self._get_summarizers()
@@ -246,8 +246,8 @@ class SummaryManager:
                 if result.success:
                     self._successful_tasks += 1
                     self._completed_tasks[task.task_id] = result
-                    print(f"✅ Задача {task.task_id} выполнена за {processing_time:.2f}с "
-                          f"(сжатие: {result.compression_ratio:.1f}x)")
+                    # print(f"✅ Задача {task.task_id} выполнена за {processing_time:.2f}с "
+                    #       f"(сжатие: {result.compression_ratio:.1f}x)")
                 else:
                     self._failed_tasks_count += 1
                     self._failed_tasks[task.task_id] = result.error

@@ -127,17 +127,17 @@ def group_interactions_into_chunks(
             # Если чанк пустой, разрешаем переполнение
             if not current_chunk:
                 chunks.append([interaction])
-                print(f"✅ Разрешено переполнение чанка: "
-                      f"{interaction_size} > {target_chars} символов "
-                      f"(одно большое взаимодействие)")
+                # print(f"✅ Разрешено переполнение чанка: "
+                #       f"{interaction_size} > {target_chars} символов "
+                #       f"(одно большое взаимодействие)")
                 continue
             else:
                 # Если чанк не пустой, сохраняем его и начинаем новый
                 chunks.append(current_chunk.copy())
                 current_chunk = [interaction]
                 current_size = interaction_size
-                print(f"✅ Создан переполненный чанк: "
-                      f"{interaction_size} символов")
+                # print(f"✅ Создан переполненный чанк: "
+                #       f"{interaction_size} символов")
                 continue
         
         # ПРАВИЛО 2: Стандартная группировка для обычных взаимодействий

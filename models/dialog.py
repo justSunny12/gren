@@ -62,6 +62,14 @@ class Dialog(BaseModel):
     def add_interaction_to_context(self, user_message: str, assistant_message: str):
         """Добавляет взаимодействие в контекст"""
         self.context_manager.add_interaction(user_message, assistant_message)
+        
+    def save_context_state(self):
+        """Сохраняет состояние контекста диалога"""
+        if self._context_manager_ref is not None:
+            manager = self.context_manager
+            if manager:
+                return manager.save_state()
+        return False
     
     # ========== ОСНОВНЫЕ МЕТОДЫ С КЭШИРОВАНИЕМ ==========
     

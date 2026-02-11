@@ -57,7 +57,7 @@ class DialogStorage:
             with open(history_file, 'w', encoding='utf-8') as f:
                 json.dump(dialog_data, f, ensure_ascii=False, indent=2)
             
-            print(f"💾 Сохранена история диалога: {os.path.basename(history_file)}")
+            # print(f"💾 Сохранена история диалога: {os.path.basename(history_file)}")
             return True
             
         except Exception as e:
@@ -114,7 +114,7 @@ class DialogStorage:
                             dialog = Dialog(**dialog_data)
                             dialogs[dialog.id] = dialog
                             
-                            print(f"📂 Загружен диалог из: {folder_name}/{filename}")
+                            # print(f"📂 Загружен диалог из: {folder_name}/{filename}")
                             
                         except (json.JSONDecodeError, KeyError, ValueError) as e:
                             print(f"❌ Ошибка загрузки файла истории {history_file}: {e}")
@@ -132,7 +132,7 @@ class DialogStorage:
             folder_path = self._get_chat_folder_path(dialog)
             if os.path.exists(folder_path):
                 shutil.rmtree(folder_path)
-                print(f"🗑️ Удалена папка диалога: {os.path.basename(folder_path)}")
+                # print(f"🗑️ Удалена папка диалога: {os.path.basename(folder_path)}")
                 return True
             return False
         except Exception as e:

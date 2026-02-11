@@ -68,7 +68,6 @@
 
 .chat-item.active {
     background: rgb(230, 237, 252);
-    color: rgb(67, 99, 245);
     border: none;
 }
 
@@ -80,6 +79,18 @@
 }
 
 .chat-item .chat-name {
+    font-size: 16px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.4;
+    font-weight: normal;
+    flex: 1;
+}
+
+.chat-item.active .chat-name {
+    color: rgb(67, 99, 245);
     font-size: 16px;
     font-weight: 500;
     white-space: nowrap;
