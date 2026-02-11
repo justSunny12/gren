@@ -48,13 +48,13 @@ class BaseSummarizer:
         self._load_error = None
         
         # Проверяем, нужно ли лениво загружать
-        summarizers_config = config.get("summarizers", {})
+        summarizers_config = config.get("models", {}).get("loading", {})
         self._preload_enabled = summarizers_config.get("preload", True)
         
         # Параметры генерации
-        summarization_params = config.get("summarization_params", {})
+        generation_params = config.get("models", {}).get("generation_params", {})
         model_type = "l1" if "1.7B" in model_name else "l2"
-        params = summarization_params.get(model_type, {})
+        params = generation_params.get(model_type, {})
         
         self.max_tokens = params.get("max_tokens", 200)
         self.temperature = params.get("temperature", 0.3)
@@ -68,28 +68,6 @@ class BaseSummarizer:
         self._successful_requests = 0
         self._total_processing_time = 0.0
         self._last_used: Optional[float] = None
-        
-        # Оптимизация памяти
-        self._memory_limit = None
-        self._setup_memory_limit()
-    
-    def _setup_memory_limit(self):
-        """Настраивает лимит памяти для MLX"""
-        try:
-            # Получаем общий лимит из конфига модели
-            main_config = container.get_config()
-            model_config = main_config.get("model", {})
-            memory_limit = model_config.get("unified_memory_limit", 80)
-            
-            if memory_limit and hasattr(mx.metal, 'set_cache_limit'):
-                total_memory = mx.metal.get_cache_limit()
-                if total_memory:
-                    limit_bytes = int(total_memory * (memory_limit / 100))
-                    mx.metal.set_cache_limit(limit_bytes)
-                    self._memory_limit = limit_bytes
-                    print(f"💾 Установлен лимит памяти для суммаризатора: {limit_bytes/1024**3:.2f} GB")
-        except Exception as e:
-            print(f"⚠️ Не удалось установить лимит памяти для суммаризатора: {e}")
     
     @property
     def is_loaded(self) -> bool:

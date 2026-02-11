@@ -62,8 +62,8 @@ class ContextManager:
             asyncio.set_event_loop(self._event_loop)
         
         self.state = DialogContextState(
-            raw_tail_char_limit=config.get("raw_tail", {}).get("char_limit", 2000),
-            l1_summary_threshold=config.get("summarization", {}).get("l2_trigger_count", 4),
+            raw_tail_char_limit=config.get("structure", {}).get("raw_tail", {}).get("char_limit", 2000),
+            l1_summary_threshold=config.get("structure", {}).get("thresholds", {}).get("l2_trigger_count", 4),
         )
         
         # Менеджер суммаризации
@@ -207,9 +207,8 @@ class ContextManager:
         
         print(f"🚀 Запуск L1 суммаризации для {len(simple_interactions)} взаимодействий")
         
-        config = self.config.get("l1_chunks", {})
+        config = self.config.get("structure", {}).get("l1_chunks", {})
         target_chars = config.get("target_char_limit", 1000)
-        max_chars = config.get("max_char_limit", 8000)  # Используем новый лимит
         allow_overflow = config.get("allow_single_interaction_overflow", True)  # Новая опция
         
         # Группируем ВСЕ взаимодействия с учетом разрешения переполнения
@@ -220,7 +219,7 @@ class ContextManager:
         )
         
         # Получаем параметры суммаризации
-        summarization_params = self.config.get("summarization_params", {}).get("l1", {})
+        summarization_params = self.config.get("models", {}).get("generation_params", {}).get("l1", {})
         
         # Суммаризируем каждый чанк
         for chunk_interactions in chunks:

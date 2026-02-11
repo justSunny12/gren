@@ -65,7 +65,7 @@ def initialize_model():
                 # Проверяем, включен ли контекст
                 if context_config.get("enabled", True):
                     # Предзагружаем суммаризаторы
-                    summarizers_config = context_config.get("summarizers", {})
+                    summarizers_config = context_config.get("models", {}).get("loading", {})
                     if summarizers_config.get("preload", True):
                         success = SummarizerFactory.preload_summarizers(context_config)
                         if success:
