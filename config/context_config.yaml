@@ -17,7 +17,7 @@ context:
       l2_preserve_ratio: 0.5  # Доля старейших чанков для L2 суммаризации
       
     cumulative:  # Кумулятивная строка результатов L2 суммаризаций
-      max_blocks: 20  # Максимальное количество блоков L2
+      # max_blocks: 20  # Максимальное количество блоков L2, не используется
       # cleanup_old_blocks: false  # Зарезервировано для будущей реализации
 
   models:  # Конфигурация моделей суммаризации
@@ -59,13 +59,3 @@ context:
     # Размеры батчей (зарезервировано для будущей реализации)
     # batch_size_l1: 1
     # batch_size_l2: 1
-
-  persistence:
-    save_with_dialog: true        # Сохранять контекст вместе с диалогом
-    auto_save_interval: 60        # Автосохранение каждые N секунд
-    # compression: "gzip"         # Зарезервировано для будущей реализации
-
-  monitoring:
-    enable_stats: true            # Сбор статистики
-    log_summary_events: true      # Логирование событий суммаризации
-    log_compression_ratios: true  # Логирование коэффициентов сжатия
