@@ -43,32 +43,36 @@ class ContextManager:
     def __init__(self, dialog: Dialog, config: Dict[str, Any]):
         self.dialog = dialog
         self.config = config
-        
+
         # Проверяем, включена ли предзагрузка
         summarizers_config = config.get("summarizers", {})
         if summarizers_config.get("preload", True):
-            # Если предзагрузка включена, модели уже должны быть загружены
             from services.context.summarizers import SummarizerFactory
             if not SummarizerFactory.is_preloaded():
                 print(f"⚠️ Предзагрузка включена, но модели не предзагружены для диалога {dialog.id}")
-        
+
         # Сохраняем текущий event loop
         try:
             self._event_loop = asyncio.get_event_loop()
         except RuntimeError:
-            # Если нет текущего event loop, создаем новый
             self._event_loop = asyncio.new_event_loop()
             asyncio.set_event_loop(self._event_loop)
-        
+
+        # Загружаем параметры структуры
+        structure_config = config.get("structure", {})
+        raw_tail_config = structure_config.get("raw_tail", {})
+        thresholds_config = structure_config.get("thresholds", {})
+
         self.state = DialogContextState(
-            raw_tail_char_limit=config.get("structure", {}).get("raw_tail", {}).get("char_limit", 2000),
-            l1_summary_threshold=config.get("structure", {}).get("thresholds", {}).get("l2_trigger_count", 4),
+            raw_tail_char_limit=raw_tail_config.get("char_limit", 2000),
+            l1_summary_threshold=thresholds_config.get("l2_trigger_count", 4),
+            l2_preserve_ratio=thresholds_config.get("l2_preserve_ratio", 0.5),   # ← добавлено
         )
-        
+
         # Менеджер суммаризации
         self.summary_manager = SummaryManager(config)
         self.summary_manager.start()
-        
+
         # Загружаем из сохраненного состояния или инициализируем
         self._state_file_path = self._get_state_file_path()
         self._load_or_initialize()
@@ -276,24 +280,32 @@ class ContextManager:
             )
     
     async def _trigger_l2_summarization(self):
-        """Запускает суммаризацию L2"""
-        # Берем половина старейших чанков
-        half = max(1, len(self.state.l1_chunks) // 2)
-        chunks_to_summarize = self.state.l1_chunks[:half]
-        
-        if not chunks_to_summarize:
+        """Запускает суммаризацию L2 с учётом l2_preserve_ratio"""
+        if not self.state.l1_chunks:
             return
-        
-        print(f"🚀 Запуск L2 суммаризации для {len(chunks_to_summarize)} чанков")
-        
+
+        total_chunks = len(self.state.l1_chunks)
+
+        # Защита от некорректного значения preserve_ratio
+        ratio = self.state.l2_preserve_ratio
+        if not isinstance(ratio, (int, float)) or ratio <= 0.0:
+            ratio = 0.5
+        ratio = max(0.1, min(1.0, ratio))   # ограничиваем разумными пределами
+
+        chunk_count = max(1, int(total_chunks * ratio))
+        chunks_to_summarize = self.state.l1_chunks[:chunk_count]
+
+        print(f"🚀 Запуск L2 суммаризации для {len(chunks_to_summarize)} чанков "
+              f"(всего: {total_chunks}, ratio={ratio:.2f})")
+
         # Получаем параметры L2 суммаризации из конфига
         summarization_params = self.config.get("summarization_params", {}).get("l2", {})
-        
+
         # Подготавливаем текст для суммаризации (объединяем суммаризации L1)
         l1_summaries_text = "\n---\n".join(chunk.summary for chunk in chunks_to_summarize)
         total_original_chars = sum(chunk.original_char_count for chunk in chunks_to_summarize)
         l1_chunk_ids = [chunk.id for chunk in chunks_to_summarize]
-        
+
         # Запускаем фоновую задачу
         self.summary_manager.schedule_l2_summary(
             l1_summaries_text,

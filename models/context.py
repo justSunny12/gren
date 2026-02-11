@@ -164,6 +164,7 @@ class DialogContextState(BaseModel):
     
     # Параметры суммаризации
     l1_summary_threshold: int = Field(default=4, description="Количество чанков L1 для запуска L2")
+    l2_preserve_ratio: float = Field(default=0.5, description="Доля старейших чанков L1 для L2 суммаризации")
     
     # Статистика
     total_interactions: int = Field(default=0, description="Всего взаимодействий")
