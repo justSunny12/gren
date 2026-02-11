@@ -47,6 +47,10 @@ class BaseSummarizer:
         self._is_loading = False
         self._load_error = None
         
+        # Проверяем, нужно ли лениво загружать
+        summarizers_config = config.get("summarizers", {})
+        self._preload_enabled = summarizers_config.get("preload", True)
+        
         # Параметры генерации
         summarization_params = config.get("summarization_params", {})
         model_type = "l1" if "1.7B" in model_name else "l2"
@@ -185,7 +189,12 @@ class BaseSummarizer:
                 self._is_loading = False
     
     async def ensure_loaded(self) -> bool:
-        """Убеждается, что модель загружена"""
+        """Убеждается, что модель загружена (с проверкой предзагрузки)"""
+        # Если предзагрузка включена, но модель не загружена - это ошибка конфигурации
+        if self._preload_enabled and not self.is_loaded and not self.is_loading:
+            print(f"⚠️ Предзагрузка включена, но модель {self.model_name} не загружена. Загружаем лениво...")
+        
+        # Стандартная логика ленивой загрузки
         if not self.is_loaded and not self.is_loading:
             return await self.load_model()
         elif self.is_loading:
@@ -499,10 +508,11 @@ class L2Summarizer(BaseSummarizer):
 
 
 class SummarizerFactory:
-    """Фабрика для создания суммаризаторов с реальными моделями"""
+    """Фабрика для создания суммаризаторов с поддержкой предзагрузки"""
     
     _instances = {}
     _lock = threading.RLock()
+    _preloaded = False  # Флаг предзагрузки
     
     @classmethod
     def get_l1_summarizer(cls, config: Dict[str, Any]) -> L1Summarizer:
@@ -528,11 +538,111 @@ class SummarizerFactory:
     
     @classmethod
     def get_all_summarizers(cls, config: Dict[str, Any]) -> Dict[str, BaseSummarizer]:
-        """Получает все суммаризаторы"""
-        return {
-            "l1": cls.get_l1_summarizer(config),
-            "l2": cls.get_l2_summarizer(config)
-        }
+        """Получает все суммаризаторы с поддержкой предзагрузки"""
+        with cls._lock:
+            if "l1" not in cls._instances:
+                cls._instances["l1"] = L1Summarizer(config)
+            if "l2" not in cls._instances:
+                cls._instances["l2"] = L2Summarizer(config)
+            
+            return cls._instances.copy()
+        
+    @classmethod
+    def preload_summarizers(cls, config: Dict[str, Any]):
+        """Предзагружает все модели суммаризации"""
+        with cls._lock:
+            if cls._preloaded:
+                return True
+            
+            summarizers_config = config.get("summarizers", {})
+            if not summarizers_config.get("preload", True):
+                print("ℹ️ Предзагрузка суммаризаторов отключена в конфиге")
+                return False
+            
+            print("🚀 Предзагрузка моделей суммаризации...")
+            
+            try:
+                # Получаем суммаризаторы
+                summarizers = cls.get_all_summarizers(config)
+                
+                # Создаем event loop для асинхронной загрузки
+                try:
+                    loop = asyncio.get_event_loop()
+                except RuntimeError:
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                
+                # Асинхронно загружаем и прогреваем модели
+                async def _preload_all():
+                    tasks = []
+                    for name, summarizer in summarizers.items():
+                        # Загружаем модель
+                        if not summarizer.is_loaded and not summarizer.is_loading:
+                            tasks.append(summarizer.load_model())
+                    
+                    # Ждем загрузки всех моделей
+                    if tasks:
+                        results = await asyncio.gather(*tasks, return_exceptions=True)
+                        for i, result in enumerate(results):
+                            if isinstance(result, Exception):
+                                print(f"❌ Ошибка загрузки модели {list(summarizers.keys())[i]}: {result}")
+                    
+                    # Прогреваем модели если нужно
+                    if summarizers_config.get("warmup", True):
+                        await cls._warmup_summarizers(summarizers, summarizers_config)
+                
+                # Запускаем предзагрузку
+                if loop.is_running():
+                    # Если loop уже запущен, создаем задачу
+                    asyncio.create_task(_preload_all())
+                else:
+                    # Иначе запускаем синхронно
+                    loop.run_until_complete(_preload_all())
+                
+                cls._preloaded = True
+                print("✅ Модели суммаризации предзагружены и прогреты")
+                return True
+                
+            except Exception as e:
+                print(f"❌ Ошибка предзагрузки суммаризаторов: {e}")
+                return False
+    
+    @classmethod
+    async def _warmup_summarizers(cls, summarizers: Dict[str, BaseSummarizer], config: Dict[str, Any]):
+        """Прогревает модели суммаризации"""
+        warmup_text = config.get("warmup_text", "Тестовый текст для прогрева модели суммаризации.")
+        print("🔥 Прогрев моделей суммаризации...")
+        
+        tasks = []
+        for name, summarizer in summarizers.items():
+            if summarizer.is_loaded:
+                # Прогреваем коротким запросом
+                tasks.append(
+                    summarizer.summarize(
+                        warmup_text[:100],  # Короткий текст
+                        max_tokens=10,
+                        temperature=0.1
+                    )
+                )
+        
+        # Запускаем прогрев параллельно
+        if tasks:
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            for i, result in enumerate(results):
+                if isinstance(result, Exception):
+                    print(f"⚠️ Ошибка прогрева {list(summarizers.keys())[i]}: {result}")
+                elif hasattr(result, 'success') and result.success:
+                    print(f"✅ Прогрет {list(summarizers.keys())[i]} суммаризатор")
+    
+    @classmethod
+    def is_preloaded(cls) -> bool:
+        """Проверяет, были ли модели предзагружены"""
+        return cls._preloaded
+    
+    @classmethod
+    def reset_preload_flag(cls):
+        """Сбрасывает флаг предзагрузки (для тестов)"""
+        cls._preloaded = False
     
     @classmethod
     def unload_all(cls):

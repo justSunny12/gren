@@ -45,6 +45,14 @@ class ContextManager:
         self.dialog = dialog
         self.config = config
         
+        # Проверяем, включена ли предзагрузка
+        summarizers_config = config.get("summarizers", {})
+        if summarizers_config.get("preload", True):
+            # Если предзагрузка включена, модели уже должны быть загружены
+            from services.context.summarizers import SummarizerFactory
+            if not SummarizerFactory.is_preloaded():
+                print(f"⚠️ Предзагрузка включена, но модели не предзагружены для диалога {dialog.id}")
+        
         # Сохраняем текущий event loop
         try:
             self._event_loop = asyncio.get_event_loop()

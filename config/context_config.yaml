@@ -32,6 +32,11 @@ context:
     l1_summarizer: "Qwen/Qwen3-1.7B-MLX-4bit"
     l2_summarizer: "Qwen/Qwen3-4B-MLX-4bit"
     
+  summarizers:
+    preload: true                    # Предзагружать при старте
+    warmup: true                     # Прогревать модели. Требует preload: true
+    warmup_text: "Тестовый текст для прогрева модели суммаризации."  # Текст для прогрева
+
   # Параметры генерации для суммаризации (ОБНОВЛЕНО)
   summarization_params:
     l1:

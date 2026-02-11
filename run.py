@@ -21,29 +21,26 @@ def cleanup_on_exit():
     print(f"✅ Работа приложения завершена")
 
 def initialize_model():
-    """Инициализирует модель (только MLX)"""
+    """Инициализирует модель (основную и суммаризаторы)"""
     print("\n" + "-" * 50)
-    print("📦 ИНИЦИАЛИЗАЦИЯ МОДЕЛИ")
+    print("📦 ИНИЦИАЛИЗАЦИЯ МОДЕЛЕЙ")
     print("-" * 50)
     
     try:
         # Получаем сервис модели
         model_service = container.get_model_service()
         
-        # Загружаем модель
+        # Загружаем основную модель
         start_time = time.time()
         model, tokenizer, lock = model_service.initialize()
         load_time = time.time() - start_time
         
         if model is not None:
-            print(f"✅ Модель загружена за {load_time:.2f} секунд")
+            print(f"✅ Основная модель загружена за {load_time:.2f} секунд")
             
-            # Прогрев модели
-            print("🔥 Прогрев модели...")
+            # Прогрев основной модели
+            print("🔥 Прогрев основной модели...")
             try:
-                if hasattr(model_service, '_warming_up'):
-                    model_service._warming_up = True
-                
                 warmup_messages = [{"role": "user", "content": "Привет"}]
                 warmup_response = model_service.generate_response(
                     warmup_messages, 
@@ -51,22 +48,47 @@ def initialize_model():
                     temperature=0.1,
                     enable_thinking=False
                 )
-                
-                if hasattr(model_service, '_warming_up'):
-                    model_service._warming_up = False
-                
-                print("✅ Модель прогрета успешно")
+                print("✅ Основная модель прогрета успешно")
                 
             except Exception as e:
-                print(f"ℹ️ Прогрев не удался: {e}, но модель загружена")
+                print(f"ℹ️ Прогрев основной модели не удался: {e}, но модель загружена")
+            
+            # НОВОЕ: Предзагрузка суммаризаторов
+            print("\n📥 ПРЕДЗАГРУЗКА СУММАРИЗАТОРОВ...")
+            try:
+                from services.context.summarizers import SummarizerFactory
+                
+                # Получаем конфиг контекста
+                config = container.get_config()
+                context_config = config.get("context", {})
+                
+                # Проверяем, включен ли контекст
+                if context_config.get("enabled", True):
+                    # Предзагружаем суммаризаторы
+                    summarizers_config = context_config.get("summarizers", {})
+                    if summarizers_config.get("preload", True):
+                        success = SummarizerFactory.preload_summarizers(context_config)
+                        if success:
+                            print("✅ Суммаризаторы предзагружены и готовы к работе")
+                        else:
+                            print("⚠️ Предзагрузка суммаризаторов завершилась с ошибками")
+                    else:
+                        print("ℹ️ Предзагрузка суммаризаторов отключена в конфиге")
+                else:
+                    print("ℹ️ Контекст отключен - суммаризаторы не нужны")
+                    
+            except Exception as e:
+                print(f"⚠️ Ошибка предзагрузки суммаризаторов: {e}")
+                import traceback
+                traceback.print_exc()
             
             return True
         else:
-            print("❌ Не удалось загрузить модель")
+            print("❌ Не удалось загрузить основную модель")
             return False
             
     except Exception as e:
-        print(f"❌ Критическая ошибка при загрузке модели: {e}")
+        print(f"❌ Критическая ошибка при загрузке моделей: {e}")
         import traceback
         traceback.print_exc()
         return False

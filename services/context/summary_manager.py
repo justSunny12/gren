@@ -11,7 +11,7 @@ from concurrent.futures import ThreadPoolExecutor
 import queue
 from functools import total_ordering
 
-from services.model.summarizers import SummarizerFactory, SummaryResult
+from services.context.summarizers import SummarizerFactory, SummaryResult
 
 
 @total_ordering
