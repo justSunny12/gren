@@ -37,14 +37,12 @@ class ModelLoader:
     def _determine_load_path(self, local_path: Optional[str], model_name: str) -> str:
         """Определяет путь для загрузки модели"""
         if local_path and os.path.exists(local_path):
-            print(f"📂 Загрузка модели из локального пути: {local_path}")
+            print(f"📂 Загрузка модели {model_name} из model_config.local_path")
             return local_path
         elif local_path:
             print(f"⚠️ Локальный путь не существует: {local_path}")
-            print(f"📡 Попытка загрузки из Hugging Face: {model_name}")
             return model_name
         else:
-            print(f"📡 Загрузка модели из Hugging Face: {model_name}")
             return model_name
     
     def _save_locally(self, model, tokenizer, local_path: str) -> bool:

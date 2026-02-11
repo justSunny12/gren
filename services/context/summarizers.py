@@ -34,10 +34,12 @@ class SummaryResult:
 
 
 class BaseSummarizer:
-    """Базовый класс для всех суммаризаторов с реальными моделями MLX"""
+    """Базовый класс для суммаризаторов с загрузкой ТОЛЬКО из локального пути"""
     
-    def __init__(self, model_name: str, config: Dict[str, Any]):
-        self.model_name = model_name
+    def __init__(self, model_config: Dict[str, Any], config: Dict[str, Any]):
+        # Основные параметры модели
+        self.model_name = model_config.get("name", "unknown")
+        self.local_path = model_config.get("local_path")
         self.config = config
         
         # Состояние модели
@@ -47,21 +49,16 @@ class BaseSummarizer:
         self._is_loading = False
         self._load_error = None
         
-        # Проверяем, нужно ли лениво загружать
-        summarizers_config = config.get("models", {}).get("loading", {})
-        self._preload_enabled = summarizers_config.get("preload", True)
-        
         # Параметры генерации
-        generation_params = config.get("models", {}).get("generation_params", {})
-        model_type = "l1" if "1.7B" in model_name else "l2"
-        params = generation_params.get(model_type, {})
+        summarization_params = config.get("models", {}).get("generation_params", {})
+        model_type = "l1" if "1.7B" in self.model_name else "l2"
+        params = summarization_params.get(model_type, {})
         
         self.max_tokens = params.get("max_tokens", 200)
         self.temperature = params.get("temperature", 0.3)
         self.top_p = params.get("top_p", 0.9)
         self.top_k = params.get("top_k", 40)
         self.repetition_penalty = params.get("repetition_penalty", 1.1)
-        # ВНИМАНИЕ: enable_thinking ВСЕГДА false для суммаризации!
         
         # Статистика
         self._total_requests = 0
@@ -111,7 +108,7 @@ class BaseSummarizer:
         }
     
     async def load_model(self) -> bool:
-        """Асинхронная загрузка модели MLX"""
+        """Загружает модель ТОЛЬКО из локального пути"""
         with self._model_lock:
             if self.is_loaded:
                 return True
@@ -125,27 +122,24 @@ class BaseSummarizer:
             self._load_error = None
             
             try:
-                print(f"📥 Загрузка модели суммаризации: {self.model_name}")
+                # Проверяем наличие локального пути
+                if not self.local_path:
+                    self._load_error = f"Локальный путь не указан для модели {self.model_name}"
+                    print(f"❌ {self._load_error}")
+                    return False
+                
+                # Проверяем существование локального пути
+                if not os.path.exists(self.local_path):
+                    self._load_error = f"Локальный путь не существует: {self.local_path}"
+                    print(f"❌ {self._load_error}")
+                    return False
+                
+                print(f"📥 Загрузка модели суммаризации {self.model_name} из context_config.local_path")
                 
                 start_time = time.time()
                 
-                # Проверяем локальный путь
-                local_path = None
-                main_config = container.get_config()
-                model_config = main_config.get("model", {})
-                
-                if model_config.get("local_path"):
-                    base_path = model_config["local_path"]
-                    possible_path = base_path.replace("30B", "1.7B" if "1.7B" in self.model_name else "4B")
-                    if os.path.exists(possible_path):
-                        local_path = possible_path
-                        print(f"  Использую локальный путь: {local_path}")
-                
-                # Загружаем модель
-                if local_path and os.path.exists(local_path):
-                    self._model, self._tokenizer = load(local_path)
-                else:
-                    self._model, self._tokenizer = load(self.model_name)
+                # Загружаем модель из локального пути
+                self._model, self._tokenizer = load(self.local_path)
                 
                 # Настраиваем токенизатор
                 if self._tokenizer.pad_token is None:
@@ -153,12 +147,12 @@ class BaseSummarizer:
                 self._tokenizer.padding_side = "left"
                 
                 load_time = time.time() - start_time
-                print(f"✅ Модель загружена: {self.model_name} за {load_time:.2f} сек")
+                print(f"   ✅ Модель {self.model_name} загружена за {load_time:.2f} сек\n")
                 
                 return True
                 
             except Exception as e:
-                error_msg = f"Ошибка загрузки модели {self.model_name}: {str(e)}"
+                error_msg = f"Ошибка загрузки модели {self.model_name} из {self.local_path}: {str(e)}"
                 print(f"❌ {error_msg}")
                 self._load_error = error_msg
                 return False
@@ -167,10 +161,13 @@ class BaseSummarizer:
                 self._is_loading = False
     
     async def ensure_loaded(self) -> bool:
-        """Убеждается, что модель загружена (с проверкой предзагрузки)"""
-        # Если предзагрузка включена, но модель не загружена - это ошибка конфигурации
-        if self._preload_enabled and not self.is_loaded and not self.is_loading:
-            print(f"⚠️ Предзагрузка включена, но модель {self.model_name} не загружена. Загружаем лениво...")
+        """Убеждается, что модель загружена"""
+        # Проверяем, включена ли предзагрузка в конфиге
+        loading_config = self.config.get("models", {}).get("loading", {})
+        preload_enabled = loading_config.get("preload", True)
+        
+        if preload_enabled and not self.is_loaded and not self.is_loading:
+            print(f"⚠️ Предзагрузка включена в конфиге, но модель {self.model_name} не загружена.")
         
         # Стандартная логика ленивой загрузки
         if not self.is_loaded and not self.is_loading:
@@ -493,6 +490,49 @@ class SummarizerFactory:
     _preloaded = False  # Флаг предзагрузки
     
     @classmethod
+    def get_all_summarizers(cls, config: Dict[str, Any]) -> Dict[str, BaseSummarizer]:
+        """Получает все суммаризаторы"""
+        with cls._lock:
+            if "l1" not in cls._instances:
+                l1_config = config.get("models", {}).get("l1_summarizer", {})
+                cls._instances["l1"] = L1Summarizer(l1_config, config)
+                
+            if "l2" not in cls._instances:
+                l2_config = config.get("models", {}).get("l2_summarizer", {})
+                cls._instances["l2"] = L2Summarizer(l2_config, config)
+            
+            return cls._instances.copy()
+    
+    @classmethod
+    def validate_model_paths(cls, config: Dict[str, Any]) -> Dict[str, bool]:
+        """Проверяет существование локальных путей"""
+        results = {}
+        
+        try:
+            models_config = config.get("models", {})
+            
+            # Проверяем L1
+            l1_config = models_config.get("l1_summarizer", {})
+            l1_path = l1_config.get("local_path") if isinstance(l1_config, dict) else None
+            results["l1"] = l1_path and os.path.exists(l1_path)
+            
+            # Проверяем L2
+            l2_config = models_config.get("l2_summarizer", {})
+            l2_path = l2_config.get("local_path") if isinstance(l2_config, dict) else None
+            results["l2"] = l2_path and os.path.exists(l2_path)
+            
+            for name, exists in results.items():
+                if exists:
+                    pass
+                else:
+                    print(f"❌ Локальный путь {name} не найден")
+                    
+        except Exception as e:
+            print(f"❌ Ошибка проверки путей моделей: {e}")
+            
+        return results
+    
+    @classmethod
     def get_l1_summarizer(cls, config: Dict[str, Any]) -> L1Summarizer:
         """Получает или создает суммаризатор L1"""
         key = "l1_summarizer"
@@ -578,7 +618,6 @@ class SummarizerFactory:
                     loop.run_until_complete(_preload_all())
                 
                 cls._preloaded = True
-                print("✅ Модели суммаризации предзагружены и прогреты")
                 return True
                 
             except Exception as e:
@@ -610,7 +649,7 @@ class SummarizerFactory:
                 if isinstance(result, Exception):
                     print(f"⚠️ Ошибка прогрева {list(summarizers.keys())[i]}: {result}")
                 elif hasattr(result, 'success') and result.success:
-                    print(f"✅ Прогрет {list(summarizers.keys())[i]} суммаризатор")
+                    print(f"  ✅ Прогрет {list(summarizers.keys())[i]} суммаризатор")
     
     @classmethod
     def is_preloaded(cls) -> bool:

@@ -136,7 +136,6 @@ class DialogStorage:
         except Exception as e:
             print(f"❌ Критическая ошибка при загрузке диалогов: {e}")
         
-        print(f"📊 Загружено диалогов: {len(dialogs)}")
         return dialogs
     
     def save_all(self, dialogs: Dict[str, Dialog]) -> bool:

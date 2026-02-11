@@ -20,14 +20,19 @@ context:
       max_blocks: 20  # Максимальное количество блоков L2
       # cleanup_old_blocks: false  # Зарезервировано для будущей реализации
 
-  models:  # Используемые модели
-    l1_summarizer: "Qwen/Qwen3-1.7B-MLX-4bit"
-    l2_summarizer: "Qwen/Qwen3-4B-MLX-4bit"
+  models:  # Конфигурация моделей суммаризации
+    l1_summarizer:
+      name: "Qwen/Qwen3-1.7B-MLX-4bit"
+      local_path: "./llm_cache/models--Qwen--Qwen3-1.7B-MLX-4bit/snapshots/21457c6f51ed54a7c16e988c0844db973815c137"
+      
+    l2_summarizer:
+      name: "Qwen/Qwen3-4B-MLX-4bit"  
+      local_path: "./llm_cache/models--Qwen--Qwen3-4B-MLX-4bit/snapshots/52a5ab34fa604bc8af6d3ce0cac0cab10b7eb495"
     
     loading:  # Параметры загрузки моделей
       preload: true  # Предзагружать при старте приложения
       warmup: true   # Прогревать после загрузки (требует preload: true)
-      warmup_text: "Тестовый текст для прогрева модели суммаризации."
+      warmup_text: "Для прогрева моделей суммаризаторов необходимо ввести тестовое сообщение. Оно должно быть не очень длинное, а результат нас не интересует вовсе - вывод модели будет заглушен. Однако, текст должен быть осмысленным, чтобы модель смогла его корректно воспринять. На вход обеих моделей будет подан одинаковый текст."
 
     generation_params:  # Параметры генерации для суммаризаций
       l1:
