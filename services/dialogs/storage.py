@@ -4,6 +4,7 @@
 """
 import os
 import json
+import shutil
 from datetime import datetime
 from typing import Dict, Optional
 from models.dialog import Dialog
@@ -124,3 +125,16 @@ class DialogStorage:
             print(f"❌ Критическая ошибка при загрузке диалогов: {e}")
         
         return dialogs
+    
+    def delete_dialog_folder(self, dialog: Dialog) -> bool:
+        """Удаляет папку диалога и все её содержимое"""
+        try:
+            folder_path = self._get_chat_folder_path(dialog)
+            if os.path.exists(folder_path):
+                shutil.rmtree(folder_path)
+                print(f"🗑️ Удалена папка диалога: {os.path.basename(folder_path)}")
+                return True
+            return False
+        except Exception as e:
+            print(f"⚠️ Ошибка удаления папки диалога {dialog.id}: {e}")
+            return False

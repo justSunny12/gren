@@ -40,8 +40,11 @@ class DialogOperations:
         if dialog_id not in dialogs:
             return False
         
-        # Удаляем файл
-        storage.delete_dialog_file(dialog_id)
+        # Получаем объект диалога для удаления
+        dialog = dialogs[dialog_id]
+        
+        # Удаляем папку с файлами диалога
+        storage.delete_dialog_folder(dialog)
         
         # Удаляем из памяти
         del dialogs[dialog_id]
