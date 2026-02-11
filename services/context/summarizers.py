@@ -654,12 +654,21 @@ class SummarizerFactory:
     
     @classmethod
     def get_stats(cls) -> Dict[str, Any]:
-        """Возвращает статистику всех суммаризаторов"""
+        """Возвращает статистику по всем менеджерам с информацией о предзагрузке"""
         with cls._lock:
-            stats = {}
-            for key, summarizer in cls._instances.items():
+            stats = {
+                'total_managers': len(cls._instances),
+                'preloaded': cls._preloaded,
+                'managers': {}
+            }
+            
+            for dialog_id, manager in cls._instances.items():
                 try:
-                    stats[key] = summarizer.stats
+                    manager_stats = manager.get_stats()
+                    # Добавляем информацию о предзагрузке
+                    manager_stats['preload_enabled'] = cls._preloaded
+                    stats['managers'][dialog_id] = manager_stats
                 except Exception as e:
-                    stats[key] = {'error': f"Failed to get stats: {str(e)}"}
+                    stats['managers'][dialog_id] = {'error': str(e)}
+            
             return stats
