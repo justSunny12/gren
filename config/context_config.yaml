@@ -5,66 +5,75 @@ context:
   enabled: true
   
   structure:
-    raw_tail:  # Сырой хвост (последние n символов)
-      char_limit: 3000  # Лимит символов для хранения последних сообщений
-      
-    l1_chunks:  # Чанки первого уровня
-      target_char_limit: 3000  # Максимальный размер чанка
-      allow_single_interaction_overflow: true  # Разрешить переполнение одним взаимодействием
-      
-    thresholds:  # Пороги суммаризации
-      l2_trigger_count: 4  # Количество чанков L1 для запуска L2 суммаризации
-      l2_preserve_ratio: 0.5  # Доля старейших чанков для L2 суммаризации
-      
-    cumulative:  # Кумулятивная строка результатов L2 суммаризаций
-      # max_blocks: 20  # Максимальное количество блоков L2, не используется
-      # cleanup_old_blocks: false  # Зарезервировано для будущей реализации
+    raw_tail:
+      char_limit: 3000
+    l1_chunks:
+      target_char_limit: 3000
+      allow_single_interaction_overflow: true
+    thresholds:
+      l2_trigger_count: 4
+      l2_preserve_ratio: 0.5
 
-  models:  # Конфигурация моделей суммаризации
-    l1_summarizer:
-      name: "Qwen/Qwen3-1.7B-MLX-4bit"
-      local_path: "./llm_cache/models--Qwen--Qwen3-1.7B-MLX-4bit/snapshots/21457c6f51ed54a7c16e988c0844db973815c137"
-      
-    l2_summarizer:
-      name: "Qwen/Qwen3-4B-MLX-4bit"  
-      local_path: "./llm_cache/models--Qwen--Qwen3-4B-MLX-4bit/snapshots/52a5ab34fa604bc8af6d3ce0cac0cab10b7eb495"
-    
-    loading:  # Параметры загрузки моделей
-      preload: true  # Предзагружать при старте приложения
-      warmup: true   # Прогревать после загрузки (требует preload: true)
+  model:
+    name: "Qwen/Qwen3-4B-MLX-4bit"
+    local_path: "./llm_cache/models--Qwen--Qwen3-1.7B-MLX-4bit/snapshots/21457c6f51ed54a7c16e988c0844db973815c137"
+
+  loading:
+      preload: true
+      warmup: true
       warmup_text: "Для прогрева моделей суммаризаторов необходимо ввести тестовое сообщение. Оно должно быть не очень длинное, а результат нас не интересует вовсе - вывод модели будет заглушен. Однако, текст должен быть осмысленным, чтобы модель смогла его корректно воспринять. На вход обеих моделей будет подан одинаковый текст."
 
-    generation_params:  # Параметры генерации для суммаризаций
-      l1:
-        max_tokens: 800           # Максимальное количество токенов для L1
-        temperature: 0.4          # Детерминированные конспекты
-        top_p: 0.9
-        top_k: 40
-        repetition_penalty: 1.1
-        enable_thinking: false    # Всегда отключено для суммаризации
-        
-      l2:
-        max_tokens: 300           # Максимальное количество токенов для L2
-        temperature: 0.4          # Творческое обобщение
-        top_p: 0.9
-        top_k: 40
-        repetition_penalty: 1.1
-        enable_thinking: false    # Всегда отключено для суммаризации
+  generation_params:
+    l1:
+      max_tokens: 800
+      temperature: 0.4
+      top_p: 0.9
+      top_k: 40
+      repetition_penalty: 1.1
+      enable_thinking: false
+    l2:
+      max_tokens: 300
+      temperature: 0.4
+      top_p: 0.9
+      top_k: 40
+      repetition_penalty: 1.1
+      enable_thinking: false
 
   performance:
-    background_summary: true      # Фоновая суммаризация
-    max_background_tasks: 2       # Максимальное количество фоновых задач
-    summary_delay_ms: 1000        # Задержка перед началом суммаризации (мс)
-    
-    # Размеры батчей (зарезервировано для будущей реализации)
-    # batch_size_l1: 1
-    # batch_size_l2: 1
+    background_summary: true
+    max_background_tasks: 1
+    summary_delay_ms: 1000
 
 chat_naming:
   enabled: true
   max_tokens: 50
-  temperature: 0.5
+  temperature: 0.3      
   top_p: 0.9
   top_k: 40
   repetition_penalty: 1.1
-  system_prompt: "Ты создаёшь краткие названия для диалогов на основе первого обмена сообщениями. Название должно быть не длиннее 50 символов, отражать суть разговора, быть на языке пользователя. Ответ должен содержать только название, без дополнительного текста, кавычек или форматирования."
+  system_prompt: |
+    Ты — помощник, который придумывает короткие названия для диалогов на основе сообщения пользователя.
+
+    Правила:
+    1. Название должно быть на том же языке, что и диалог.
+    2. Максимум 25 символов.
+    3. Отражай суть разговора.
+    4. НИКАКИХ пояснений, рассуждений, лишних слов. Только само название.
+    5. Не используй кавычки, кавычки-ёлочки, точки в конце.
+    6. Название должно отражать тему диалога.
+    7. НЕ пиши "Название:"
+
+    Примеры:
+    Пользователь: Как установить Python на Mac?
+    Ассистент: Скачай установщик с python.org и запусти.
+    Название: Установка Python на Mac
+
+    Пользователь: Расскажи анекдот.
+    Ассистент: Колобок повесился.
+    Название: Анекдот про колобка
+
+    Пользователь: Объясни разницу между SQL и NoSQL.
+    Ассистент: SQL — реляционные базы с фиксированной схемой, NoSQL — нереляционные, гибкая схема, горизонтальное масштабирование.
+    Название: SQL vs NoSQL
+
+    Теперь сделай так же.

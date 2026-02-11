@@ -1,36 +1,30 @@
-# /run.py (упрощенная версия)
+# /run.py
 import gradio as gr
 import atexit
 import time
 import sys
+import os
 from ui import create_main_ui
 from container import container
 
 def cleanup_on_exit():
     print("\n👋 Завершение работы")
-    
     try:
-        # Останавливаем Gradio сервер
         if hasattr(sys, '_gradio_server'):
             sys._gradio_server.close()
             time.sleep(0.05)
-        
     except Exception as e:
         print(f"  ℹ️ Незначительная ошибка при завершении: {e}")
-    
     print(f"  ✅ Работа приложения завершена")
 
 def initialize_model():
-    """Инициализирует модель (основную и суммаризаторы)"""
+    """Инициализирует модель (основную и суммаризатор)."""
     print("\n" + "-" * 50)
     print("📦 ИНИЦИАЛИЗАЦИЯ МОДЕЛЕЙ")
     print("-" * 50 + "\n")
     
     try:
-        # Получаем сервис модели
         model_service = container.get_model_service()
-        
-        # Загружаем основную модель
         start_time = time.time()
         model, tokenizer, lock = model_service.initialize()
         load_time = time.time() - start_time
@@ -39,7 +33,6 @@ def initialize_model():
             print(f"  ✅ Основная модель загружена за {load_time:.2f} секунд")
             
             # Прогрев основной модели
-            # print("🔥 Прогрев основной модели...")
             try:
                 warmup_messages = [{"role": "user", "content": "Привет"}]
                 warmup_response = model_service.generate_response(
@@ -48,49 +41,40 @@ def initialize_model():
                     temperature=0.1,
                     enable_thinking=False
                 )
-                print("  ✅ Прогрев завершен успешно\n")
-                
+                print("  ✅ Прогрев основной модели завершён успешно\n")
             except Exception as e:
                 print(f"  ℹ️ Прогрев основной модели не удался: {e}, но модель загружена")
             
-            # ПРЕДЗАГРУЗКА СУММАРИЗАТОРОВ
+            # --- ПРЕДЗАГРУЗКА СУММАРИЗАТОРА ---
             try:
                 from services.context.summarizers import SummarizerFactory
-                
-                # Получаем конфиг контекста
                 config = container.get_config()
                 context_config = config.get("context", {})
                 
-                # Проверяем, включен ли контекст
                 if context_config.get("enabled", True):
-                    # Валидируем локальные пути моделей
-                    path_results = SummarizerFactory.validate_model_paths(context_config)
+                    # Проверяем наличие локального пути
+                    model_config = context_config.get("model", {})
+                    local_path = model_config.get("local_path")
+                    if not local_path or not os.path.exists(local_path):
+                        print(f"❌ Локальный путь для модели суммаризации не найден: {local_path}")
+                        print("❌ Суммаризация отключена. Укажите правильный local_path в context_config.yaml")
+                        return True  # основная модель всё равно работает
                     
-                    # Проверяем, все ли пути существуют
-                    all_paths_exist = all(path_results.values())
-                    
-                    if not all_paths_exist:
-                        missing = [name for name, exists in path_results.items() if not exists]
-                        print(f"❌ Отсутствуют локальные пути для моделей: {', '.join(missing)}")
-                        print("❌ Суммаризация отключена. Укажите правильные local_path в конфиге.")
-                        return True  # Основная модель загружена, но без суммаризации
-                    
-                    # Предзагружаем суммаризаторы если нужно
-                    summarizers_config = context_config.get("models", {}).get("loading", {})
-                    if summarizers_config.get("preload", True):
+                    # Предзагружаем, если нужно
+                    loading_config = context_config.get("loading", {})
+                    if loading_config.get("preload", True):
                         success = SummarizerFactory.preload_summarizers(context_config)
                         if success:
-                            # print("\n✅ Суммаризаторы предзагружены и готовы к работе")
                             pass
                         else:
-                            print("❌ Предзагрузка суммаризаторов завершилась с ошибками")
+                            print("❌ Предзагрузка суммаризатора завершилась с ошибками")
                     else:
-                        print("ℹ️ Предзагрузка суммаризаторов отключена в конфиге")
+                        print("ℹ️ Предзагрузка суммаризатора отключена в конфиге")
                 else:
-                    print("ℹ️ Контекст отключен - суммаризаторы не нужны")
+                    print("ℹ️ Контекст отключён — суммаризатор не нужен")
                     
             except Exception as e:
-                print(f"❌ Ошибка предзагрузки суммаризаторов: {e}")
+                print(f"❌ Ошибка предзагрузки суммаризатора: {e}")
                 import traceback
                 traceback.print_exc()
             
@@ -109,34 +93,27 @@ def main():
     print("=" * 60)
     print("🚀 ЗАПУСК QWEN3-30B-A3B CHAT")
     print("=" * 60)
-        
-    # Регистрируем функцию очистки при выходе
+    
     atexit.register(cleanup_on_exit)
     
-    # Загружаем конфигурация
     print("\n⚙️  ЗАГРУЗКА КОНФИГУРАЦИИ...")
     try:
         config = container.get_config()
         app_config = config.get("app", {})
-        model_config = config.get("model", {})
         server_config = config.get("server", {})
-        
         print(f"  ✅ Конфигурация загружена успешно")
     except Exception as e:
         print(f"⚠️ Ошибка загрузки конфигурации: {e}")
         return
     
-    # Загружаем диалоги
     print("\n💬 ЗАГРУЗКА ДИАЛОГОВ...")
     try:
         dialog_service = container.get_dialog_service()
         dialog_count = len(dialog_service.dialogs)
         print(f"  ✅ Загружено диалогов: {dialog_count}")
-        
     except Exception as e:
         print(f"⚠️ Ошибка загрузки диалогов: {e}")
     
-    # Инициализируем модель
     model_loaded = initialize_model()
     
     if not model_loaded:
@@ -148,7 +125,6 @@ def main():
     print("🌐 ЗАПУСК СЕРВЕРА...")
     print("=" * 60)
     
-    # Создаем интерфейс
     print("\n🖥️  СОЗДАНИЕ ИНТЕРФЕЙСА...")
     try:
         demo, css_content, simple_js = create_main_ui()
@@ -160,10 +136,9 @@ def main():
         return
     
     if model_loaded:
-        # print("\n⚡ Модель в памяти - готово к работе!")
         pass
     else:
-        print("\n⚠️  Модель не загружена - будет загружена при первом запросе")
+        print("\n⚠️  Модель не загружена — будет загружена при первом запросе")
     
     try:
         queue_config = config.get("queue", {})

@@ -1,7 +1,7 @@
 # services/context/summarizers.py
 """
 Сервисы суммаризации для многоуровневого управления контекстом
-Использует реальные модели MLX
+Использует ОДНУ модель MLX для всех уровней суммаризации
 """
 import asyncio
 import threading
@@ -13,7 +13,6 @@ import re
 import os
 
 import mlx.core as mx
-import mlx.nn as nn
 from mlx_lm import load, generate
 from mlx_lm.sample_utils import make_sampler, make_logits_processors
 
@@ -33,24 +32,45 @@ class SummaryResult:
 
 
 class BaseSummarizer:
-    """Базовый класс для суммаризаторов с загрузкой ТОЛЬКО из локального пути"""
+    """
+    Базовый класс для суммаризаторов.
+    Может работать как с собственной загруженной моделью, так и с общей.
+    """
     
-    def __init__(self, model_config: Dict[str, Any], config: Dict[str, Any]):
-        # Основные параметры модели
+    def __init__(
+        self,
+        model_config: Dict[str, Any],
+        config: Dict[str, Any],
+        model: Optional[Any] = None,
+        tokenizer: Optional[Any] = None,
+        model_lock: Optional[threading.RLock] = None
+    ):
+        # Параметры конфигурации (нужны для промптов и fallback-загрузки)
         self.model_name = model_config.get("name", "unknown")
         self.local_path = model_config.get("local_path")
         self.config = config
         
-        # Состояние модели
-        self._model = None
-        self._tokenizer = None
-        self._model_lock = threading.RLock()
-        self._is_loading = False
-        self._load_error = None
+        # --- Разделяем два режима ---
+        if model is not None and tokenizer is not None:
+            # РЕЖИМ 1: Используем готовую модель (shared)
+            self._model = model
+            self._tokenizer = tokenizer
+            self._model_lock = model_lock if model_lock else threading.RLock()
+            self._owns_model = False          # модель не наша, выгружать нельзя
+            self._is_loading = False
+            self._load_error = None
+        else:
+            # РЕЖИМ 2: Загружаем свою модель (legacy, для обратной совместимости)
+            self._model = None
+            self._tokenizer = None
+            self._model_lock = threading.RLock()
+            self._owns_model = True
+            self._is_loading = False
+            self._load_error = None
         
-        # Параметры генерации
-        summarization_params = config.get("models", {}).get("generation_params", {})
-        model_type = "l1" if "1.7B" in self.model_name else "l2"
+        # Параметры генерации по умолчанию (могут переопределяться в summarize)
+        summarization_params = config.get("generation_params", {})
+        model_type = "l1" if "L1" in self.__class__.__name__ else "l2"
         params = summarization_params.get(model_type, {})
         
         self.max_tokens = params.get("max_tokens", 200)
@@ -86,6 +106,7 @@ class BaseSummarizer:
             'is_loaded': self.is_loaded,
             'is_loading': self.is_loading,
             'load_error': self._load_error,
+            'owns_model': self._owns_model,
             'total_requests': self._total_requests,
             'successful_requests': self._successful_requests,
             'failed_requests': self._total_requests - self._successful_requests,
@@ -103,7 +124,11 @@ class BaseSummarizer:
         }
     
     async def load_model(self) -> bool:
-        """Загружает модель ТОЛЬКО из локального пути"""
+        """Загружает модель ТОЛЬКО если она не была передана извне."""
+        if not self._owns_model:
+            # Уже используем готовую модель, ничего не делаем
+            return self.is_loaded
+        
         with self._model_lock:
             if self.is_loaded:
                 return True
@@ -111,6 +136,7 @@ class BaseSummarizer:
                 while self._is_loading:
                     await asyncio.sleep(0.1)
                 return self.is_loaded
+            
             self._is_loading = True
             self._load_error = None
             try:
@@ -122,14 +148,18 @@ class BaseSummarizer:
                     self._load_error = f"Локальный путь не существует: {self.local_path}"
                     print(f"❌ {self._load_error}")
                     return False
+                
                 start_time = time.time()
                 self._model, self._tokenizer = load(self.local_path)
+                
                 if self._tokenizer.pad_token is None:
                     self._tokenizer.pad_token = self._tokenizer.eos_token
                 self._tokenizer.padding_side = "left"
+                
                 load_time = time.time() - start_time
                 print(f"   ✅ Модель {self.model_name} загружена за {load_time:.2f} сек")
                 return True
+                
             except Exception as e:
                 error_msg = f"Ошибка загрузки модели {self.model_name} из {self.local_path}: {str(e)}"
                 print(f"❌ {error_msg}")
@@ -139,11 +169,14 @@ class BaseSummarizer:
                 self._is_loading = False
     
     async def ensure_loaded(self) -> bool:
-        """Убеждается, что модель загружена"""
-        loading_config = self.config.get("models", {}).get("loading", {})
-        preload_enabled = loading_config.get("preload", True)
-        if preload_enabled and not self.is_loaded and not self.is_loading:
-            print(f"⚠️ Предзагрузка включена в конфиге, но модель {self.model_name} не загружена.")
+        """Убеждается, что модель готова к работе."""
+        if not self._owns_model:
+            # В режиме shared модели всегда должны быть готовы (загружены фабрикой)
+            if not self.is_loaded:
+                raise RuntimeError(f"Shared model {self.model_name} is not loaded in factory")
+            return True
+        
+        # Собственная загрузка
         if not self.is_loaded and not self.is_loading:
             return await self.load_model()
         elif self.is_loading:
@@ -152,16 +185,6 @@ class BaseSummarizer:
             return self.is_loaded
         return True
     
-    def _get_system_prompt(self, **kwargs) -> str:
-        raise NotImplementedError("Метод должен быть реализован в подклассе")
-    
-    def _get_user_prompt(self, text: str, **kwargs) -> str:
-        raise NotImplementedError("Метод должен быть реализован в подклассе")
-    
-    def _truncate_text(self, text: str, max_chars: int = 4000) -> str:
-        return text  # Упрощено для краткости
-    
-    # ========== ИЗМЕНЁННЫЙ МЕТОД ==========
     async def summarize(
         self,
         text: str,
@@ -169,7 +192,7 @@ class BaseSummarizer:
         user_prompt: Optional[str] = None,
         **kwargs
     ) -> SummaryResult:
-        """Основной метод суммаризации с реальной моделью"""
+        """Основной метод суммаризации с реальной моделью."""
         start_time = time.time()
         self._total_requests += 1
         
@@ -190,9 +213,8 @@ class BaseSummarizer:
             top_p = kwargs.get("top_p", self.top_p)
             top_k = kwargs.get("top_k", self.top_k)
             repetition_penalty = kwargs.get("repetition_penalty", self.repetition_penalty)
-            enable_thinking = False  # Всегда False для суммаризации
+            enable_thinking = False
             
-            # Используем переданные промпты или стандартные
             system = system_prompt if system_prompt is not None else self._get_system_prompt(**kwargs)
             user = user_prompt if user_prompt is not None else self._get_user_prompt(text, **kwargs)
             
@@ -209,7 +231,6 @@ class BaseSummarizer:
                     enable_thinking=enable_thinking
                 )
             except Exception as e:
-                print(f"⚠️ Ошибка apply_chat_template: {e}, используем fallback")
                 prompt = f"<|im_start|>system\n{system}<|im_end|>\n"
                 prompt += f"<|im_start|>user\n{user}<|im_end|>\n"
                 prompt += f"<|im_start|>assistant\n"
@@ -259,7 +280,7 @@ class BaseSummarizer:
             )
     
     def _clean_response(self, response: str, prompt: str) -> str:
-        """Очищает ответ модели от промпта и лишних символов"""
+        """Очищает ответ модели от промпта и лишних символов."""
         if response.startswith(prompt):
             response = response[len(prompt):]
         response = response.strip()
@@ -269,21 +290,32 @@ class BaseSummarizer:
         return response
     
     def unload_model(self):
+        """Выгружает модель ТОЛЬКО если она принадлежит этому экземпляру."""
         with self._model_lock:
-            self._model = None
-            self._tokenizer = None
-            if hasattr(mx, 'clear_cache'):
-                mx.clear_cache()
-            print(f"✅ Модель выгружена: {self.model_name}")
+            if self._owns_model and self._model is not None:
+                self._model = None
+                self._tokenizer = None
+                if hasattr(mx, 'clear_cache'):
+                    mx.clear_cache()
+                print(f"✅ Модель выгружена: {self.model_name}")
+            elif not self._owns_model:
+                # Игнорируем вызов для shared-модели
+                pass
+    
+    # --- Методы, переопределяемые в наследниках ---
+    def _get_system_prompt(self, **kwargs) -> str:
+        raise NotImplementedError
+    
+    def _get_user_prompt(self, text: str, **kwargs) -> str:
+        raise NotImplementedError
 
 
 class L1Summarizer(BaseSummarizer):
-    """Суммаризатор первого уровня (Qwen3-1.7B)"""
+    """Суммаризатор первого уровня (подробные конспекты)"""
     
-    def __init__(self, config: Dict[str, Any]):
-        model_name = config.get("models", {}).get("l1_summarizer", "Qwen/Qwen3-1.7B-MLX-4bit")
-        super().__init__(model_name, config)
-        self.max_input_length = config.get("l1_chunks", {}).get("max_char_limit", 2000)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.max_input_length = self.config.get("l1_chunks", {}).get("max_char_limit", 2000)
     
     def _get_system_prompt(self, **kwargs) -> str:
         return """Ты создаёшь детализированные конспекты диалогов для кратковременной памяти системы.
@@ -302,27 +334,28 @@ class L1Summarizer(BaseSummarizer):
 Формат: сплошной связный текст, 5-7 предложений с сохранением существенных деталей."""
     
     def _get_user_prompt(self, text: str, **kwargs) -> str:
-        truncated_text = self._truncate_text(text, self.max_input_length)
+        # Простое обрезание, можно улучшить при необходимости
+        if len(text) > self.max_input_length:
+            text = text[:self.max_input_length] + "...[текст обрезан]"
         return f"""Диалог для конспектирования:
 
-{truncated_text}
+{text}
 
 Создай краткий конспект этого обсуждения, следуя требованиям выше:"""
     
     def _clean_response(self, response: str, prompt: str) -> str:
-        response = super()._clean_response(response, prompt)
-        if response and not response.startswith("[L1 Summary]"):
-            response = f"[L1 Summary] {response}"
-        return response
+        cleaned = super()._clean_response(response, prompt)
+        if cleaned and not cleaned.startswith("[L1 Summary]"):
+            cleaned = f"[L1 Summary] {cleaned}"
+        return cleaned
 
 
 class L2Summarizer(BaseSummarizer):
-    """Суммаризатор второго уровня (Qwen3-4B)"""
+    """Суммаризатор второго уровня (сжатые обобщения)"""
     
-    def __init__(self, config: Dict[str, Any]):
-        model_name = config.get("models", {}).get("l2_summarizer", "Qwen/Qwen3-4B-MLX-4bit")
-        super().__init__(model_name, config)
-        self.max_input_length = config.get("l2_summary", {}).get("max_char_limit", 4000)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.max_input_length = self.config.get("l2_summary", {}).get("max_char_limit", 4000)
     
     def _get_system_prompt(self, **kwargs) -> str:
         return """Ты — аналитик истории обсуждений. Твоя задача — создавать сжатые сводные записи на основе нескольких конспектов.
@@ -340,10 +373,11 @@ class L2Summarizer(BaseSummarizer):
 Формат: краткий связный текст, 2-3 предложения."""
     
     def _get_user_prompt(self, text: str, **kwargs) -> str:
-        truncated_text = self._truncate_text(text, self.max_input_length)
+        if len(text) > self.max_input_length:
+            text = text[:self.max_input_length] + "...[текст обрезан]"
         return f"""Конспекты частей диалога (в хронологическом порядке):
 
-{truncated_text}
+{text}
 
 Создай сжатую сводную запись, следуя требованиям выше:"""
     
@@ -357,99 +391,114 @@ class L2Summarizer(BaseSummarizer):
 
 
 class SummarizerFactory:
-    """Фабрика для создания суммаризаторов с поддержкой предзагрузки"""
+    """Фабрика для создания суммаризаторов с ОДНОЙ общей моделью."""
     
-    _instances = {}
-    _lock = threading.RLock()
+    _instances: Dict[str, BaseSummarizer] = {}
+    _shared_model = None
+    _shared_tokenizer = None
+    _shared_lock = None
     _preloaded = False
-    
-    @classmethod
-    def validate_model_paths(cls, config: Dict[str, Any]) -> Dict[str, bool]:
-        results = {}
-        try:
-            models_config = config.get("models", {})
-            l1_config = models_config.get("l1_summarizer", {})
-            l1_path = l1_config.get("local_path") if isinstance(l1_config, dict) else None
-            results["l1"] = l1_path and os.path.exists(l1_path)
-            l2_config = models_config.get("l2_summarizer", {})
-            l2_path = l2_config.get("local_path") if isinstance(l2_config, dict) else None
-            results["l2"] = l2_path and os.path.exists(l2_path)
-            for name, exists in results.items():
-                if not exists:
-                    print(f"❌ Локальный путь {name} не найден")
-        except Exception as e:
-            print(f"❌ Ошибка проверки путей моделей: {e}")
-        return results
+    _lock = threading.RLock()
     
     @classmethod
     def get_all_summarizers(cls, config: Dict[str, Any]) -> Dict[str, BaseSummarizer]:
+        """Возвращает экземпляры L1 и L2 суммаризаторов, использующих ОДНУ модель."""
         with cls._lock:
-            if "l1" not in cls._instances:
-                cls._instances["l1"] = L1Summarizer(config)
-            if "l2" not in cls._instances:
-                cls._instances["l2"] = L2Summarizer(config)
+            # Если экземпляры уже созданы — возвращаем
+            if "l1" in cls._instances and "l2" in cls._instances:
+                return cls._instances.copy()
+            
+            # Получаем конфигурацию модели (единой)
+            model_config = config.get("model", {})
+            if not model_config.get("local_path"):
+                raise ValueError("В context_config.yaml отсутствует секция model.local_path")
+            
+            # Загружаем модель ОДИН РАЗ
+            if cls._shared_model is None or cls._shared_tokenizer is None:
+                cls._load_shared_model(model_config)
+            
+            # Создаём экземпляры суммаризаторов с общей моделью и блокировкой
+            cls._instances["l1"] = L1Summarizer(
+                model_config, config,
+                model=cls._shared_model,
+                tokenizer=cls._shared_tokenizer,
+                model_lock=cls._shared_lock
+            )
+            cls._instances["l2"] = L2Summarizer(
+                model_config, config,
+                model=cls._shared_model,
+                tokenizer=cls._shared_tokenizer,
+                model_lock=cls._shared_lock
+            )
+            
             return cls._instances.copy()
     
     @classmethod
-    def preload_summarizers(cls, config: Dict[str, Any]):
+    def _load_shared_model(cls, model_config: Dict[str, Any]):
+        """Загружает общую модель и создаёт блокировку."""
+        local_path = model_config.get("local_path")
+        model_name = model_config.get("name", "Qwen/Qwen3-4B-MLX-4bit")
+        
+        if not local_path or not os.path.exists(local_path):
+            raise FileNotFoundError(f"Модель суммаризации не найдена по пути: {local_path}")
+        
+        print(f"📂 Загрузка модели суммаризации {model_name}...")
+        start = time.time()
+        cls._shared_model, cls._shared_tokenizer = load(local_path)
+        if cls._shared_tokenizer.pad_token is None:
+            cls._shared_tokenizer.pad_token = cls._shared_tokenizer.eos_token
+        cls._shared_tokenizer.padding_side = "left"
+        cls._shared_lock = threading.RLock()
+        print(f"   ✅ Модель загружена за {time.time() - start:.2f} сек")
+    
+    @classmethod
+    def preload_summarizers(cls, config: Dict[str, Any]) -> bool:
+        """Предзагружает единую модель и создаёт суммаризаторы."""
         with cls._lock:
             if cls._preloaded:
                 return True
-            summarizers_config = config.get("summarizers", {})
-            if not summarizers_config.get("preload", True):
+            
+            loading_config = config.get("loading", {})
+            if not loading_config.get("preload", True):
                 print("ℹ️ Предзагрузка суммаризаторов отключена в конфиге")
                 return False
-            print("📂 Загрузка моделей суммаризации из context_config.local_path")
+            
             try:
-                summarizers = cls.get_all_summarizers(config)
-                try:
-                    loop = asyncio.get_event_loop()
-                except RuntimeError:
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                async def _preload_all():
-                    tasks = []
-                    for name, summarizer in summarizers.items():
-                        if not summarizer.is_loaded and not summarizer.is_loading:
-                            tasks.append(summarizer.load_model())
-                    if tasks:
-                        results = await asyncio.gather(*tasks, return_exceptions=True)
-                        for i, result in enumerate(results):
-                            if isinstance(result, Exception):
-                                print(f"❌ Ошибка загрузки модели {list(summarizers.keys())[i]}: {result}")
-                    if summarizers_config.get("warmup", True):
-                        await cls._warmup_summarizers(summarizers, summarizers_config)
-                if loop.is_running():
-                    asyncio.create_task(_preload_all())
-                else:
-                    loop.run_until_complete(_preload_all())
+                # Просто вызываем get_all_summarizers — она загрузит модель
+                cls.get_all_summarizers(config)
+                
+                # --- ИСПРАВЛЕНИЕ: правильный запуск корутины прогрева ---
+                if loading_config.get("warmup", True):
+                    # Получаем или создаём event loop
+                    try:
+                        loop = asyncio.get_event_loop()
+                    except RuntimeError:
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                    
+                    # Запускаем прогрев и ждём завершения
+                    warmup_text = loading_config.get("warmup_text", "Тестовый текст для прогрева.")
+                    loop.run_until_complete(cls._warmup(warmup_text))
+                
                 cls._preloaded = True
                 return True
             except Exception as e:
                 print(f"❌ Ошибка предзагрузки суммаризаторов: {e}")
+                import traceback
+                traceback.print_exc()
                 return False
     
     @classmethod
-    async def _warmup_summarizers(cls, summarizers: Dict[str, BaseSummarizer], config: Dict[str, Any]):
-        warmup_text = config.get("warmup_text", "Тестовый текст для прогрева модели суммаризации.")
-        print("\n🔥 Прогрев суммаризаторов...")
-        tasks = []
-        for name, summarizer in summarizers.items():
-            if summarizer.is_loaded:
-                tasks.append(
-                    summarizer.summarize(
-                        warmup_text[:100],
-                        max_tokens=10,
-                        temperature=0.1
-                    )
-                )
-        if tasks:
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-            for i, result in enumerate(results):
-                if isinstance(result, Exception):
-                    print(f"⚠️ Ошибка прогрева {list(summarizers.keys())[i]}: {result}")
-                elif hasattr(result, 'success') and result.success:
-                    print(f"  ✅ Прогрев {list(summarizers.keys())[i]}-суммаризатора завершен успешно")
+    async def _warmup(cls, warmup_text: str):
+        """Прогревает модель коротким запросом."""
+        # print("\n🔥 Прогрев суммаризатора...")
+        summarizers = cls.get_all_summarizers({})  # конфиг уже загружен
+        l1 = summarizers["l1"]
+        try:
+            await l1.summarize(warmup_text[:100], max_tokens=10, temperature=0.1)
+            print("   ✅ Прогрев модели суммаризации завершён успешно")
+        except Exception as e:
+            print(f"⚠️ Ошибка прогрева: {e}")
     
     @classmethod
     def is_preloaded(cls) -> bool:
@@ -457,24 +506,33 @@ class SummarizerFactory:
     
     @classmethod
     def unload_all(cls):
+        """Выгружает общую модель (только если она не используется)."""
         with cls._lock:
-            for summarizer in cls._instances.values():
-                summarizer.unload_model()
+            # Очищаем ссылки на суммаризаторы
             cls._instances.clear()
+            # Выгружаем модель
+            if cls._shared_model is not None:
+                # MLX не имеет явного метода выгрузки, просто удаляем ссылки
+                cls._shared_model = None
+                cls._shared_tokenizer = None
+                cls._shared_lock = None
+                if hasattr(mx, 'clear_cache'):
+                    mx.clear_cache()
+                print("✅ Единая модель суммаризации выгружена")
+            cls._preloaded = False
     
     @classmethod
     def get_stats(cls) -> Dict[str, Any]:
+        """Возвращает статистику по суммаризаторам и общей модели."""
         with cls._lock:
             stats = {
-                'total_managers': len(cls._instances),
+                'shared_model_loaded': cls._shared_model is not None,
                 'preloaded': cls._preloaded,
-                'managers': {}
+                'summarizers': {}
             }
-            for dialog_id, manager in cls._instances.items():
+            for name, summarizer in cls._instances.items():
                 try:
-                    manager_stats = manager.get_stats()
-                    manager_stats['preload_enabled'] = cls._preloaded
-                    stats['managers'][dialog_id] = manager_stats
+                    stats['summarizers'][name] = summarizer.stats
                 except Exception as e:
-                    stats['managers'][dialog_id] = {'error': str(e)}
+                    stats['summarizers'][name] = {'error': str(e)}
             return stats
