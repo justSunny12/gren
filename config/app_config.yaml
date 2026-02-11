@@ -21,3 +21,6 @@ dialogs:
 
 chat_naming:
   max_name_length: 50
+  min_name_length: 1  # Минимальная длина названия (для валидации)
+  name_validation:
+    allow_whitespace_only: false  # Разрешать ли названия только из пробелов

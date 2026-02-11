@@ -58,30 +58,35 @@ class DialogOperations:
         if dialog_id not in dialogs:
             return False
         
-        # Получаем конфигурацию для валидации
+        # Получаем конфигурацию
         from container import container
         config = container.get_config()
+        
+        # Безопасно извлекаем настройки именования
         chat_naming_config = config.get("chat_naming", {})
+        
+        # Значения по умолчанию, если секция отсутствует
+        max_length = chat_naming_config.get("max_name_length", 50)
+        min_length = chat_naming_config.get("min_name_length", 1)
+        name_validation = chat_naming_config.get("name_validation", {})
+        allow_whitespace_only = name_validation.get("allow_whitespace_only", True)
         
         # Очищаем и валидируем новое название
         new_name = new_name.strip()
         
         # Проверка минимальной длины
-        min_length = chat_naming_config.get("min_name_length", 1)
         if len(new_name) < min_length:
             return False
         
-        # Проверка на пустое название
+        # Проверка на пустое название (после strip)
         if not new_name:
             return False
         
-        # Проверка на только пробелы
-        name_validation = chat_naming_config.get("name_validation", {})
-        if not name_validation.get("allow_whitespace_only", True) and new_name.isspace():
+        # Проверка на только пробелы (если запрещено)
+        if not allow_whitespace_only and new_name.isspace():
             return False
         
         # Ограничение максимальной длины
-        max_length = chat_naming_config.get("max_name_length", 50)
         if len(new_name) > max_length:
             new_name = new_name[:max_length]
         
