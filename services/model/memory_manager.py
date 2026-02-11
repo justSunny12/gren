@@ -21,7 +21,7 @@ class MLXMemoryManager:
                 
                 limit_bytes = int(total_memory * (memory_limit / 100))
                 mx.set_cache_limit(limit_bytes)
-                print(f"💾 Установлен лимит памяти MLX: {limit_bytes/1024**3:.2f} GB\n")
+                print(f"🛠️  Установлен лимит памяти MLX: {limit_bytes/1024**3:.2f} GB\n")
                 return True
             except Exception as e:
                 print(f"⚠️ Не удалось установить лимит памяти: {e}")

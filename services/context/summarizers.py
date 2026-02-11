@@ -132,7 +132,7 @@ class BaseSummarizer:
                     print(f"❌ {self._load_error}")
                     return False
                 
-                print(f"📥 Загрузка модели суммаризации {self.model_name} из context_config.local_path")
+                # print(f"📂 Загрузка модели суммаризации {self.model_name} из context_config.local_path")
                 
                 start_time = time.time()
                 
@@ -145,7 +145,7 @@ class BaseSummarizer:
                 self._tokenizer.padding_side = "left"
                 
                 load_time = time.time() - start_time
-                print(f"   ✅ Модель {self.model_name} загружена за {load_time:.2f} сек\n")
+                print(f"   ✅ Модель {self.model_name} загружена за {load_time:.2f} сек")
                 
                 return True
                 
@@ -546,7 +546,7 @@ class SummarizerFactory:
                 print("ℹ️ Предзагрузка суммаризаторов отключена в конфиге")
                 return False
             
-            print("🚀 Предзагрузка моделей суммаризации...")
+            print("📂 Загрузка моделей суммаризации из context_config.local_path")
             
             try:
                 # Получаем суммаризаторы
@@ -597,7 +597,7 @@ class SummarizerFactory:
     async def _warmup_summarizers(cls, summarizers: Dict[str, BaseSummarizer], config: Dict[str, Any]):
         """Прогревает модели суммаризации"""
         warmup_text = config.get("warmup_text", "Тестовый текст для прогрева модели суммаризации.")
-        print("🔥 Прогрев моделей суммаризации...")
+        print("\n🔥 Прогрев суммаризаторов...")
         
         tasks = []
         for name, summarizer in summarizers.items():
@@ -618,7 +618,7 @@ class SummarizerFactory:
                 if isinstance(result, Exception):
                     print(f"⚠️ Ошибка прогрева {list(summarizers.keys())[i]}: {result}")
                 elif hasattr(result, 'success') and result.success:
-                    print(f"  ✅ Прогрет {list(summarizers.keys())[i]} суммаризатор")
+                    print(f"  ✅ Прогрев {list(summarizers.keys())[i]}-суммаризатора завершен успешно")
     
     @classmethod
     def is_preloaded(cls) -> bool:
