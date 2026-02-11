@@ -11,7 +11,6 @@ window.createContextMenu = function(chatId, chatName, isPinned) {
     menu.className = 'chat-context-menu';
     menu.setAttribute('data-chat-id', chatId);
     
-    // Меняем текст и иконку в зависимости от состояния закрепления
     const pinText = isPinned ? "Открепить" : "Закрепить";
     const pinIcon = isPinned ? `
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -58,9 +57,7 @@ window.createContextMenu = function(chatId, chatName, isPinned) {
         </div>
     `;
     
-    // Добавляем обработчики для пунктов меню
     setupMenuHandlers(menu, chatId, chatName, isPinned);
-    
     return menu;
 };
 
@@ -71,25 +68,14 @@ function setupMenuHandlers(menu, chatId, chatName, isPinned) {
     
     renameBtn.onclick = async function(e) {
         e.stopPropagation();
+        closeMenuAndCleanup(menu, chatId);
         
-        // Находим родительский элемент чата и закрываем меню
-        const chatItem = document.querySelector(`[data-chat-id="${chatId}"]`);
-        if (chatItem && chatItem.classList.contains('context-menu-open')) {
-            chatItem.classList.remove('context-menu-open');
-        }
-        
-        if (menu.parentNode) {
-            menu.parentNode.removeChild(menu);
-        }
-        
-        // Используем кастомное модальное окно для переименования
         if (window.showRenameChatModal) {
             const newName = await window.showRenameChatModal(chatId, chatName);
             if (newName && newName !== chatName) {
                 await renameChatRequest(chatId, newName);
             }
         } else {
-            // Fallback на стандартный prompt если модальное окно не загружено
             const newName = prompt('Введите новое название для чата:', chatName);
             if (newName && newName.trim() !== '' && newName !== chatName) {
                 await renameChatRequest(chatId, newName);
@@ -99,47 +85,23 @@ function setupMenuHandlers(menu, chatId, chatName, isPinned) {
     
     pinBtn.onclick = function(e) {
         e.stopPropagation();
-        
-        // Находим родительский элемент чата и закрываем меню
-        const chatItem = document.querySelector(`[data-chat-id="${chatId}"]`);
-        if (chatItem && chatItem.classList.contains('context-menu-open')) {
-            chatItem.classList.remove('context-menu-open');
-        }
-        
-        if (menu.parentNode) {
-            menu.parentNode.removeChild(menu);
-        }
-        
-        // Отправляем запрос на закрепление/открепление
+        closeMenuAndCleanup(menu, chatId);
         const action = isPinned ? 'unpin' : 'pin';
         pinChatRequest(chatId, action);
     };
     
     deleteBtn.onclick = async function(e) {
         e.stopPropagation();
-        
-        // Находим родительский элемент чата и закрываем меню
         const chatItem = document.querySelector(`[data-chat-id="${chatId}"]`);
-        if (chatItem && chatItem.classList.contains('context-menu-open')) {
-            chatItem.classList.remove('context-menu-open');
-        }
+        const isActive = chatItem?.classList.contains('active') || false;
+        closeMenuAndCleanup(menu, chatId);
         
-        if (menu.parentNode) {
-            menu.parentNode.removeChild(menu);
-        }
-        
-        // Определяем, активен ли удаляемый чат
-        const isActive = chatItem && chatItem.classList.contains('active');
-        
-        // Используем кастомное модальное окно
         if (window.showDeleteConfirmation) {
             const confirmed = await window.showDeleteConfirmation(chatId, chatName, chatItem);
             if (confirmed) {
-                // Отправляем запрос на удаление
                 await deleteChatRequest(chatId, isActive);
             }
         } else {
-            // Fallback на стандартный confirm если модальное окно не загружено
             if (confirm(`Вы уверены, что хотите удалить чат "${chatName}"?`)) {
                 await deleteChatRequest(chatId, isActive);
             }
@@ -147,41 +109,23 @@ function setupMenuHandlers(menu, chatId, chatName, isPinned) {
     };
 }
 
+function closeMenuAndCleanup(menu, chatId) {
+    const chatItem = document.querySelector(`[data-chat-id="${chatId}"]`);
+    if (chatItem?.classList.contains('context-menu-open')) {
+        chatItem.classList.remove('context-menu-open');
+    }
+    if (menu.parentNode) {
+        menu.parentNode.removeChild(menu);
+    }
+}
+
 async function renameChatRequest(chatId, newName) {
     try {
-        // Находим поле ввода для отправки данных
-        const textarea = window.getChatInputField ? window.getChatInputField() : null;
-        if (!textarea) {
-            throw new Error('Не найдено поле для отправки данных');
-        }
+        const textarea = window.getChatInputField?.();
+        if (!textarea) throw new Error('Не найдено поле для отправки данных');
         
-        // Отправляем специальный запрос на переименование
-        // Формат: "rename:<chat_id>:<new_name>"
-        const renameCommand = `rename:${chatId}:${encodeURIComponent(newName)}`;
-        textarea.value = renameCommand;
-        
-        // Запускаем событие изменения
-        try {
-            const event = new Event('input', { 
-                bubbles: true,
-                cancelable: true 
-            });
-            textarea.dispatchEvent(event);
-        } catch (e) {
-            const changeEvent = new Event('change', {
-                bubbles: true,
-                cancelable: true
-            });
-            textarea.dispatchEvent(changeEvent);
-        }
-        
-        // Обновляем список чатов через 500мс
-        setTimeout(() => {
-            if (window.chatListData && window.renderChatList) {
-                window.renderChatList(window.chatListData);
-            }
-        }, 500);
-        
+        textarea.value = `rename:${chatId}:${encodeURIComponent(newName)}`;
+        textarea.dispatchEvent(new Event('input', { bubbles: true }));
     } catch (error) {
         console.error('Ошибка при переименовании:', error);
         alert('Не удалось переименовать чат. Попробуйте снова.');
@@ -190,39 +134,11 @@ async function renameChatRequest(chatId, newName) {
 
 async function pinChatRequest(chatId, action) {
     try {
-        // Находим поле ввода для отправки данных
-        const textarea = window.getChatInputField ? window.getChatInputField() : null;
-        if (!textarea) {
-            throw new Error('Не найдено поле для отправки данных');
-        }
+        const textarea = window.getChatInputField?.();
+        if (!textarea) throw new Error('Не найдено поле для отправки данных');
         
-        // Отправляем специальный запрос на закрепление/открепление
-        // Формат: "pin:<chat_id>:<action>" или "unpin:<chat_id>:<action>"
-        const pinCommand = `${action}:${chatId}:${action}`;
-        textarea.value = pinCommand;
-        
-        // Запускаем событие изменения
-        try {
-            const event = new Event('input', { 
-                bubbles: true,
-                cancelable: true 
-            });
-            textarea.dispatchEvent(event);
-        } catch (e) {
-            const changeEvent = new Event('change', {
-                bubbles: true,
-                cancelable: true
-            });
-            textarea.dispatchEvent(changeEvent);
-        }
-        
-        // Обновляем список чатов через 500мс
-        setTimeout(() => {
-            if (window.chatListData && window.renderChatList) {
-                window.renderChatList(window.chatListData);
-            }
-        }, 500);
-        
+        textarea.value = `${action}:${chatId}:${action}`;
+        textarea.dispatchEvent(new Event('input', { bubbles: true }));
     } catch (error) {
         console.error('Ошибка при закреплении/откреплении:', error);
         alert('Не удалось закрепить/открепить чат. Попробуйте снова.');
@@ -231,39 +147,11 @@ async function pinChatRequest(chatId, action) {
 
 async function deleteChatRequest(chatId, isActive) {
     try {
-        // Находим поле ввода для отправки ID чата
-        const textarea = window.getChatInputField ? window.getChatInputField() : null;
-        if (!textarea) {
-            throw new Error('Не найдено поле для отправки данных');
-        }
+        const textarea = window.getChatInputField?.();
+        if (!textarea) throw new Error('Не найдено поле для отправки данных');
         
-        // Отправляем специальный запрос на удаление
-        // Формат: "delete:<chat_id>:<is_active>"
-        const deleteCommand = `delete:${chatId}:${isActive ? 'active' : 'inactive'}`;
-        textarea.value = deleteCommand;
-        
-        // Запускаем событие изменения
-        try {
-            const event = new Event('input', { 
-                bubbles: true,
-                cancelable: true 
-            });
-            textarea.dispatchEvent(event);
-        } catch (e) {
-            const changeEvent = new Event('change', {
-                bubbles: true,
-                cancelable: true
-            });
-            textarea.dispatchEvent(changeEvent);
-        }
-        
-        // Обновляем список чатов через 500мс
-        setTimeout(() => {
-            if (window.chatListData && window.renderChatList) {
-                window.renderChatList(window.chatListData);
-            }
-        }, 500);
-        
+        textarea.value = `delete:${chatId}:${isActive ? 'active' : 'inactive'}`;
+        textarea.dispatchEvent(new Event('input', { bubbles: true }));
     } catch (error) {
         console.error('Ошибка при удалении:', error);
         alert('Не удалось удалить чат. Попробуйте снова.');
@@ -273,112 +161,65 @@ async function deleteChatRequest(chatId, isActive) {
 window.toggleContextMenu = function(chatItem, chatId, chatName, isPinned) {
     if (!window.SELECTORS) return;
     
-    // Проверяем, есть ли у этого элемента чата открытое меню
     if (chatItem.classList.contains('context-menu-open')) {
-        // Находим и закрываем меню
-        const menu = document.querySelector('.chat-context-menu.show[data-chat-id="' + chatId + '"]');
-        if (menu && menu.parentNode) {
-            menu.parentNode.removeChild(menu);
-        }
-        
+        const menu = document.querySelector(`.chat-context-menu.show[data-chat-id="${chatId}"]`);
+        menu?.parentNode?.removeChild(menu);
         chatItem.classList.remove('context-menu-open');
         return;
     }
     
-    // Закрываем все открытые меню и снимаем флаги
     document.querySelectorAll('.chat-item.context-menu-open').forEach(item => {
         item.classList.remove('context-menu-open');
     });
     
-    // Закрываем все открытые меню
-    if (window.closeAllContextMenus) {
-        window.closeAllContextMenus();
-    }
+    window.closeAllContextMenus?.();
     
-    // Создаем новое меню
-    if (window.createContextMenu) {
-        const menu = window.createContextMenu(chatId, chatName, isPinned);
-        
-        // Добавляем меню в body для абсолютного позиционирования
-        document.body.appendChild(menu);
-        
-        // Рассчитываем положение меню
-        positionContextMenu(chatItem, menu);
-        
-        // Показываем меню
-        menu.classList.add('show');
-        
-        // Помечаем элемент как имеющий открытое меню
-        chatItem.classList.add('context-menu-open');
-        
-        // Закрываем меню при клике вне его
-        setTimeout(() => {
-            const closeMenuHandler = (e) => {
-                // Если кликнули вне меню или на другой элемент управления
-                if (!menu.contains(e.target) && 
-                    !(chatItem.contains(e.target) && e.target.closest(SELECTORS.CHAT_CONTROL))) {
-                    
-                    // Удаляем класс с элемента
-                    if (chatItem.classList.contains('context-menu-open')) {
-                        chatItem.classList.remove('context-menu-open');
-                    }
-                    
-                    // Закрываем меню
-                    if (menu && menu.classList.contains('show')) {
-                        menu.classList.remove('show');
-                        if (menu.parentNode) {
-                            menu.parentNode.removeChild(menu);
-                        }
-                    }
-                    
-                    document.removeEventListener('click', closeMenuHandler);
-                }
-            };
-            document.addEventListener('click', closeMenuHandler);
-        }, 10);
-    }
+    const menu = window.createContextMenu?.(chatId, chatName, isPinned);
+    if (!menu) return;
+    
+    document.body.appendChild(menu);
+    positionContextMenu(chatItem, menu);
+    menu.classList.add('show');
+    chatItem.classList.add('context-menu-open');
+    
+    setTimeout(() => {
+        const closeMenuHandler = (e) => {
+            if (!menu.contains(e.target) && 
+                !(chatItem.contains(e.target) && e.target.closest(window.SELECTORS.CHAT_CONTROL))) {
+                
+                chatItem.classList.remove('context-menu-open');
+                menu.classList.remove('show');
+                menu.parentNode?.removeChild(menu);
+                document.removeEventListener('click', closeMenuHandler);
+            }
+        };
+        document.addEventListener('click', closeMenuHandler);
+    }, 10);
 };
 
 function positionContextMenu(chatItem, menu) {
-    if (!chatItem || !menu) return;
-    
-    // Показываем меню для получения размеров
     menu.style.display = 'block';
     menu.style.visibility = 'hidden';
     
-    // Получаем размеры и позиции элементов
-    const chatItemRect = chatItem.getBoundingClientRect();
+    const chatRect = chatItem.getBoundingClientRect();
     const menuRect = menu.getBoundingClientRect();
-    const viewportHeight = window.innerHeight;
-    const viewportWidth = window.innerWidth;
+    const vh = window.innerHeight;
+    const vw = window.innerWidth;
     
-    // Рассчитываем позицию по умолчанию (справа от элемента)
-    let topPosition = chatItemRect.top + (chatItemRect.height / 2) - (menuRect.height / 2);
-    let leftPosition = chatItemRect.right + 10; // 10px справа от элемента
+    let top = chatRect.top + (chatRect.height - menuRect.height) / 2;
+    let left = chatRect.right + 10;
     
-    // Проверяем, помещается ли меню справа
-    if (leftPosition + menuRect.width > viewportWidth - 10) {
-        // Если не помещается справа, показываем слева
-        leftPosition = chatItemRect.left - menuRect.width - 10;
-    }
+    if (left + menuRect.width > vw - 10) left = chatRect.left - menuRect.width - 10;
+    if (top + menuRect.height > vh - 10) top = vh - menuRect.height - 10;
+    if (top < 10) top = 10;
     
-    // Проверяем, помещается ли меню по вертикали
-    if (topPosition + menuRect.height > viewportHeight - 10) {
-        // Если не помещается снизу, сдвигаем вверх
-        topPosition = viewportHeight - menuRect.height - 10;
-    }
-    
-    if (topPosition < 10) {
-        // Если не помещается сверху, сдвигаем вниз
-        topPosition = 10;
-    }
-    
-    // Устанавливаем позицию
-    menu.style.position = 'fixed';
-    menu.style.top = `${Math.max(10, topPosition)}px`;
-    menu.style.left = `${Math.max(10, leftPosition)}px`;
-    menu.style.right = 'auto';
-    menu.style.bottom = 'auto';
-    menu.style.visibility = 'visible';
-    menu.style.zIndex = '10000'; // Высокий z-index чтобы было поверх всего
+    Object.assign(menu.style, {
+        position: 'fixed',
+        top: `${Math.max(10, top)}px`,
+        left: `${Math.max(10, left)}px`,
+        right: 'auto',
+        bottom: 'auto',
+        visibility: 'visible',
+        zIndex: '10000'
+    });
 }

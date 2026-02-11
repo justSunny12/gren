@@ -1,4 +1,4 @@
-# handlers/message_handler.py (исправленная версия)
+# handlers/message_handler.py
 import threading
 from typing import AsyncGenerator, List, Optional, Tuple, Dict, Any
 from .base import BaseHandler
@@ -28,14 +28,13 @@ class MessageHandler(BaseHandler):
         temperature: Optional[float],
         enable_thinking: Optional[bool]
     ) -> AsyncGenerator[Tuple[List[Dict], str, str, str, str], None]:
-        """Асинхронный обработчик для потоковой генерации с JS триггером"""
         from models.enums import MessageRole
                 
         if not self._stream_lock.acquire(blocking=False):
             error_history = [{"role": MessageRole.ASSISTANT.value,
                             "content": "⚠️ Уже выполняется другая генерация. Подождите."}]
             js_code = "if (window.toggleGenerationButtons) { window.toggleGenerationButtons(false); }"
-            yield error_history, "", chat_id or "", self.get_chat_list_data(), js_code
+            yield error_history, "", chat_id or "", self.get_chat_list_data(scroll_target='today'), js_code
             return
                 
         try:
@@ -43,14 +42,13 @@ class MessageHandler(BaseHandler):
                 chat_id = self.dialog_service.create_dialog()
             
             self.dialog_service.add_message(chat_id, MessageRole.USER, prompt)
-            
             dialog = self.dialog_service.get_dialog(chat_id)
             if not dialog:
                 raise ValueError(f"Диалог {chat_id} не найден после добавления сообщения")
             
             history_with_user_message = list(dialog.to_ui_format())
             js_code = "if (window.toggleGenerationButtons) { window.toggleGenerationButtons(true); }"
-            yield history_with_user_message, "", chat_id, self.get_chat_list_data(), js_code
+            yield history_with_user_message, "", chat_id, self.get_chat_list_data(scroll_target='today'), js_code
             
             stop_event = threading.Event()
             self._active_stop_event = stop_event
@@ -59,17 +57,10 @@ class MessageHandler(BaseHandler):
             context = dialog.get_context_for_generation()
             messages_for_model = []
             if context:
-                messages_for_model.append({
-                    "role": "system",
-                    "content": context
-                })
+                messages_for_model.append({"role": "system", "content": context})
             for msg in dialog.history:
-                messages_for_model.append({
-                    "role": msg.role.value,
-                    "content": msg.content
-                })
+                messages_for_model.append({"role": msg.role.value, "content": msg.content})
             
-            # Пробрасываем результаты из ChatManager без изменений
             async for result in self.chat_service.process_message_stream(
                 prompt=prompt,
                 dialog_id=chat_id,
@@ -90,7 +81,7 @@ class MessageHandler(BaseHandler):
             except:
                 history = []
             js_code = "if (window.toggleGenerationButtons) { window.toggleGenerationButtons(false); }"
-            yield history, "", chat_id or "", self.get_chat_list_data(), js_code
+            yield history, "", chat_id or "", self.get_chat_list_data(scroll_target='today'), js_code
             
         finally:
             self._active_stop_event = None
@@ -103,7 +94,7 @@ class MessageHandler(BaseHandler):
             return True
         return False
     
-    def get_chat_list_data(self):
+    def get_chat_list_data(self, scroll_target: str = 'none'):
         from .chat_list import ChatListHandler
         handler = ChatListHandler()
-        return handler.get_chat_list_data()
+        return handler.get_chat_list_data(scroll_target=scroll_target)

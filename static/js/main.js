@@ -27,7 +27,6 @@ window.selectChat = function(chatId) {
     if (textarea) {
         textarea.value = chatId;
         
-        // Запускаем событие сразу, без задержек
         try {
             const event = new Event('input', { 
                 bubbles: true,
@@ -54,7 +53,7 @@ window.addEventListener('resize', function() {
 
 // Инициализация при загрузке
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Main.js: DOM загружен');
+    // console.log('Main.js: DOM загружен');
     
     // Закрытие модального окна при клике на оверлей (дополнительная защита)
     document.addEventListener('click', function(e) {
@@ -76,18 +75,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// Обработчик обновления списка чатов
-document.addEventListener('chatListUpdated', function() {
-    // Используем данные, которые могли быть установиться через Gradio
-    if (window.chatListData && window.renderChatList) {
-        window.renderChatList(window.chatListData);
-    }
-});
+// УДАЛЕНО: обработчик chatListUpdated – теперь обновление управляется через Gradio
+// и событие change скрытого поля chat_list_data, где передаётся корректный флаг скролла.
 
 // Загружаем дополнительные модули после загрузки основных
 setTimeout(() => {
     if (window.loadScript) {
-        // Загружаем модальные окна если они еще не загружены
         if (!window.deleteConfirmationModal) {
             window.loadScript('static/js/modules/delete-modal.js');
         }

@@ -5,14 +5,18 @@ from .base import BaseHandler
 class ChatListHandler(BaseHandler):
     """Обработчик для получения данных списка чатов"""
     
-    def get_chat_list_data(self):
-        """Возвращает данные списка чатов с группировкой в формате JSON"""
+    def get_chat_list_data(self, scroll_target: str = 'none'):
+        """
+        Возвращает данные списка чатов с группировкой в формате JSON.
+        scroll_target: 'top', 'today', 'none'
+        """
         try:
             grouped_dialogs = self.dialog_service.get_dialog_list_with_groups()
             
             js_data = {
                 "groups": {},
-                "flat": []
+                "flat": [],
+                "_scroll_target": scroll_target   # строка для JS
             }
             
             for group_name, dialogs in grouped_dialogs.items():
@@ -34,4 +38,4 @@ class ChatListHandler(BaseHandler):
             
             return json.dumps(js_data, ensure_ascii=False)
         except Exception:
-            return json.dumps({"groups": {}, "flat": []}, ensure_ascii=False)
+            return json.dumps({"groups": {}, "flat": [], "_scroll_target": "none"}, ensure_ascii=False)
