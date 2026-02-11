@@ -16,7 +16,7 @@ context:
 
   model:
     name: "Qwen/Qwen3-4B-MLX-4bit"
-    local_path: "./llm_cache/models--Qwen--Qwen3-1.7B-MLX-4bit/snapshots/21457c6f51ed54a7c16e988c0844db973815c137"
+    local_path: "./llm_cache/models--Qwen--Qwen3-4B-MLX-4bit/snapshots/52a5ab34fa604bc8af6d3ce0cac0cab10b7eb495"
 
   loading:
       preload: true
@@ -66,14 +66,14 @@ chat_naming:
     Примеры:
     Пользователь: Как установить Python на Mac?
     Ассистент: Скачай установщик с python.org и запусти.
-    Название: Установка Python на Mac
+    [Твой ответ] Установка Python на Mac
 
     Пользователь: Расскажи анекдот.
     Ассистент: Колобок повесился.
-    Название: Анекдот про колобка
+    [Твой ответ] Анекдот про колобка
 
     Пользователь: Объясни разницу между SQL и NoSQL.
     Ассистент: SQL — реляционные базы с фиксированной схемой, NoSQL — нереляционные, гибкая схема, горизонтальное масштабирование.
-    Название: SQL vs NoSQL
+    [Твой ответ] SQL vs NoSQL
 
     Теперь сделай так же.
