@@ -481,20 +481,6 @@ class SummarizerFactory:
     _preloaded = False  # Флаг предзагрузки
     
     @classmethod
-    def get_all_summarizers(cls, config: Dict[str, Any]) -> Dict[str, BaseSummarizer]:
-        """Получает все суммаризаторы"""
-        with cls._lock:
-            if "l1" not in cls._instances:
-                l1_config = config.get("models", {}).get("l1_summarizer", {})
-                cls._instances["l1"] = L1Summarizer(l1_config, config)
-                
-            if "l2" not in cls._instances:
-                l2_config = config.get("models", {}).get("l2_summarizer", {})
-                cls._instances["l2"] = L2Summarizer(l2_config, config)
-            
-            return cls._instances.copy()
-    
-    @classmethod
     def validate_model_paths(cls, config: Dict[str, Any]) -> Dict[str, bool]:
         """Проверяет существование локальных путей"""
         results = {}
