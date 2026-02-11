@@ -68,6 +68,7 @@
 
 .chat-item.active {
     background: rgb(230, 237, 252);
+    color: rgb(67, 99, 245);
     border: none;
 }
 

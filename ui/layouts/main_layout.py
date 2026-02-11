@@ -22,7 +22,7 @@ def create_main_layout():
                         container=True,
                     )
                 
-                # Область ввода (с круглой кнопкой внутри)
+                # Область ввода (с кнопками внутри)
                 with gr.Column(elem_classes="input-plate"):
                     with gr.Row(elem_classes="input-row"):
                         with gr.Column(elem_classes="chat-input-wrapper"):
@@ -33,11 +33,17 @@ def create_main_layout():
                                 max_lines=4,
                                 scale=9
                             )
-                            # Круглая кнопка отправки
-                            with gr.Column(elem_classes="send-btn-wrapper"):
+                            # Контейнер для кнопок отправки и остановки
+                            # Обе кнопки видимы, но управляются через CSS
+                            with gr.Column(elem_classes="generation-buttons-wrapper"):
                                 submit_btn = gr.Button(
                                     elem_classes="send-btn",
                                     scale=1
                                 )
+                                stop_btn = gr.Button(
+                                    elem_classes="stop-btn",
+                                    scale=1,
+                                    visible=True  # ВАЖНО: делаем видимой
+                                )
     
-    return sidebar_components, chatbot, user_input, submit_btn
+    return sidebar_components, chatbot, user_input, submit_btn, stop_btn

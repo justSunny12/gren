@@ -107,7 +107,10 @@
     min-width: 32px !important;
     min-height: 32px !important;
     margin: 0 8px !important;
-    align-self: flex-start !important;
+}
+
+.chat-window-container .avatar-container {
+    align-self: flex-end !important;
 }
 
 /* Стили для скроллбара чата */
@@ -158,4 +161,11 @@
     color: #374151 !important; /* Темнее при наведении */
     stroke: #374151 !important;
     background-color: rgba(0, 0, 0, 0.05) !important;
+}
+
+.thinking-text {
+    font-style: italic;
+    color: #666;
+    padding: 2px 4px;
+    font-weight: 300;
 }

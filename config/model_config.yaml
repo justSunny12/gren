@@ -1,23 +1,35 @@
-# Настройки модели и генерации
 model:
-  name: "Qwen/Qwen3-4B"
-  dtype: "auto"  # auto, float16, bfloat16
-  attn_implementation: "eager"
-  low_cpu_mem_usage: true
+  name: "Qwen/Qwen3-30B-A3B-MLX-4bit"
+  local_path: "./llm_cache/models--Qwen--Qwen3-30B-A3B-MLX-4bit/snapshots/4e2776a4cc73a8a251d0b797010a5b07fd541a3e"
+  unified_memory_limit: 80 #в процентах
 
 generation:
-  default_max_tokens: 512
+  # Основные параметры (всегда используются)
+  default_max_tokens: 2048
   default_temperature: 0.7
-  default_top_p: 0.9
-  default_repetition_penalty: 1.1
+  default_top_p: 0.8
+  repetition_penalty: 1.1
+  top_k: 40
+  
+  # Тоггл мышления (не влияет на другие параметры!)
   default_enable_thinking: false
   
+  # Диапазоны для UI
   min_max_tokens: 64
-  max_max_tokens: 2048
+  max_max_tokens: 4096
   min_temperature: 0.1
   max_temperature: 1.5
 
-chat_naming:
-  max_name_length: 50
-  summary_max_tokens: 20
-  summary_temperature: 0.4
+stream_batching:
+  # Оптимальные параметры для 50 токенов/сек с анимацией
+  min_chars_per_batch: 12      # ~3 токена (минимальная порция)
+  target_chars_per_batch: 24   # ~6 токенов (оптимальный размер с анимацией)
+  max_chars_per_batch: 32      # ~8 токенов (максимум)
+  
+  # Тайминги для плавности
+  min_batch_wait_ms: 25.0      # Минимальная задержка 25мс
+  max_batch_wait_ms: 80.0      # Максимальная задержка 80мс
+  
+  # Адаптивные настройки
+  adaptive_mode: true          # Автоподстройка под скорость
+  speed_history_size: 5        # Размер истории для расчета скорости

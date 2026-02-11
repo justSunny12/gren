@@ -1,38 +1,16 @@
-# /run.py (упрощенный)
+# /run.py (упрощенная версия)
 import gradio as gr
 import atexit
 import time
 import sys
-from ui.main import create_main_ui
+from ui import create_main_ui
 from container import container
-
-def print_memory_stats(prefix: str = ""):
-    """Выводит статистику памяти"""
-    try:
-        import psutil
-        import torch
-        
-        process = psutil.Process()
-        memory_info = process.memory_info()
-        
-        ram_used = memory_info.rss / 1024**3
-        ram_percent = process.memory_percent()
-        
-        print(f"{prefix}💾 RAM: {ram_used:.2f} GB ({ram_percent:.1f}%)")
-        
-        if torch.cuda.is_available():
-            gpu_used = torch.cuda.memory_allocated() / 1024**3
-            gpu_cached = torch.cuda.memory_reserved() / 1024**3
-            print(f"{prefix}🎮 GPU: {gpu_used:.2f} GB / кэш: {gpu_cached:.2f} GB")
-        
-    except Exception as e:
-        print(f"{prefix}⚠️ Не удалось получить статистику памяти: {e}")
 
 def cleanup_on_exit():
     print("\n👋 Завершение работы")
     
     try:
-        # 1. Останавливаем Gradio сервер (если он запущен)
+        # Останавливаем Gradio сервер
         if hasattr(sys, '_gradio_server'):
             sys._gradio_server.close()
             time.sleep(0.05)
@@ -43,7 +21,7 @@ def cleanup_on_exit():
     print(f"✅ Работа приложения завершена")
 
 def initialize_model():
-    """Инициализирует модель один раз при старте"""
+    """Инициализирует модель (только MLX)"""
     print("\n" + "-" * 50)
     print("📦 ИНИЦИАЛИЗАЦИЯ МОДЕЛИ")
     print("-" * 50)
@@ -51,21 +29,6 @@ def initialize_model():
     try:
         # Получаем сервис модели
         model_service = container.get_model_service()
-                
-        # Получаем конфигурацию для отображения примененных настроек
-        config = container.get_config()
-        user_settings = container.get("config_service").get_user_settings()
-        
-        if user_settings:
-            print(f"📝 Применены пользовательские настройки:")
-            if "generation" in user_settings:
-                gen = user_settings["generation"]
-                if "max_tokens" in gen:
-                    print(f"   Токены: {gen['max_tokens']}")
-                if "temperature" in gen:
-                    print(f"   Температура: {gen['temperature']}")
-                if "enable_thinking" in gen:
-                    print(f"   Thinking: {gen['enable_thinking']}")
         
         # Загружаем модель
         start_time = time.time()
@@ -74,12 +37,10 @@ def initialize_model():
         
         if model is not None:
             print(f"✅ Модель загружена за {load_time:.2f} секунд")
-            print("💾 Модель останется в памяти для быстрых ответов")
             
-            # Прогрев модели С ВЫКЛЮЧЕННЫМИ РАЗМЫШЛЕНИЯМИ (enable_thinking=False)
+            # Прогрев модели
             print("🔥 Прогрев модели...")
             try:
-                # Устанавливаем флаг прогрева чтобы избежать вывода
                 if hasattr(model_service, '_warming_up'):
                     model_service._warming_up = True
                 
@@ -91,7 +52,6 @@ def initialize_model():
                     enable_thinking=False
                 )
                 
-                # Убираем флаг прогрева
                 if hasattr(model_service, '_warming_up'):
                     model_service._warming_up = False
                 
@@ -113,9 +73,9 @@ def initialize_model():
 
 def main():
     print("=" * 60)
-    print("🚀 ЗАПУСК QWEN3-4B CHAT")
+    print("🚀 ЗАПУСК QWEN3-30B-A3B CHAT")
     print("=" * 60)
-    
+        
     # Регистрируем функцию очистки при выходе
     atexit.register(cleanup_on_exit)
     
@@ -128,9 +88,7 @@ def main():
         server_config = config.get("server", {})
         
         print(f"✅ Конфигурация загружена:")
-        print(f"   Приложение: {app_config.get('name', 'Qwen3-4B Chat')} v{app_config.get('version', '1.0.0')}")
         print(f"   Модель: {model_config.get('name', 'Qwen/Qwen3-4B')}")
-        print(f"   Сервер: {server_config.get('host', '0.0.0.0')}:{server_config.get('port', 7860)}")
     except Exception as e:
         print(f"⚠️ Ошибка загрузки конфигурации: {e}")
         return
@@ -145,7 +103,7 @@ def main():
     except Exception as e:
         print(f"⚠️ Ошибка загрузки диалогов: {e}")
     
-    # Инициализируем модель ОДИН РАЗ при старте
+    # Инициализируем модель
     model_loaded = initialize_model()
     
     if not model_loaded:
@@ -168,9 +126,6 @@ def main():
     print("\n" + "=" * 60)
     print("🌐 ЗАПУСК СЕРВЕРА...")
     print("=" * 60)
-    print("\n📍 Ссылка для доступа:")
-    print(f"   Локально: http://{server_config.get('host', '0.0.0.0')}:{server_config.get('port', 7860)}")
-    print(f"   В сети: {'Да' if server_config.get('share', False) else 'Нет'}")
     
     if model_loaded:
         print("\n⚡ Модель в памяти - готово к работе!")

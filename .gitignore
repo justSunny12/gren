@@ -15,7 +15,7 @@ saved_dialogs/
 llm_cache/
 
 #tests
-test.py
+tests/
 
 #local code dump
 project_dump.txt

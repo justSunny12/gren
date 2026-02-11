@@ -1,18 +1,20 @@
-# /services/__init__.py
+# services/__init__.py
 """
 Пакет services
 """
 
-# Экспортируем основные сервисы для удобного импорта
+# Экспортируем сервисы
 from .config_service import ConfigService, config_service
-from .dialog_service import DialogService, dialog_service
-from .model_service import ModelService
-from .chat_service import ChatService, chat_service
-# CSSGenerator удалён
+from .model.manager import ModelService
+from .user_config_service import UserConfigService, user_config_service
+from .dialogs import DialogManager
+from .chat.manager import ChatManager
 
+# Глобальный экземпляр будет создаваться в container.py
 __all__ = [
     'ConfigService', 'config_service',
     'ModelService',
-    'DialogService', 'dialog_service',
-    'ChatService', 'chat_service',
+    'DialogManager',
+    'ChatManager',
+    'UserConfigService', 'user_config_service',
 ]
