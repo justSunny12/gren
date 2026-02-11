@@ -157,19 +157,3 @@ class ChatManager:
         """Очищает кэш для данного диалога"""
         if cache_key in self._partial_update_cache:
             del self._partial_update_cache[cache_key]
-    
-    def get_chat_history(self, dialog_id: Optional[str] = None) -> List[Dict]:
-        """Получает историю чата"""
-        if not dialog_id:
-            dialog = self.operations.dialog_service.get_current_dialog()
-        else:
-            dialog = self.operations.dialog_service.get_dialog(dialog_id)
-        
-        if dialog:
-            return dialog.to_ui_format()
-        return []
-    
-    # Дополнительные методы для удобства
-    def get_formatted_stats(self) -> Dict[str, Any]:
-        """Возвращает отформатированную статистику"""
-        return self.operations.get_model_stats()

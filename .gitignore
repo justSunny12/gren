@@ -14,6 +14,10 @@ __pycache__/
 saved_dialogs/
 llm_cache/
 
+#for dumps
+# static/
+# css/
+
 #tests
 tests/
 

@@ -4,13 +4,10 @@
 """
 from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
-from typing import List, Dict, Any, Optional, Union
+from typing import List, Dict, Any, Optional
 from enum import Enum
-import json
 import hashlib
 from dataclasses import dataclass
-from models.enums import MessageRole
-
 
 class ChunkType(str, Enum):
     """Типы чанков контекста"""
@@ -204,8 +201,7 @@ class DialogContextState(BaseModel):
         data['l2_blocks'] = [block.model_dump_jsonable() for block in self.l2_blocks]
         data['cumulative_context'] = self.cumulative_context.model_dump_jsonable()
         return data
-
-
+    
 class MessageInteraction(BaseModel):
     """Взаимодействие: пара сообщений пользователь-ассистент"""
     

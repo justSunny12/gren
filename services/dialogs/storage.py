@@ -63,19 +63,6 @@ class DialogStorage:
             print(f"⚠️ Ошибка сохранения диалога {dialog.id}: {e}")
             return False
     
-    def delete_dialog_folder(self, dialog: Dialog) -> bool:
-        """Удаляет всю папку диалога (тихо)"""
-        try:
-            import shutil
-            folder_path = self._get_chat_folder_path(dialog)
-            if os.path.exists(folder_path):
-                shutil.rmtree(folder_path)
-                print(f"🗑️ Удалена папка диалога: {os.path.basename(folder_path)}")
-            return True
-        except Exception as e:
-            print(f"⚠️ Ошибка удаления папки диалога {dialog.id}: {e}")
-            return False
-    
     def load_dialogs(self) -> Dict[str, Dialog]:
         """Загружает все диалоги из файлов с новой структурой"""
         dialogs = {}
@@ -137,20 +124,3 @@ class DialogStorage:
             print(f"❌ Критическая ошибка при загрузке диалогов: {e}")
         
         return dialogs
-    
-    def save_all(self, dialogs: Dict[str, Dialog]) -> bool:
-        """Сохраняет все диалоги (тихо)"""
-        try:
-            success_count = 0
-            total_count = len(dialogs)
-            
-            for dialog in dialogs.values():
-                if self.save_dialog(dialog):
-                    success_count += 1
-            
-            print(f"💾 Сохранено диалогов: {success_count}/{total_count}")
-            return success_count == total_count
-            
-        except Exception as e:
-            print(f"❌ Ошибка сохранения всех диалогов: {e}")
-            return False

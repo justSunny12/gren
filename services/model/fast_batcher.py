@@ -2,13 +2,10 @@
 Умный батчер с минимальным оверхедом на корутинах
 Оптимизирован для ~50 токенов/секунду
 """
-import asyncio
 import time
 from typing import List
 from dataclasses import dataclass
 from threading import Lock
-import mlx.core as mx
-
 
 @dataclass
 class BatchConfig:
@@ -164,20 +161,3 @@ class FastBatcher:
         # Адаптируем тайминги
         self.config.min_batch_wait_ms = max(15.0, 30.0 - norm_speed * 15.0)
         self.config.max_batch_wait_ms = max(40.0, 80.0 - norm_speed * 30.0)
-    
-    def get_stats(self) -> dict:
-        """Возвращает статистику батчера"""
-        with self._lock:
-            return {
-                'buffer_size': self._buffer_size,
-                'chunk_count': len(self._buffer),
-                'avg_speed': (sum(self._speed_history) / len(self._speed_history) 
-                            if self._speed_history else 0),
-                'config': {
-                    'min_chars': self.config.min_chars_per_batch,
-                    'target_chars': self.config.target_chars_per_batch,
-                    'max_chars': self.config.max_chars_per_batch,
-                    'min_wait_ms': self.config.min_batch_wait_ms,
-                    'max_wait_ms': self.config.max_batch_wait_ms,
-                }
-            }

@@ -32,14 +32,6 @@ class ChatOperations:
     def config_service(self):
         return self._get_service("config_service")
     
-    # Модель
-    def generate_response(self, messages: List[Dict], **params) -> str:
-        """Генерирует ответ модели"""
-        if not hasattr(self.model_service, 'generate_response'):
-            return "Ошибка: сервис модели не поддерживает генерацию"
-        
-        return self.model_service.generate_response(messages, **params)
-    
     async def stream_response(
         self,
         messages: List[Dict[str, str]],
@@ -62,20 +54,3 @@ class ChatOperations:
     def get_config(self) -> Dict[str, Any]:
         """Получает конфигурацию"""
         return self.config_service.get_config()
-    
-    # Статистика
-    def get_model_stats(self) -> Dict[str, Any]:
-        """Получает статистику модели"""
-        try:
-            if hasattr(self.model_service, 'get_stats'):
-                stats = self.model_service.get_stats()
-                from .formatter import format_model_stats
-                return format_model_stats(stats)
-        except Exception:
-            pass
-        return {"status": "Статистика недоступна"}
-    
-    def get_chat_list_data(self):
-        """Получает данные списка чатов"""
-        from handlers import ui_handlers
-        return ui_handlers.get_chat_list_data()

@@ -3,9 +3,7 @@
 Утилиты для работы с контекстом
 """
 import re
-import hashlib
-from typing import List, Tuple, Optional, Dict, Any, Union
-from datetime import datetime
+from typing import List
 
 # Вместо импорта MessageInteraction, создаем простую структуру
 from dataclasses import dataclass
@@ -32,45 +30,6 @@ class SimpleInteraction:
     def char_count(self) -> int:
         """Количество символов"""
         return len(self.text)
-
-
-def split_interaction_by_sentences(text: str, max_chars: int) -> List[str]:
-    """
-    Разбивает текст на предложения, но не разбивает взаимодействия.
-    
-    УСТАРЕВШЕЕ: Эта функция не подходит для наших требований.
-    Сохраняем для обратной совместимости.
-    """
-    if len(text) <= max_chars:
-        return [text]
-    
-    # Разделяем по взаимодействиям (пары пользователь-ассистент)
-    interactions = []
-    current_interaction = []
-    lines = text.strip().split('\n')
-    
-    for line in lines:
-        if line.startswith("Пользователь:") and current_interaction:
-            # Начинается новое взаимодействие
-            interactions.append('\n'.join(current_interaction))
-            current_interaction = [line]
-        else:
-            current_interaction.append(line)
-    
-    if current_interaction:
-        interactions.append('\n'.join(current_interaction))
-    
-    # Если отдельное взаимодействие превышает max_chars, оставляем его целиком
-    result = []
-    for interaction in interactions:
-        if len(interaction) > max_chars:
-            # Взаимодействие слишком большое, но не разбиваем его
-            result.append(interaction)
-        else:
-            result.append(interaction)
-    
-    return result
-
 
 def parse_text_to_interactions(text: str) -> List[SimpleInteraction]:
     """
@@ -198,120 +157,6 @@ def group_interactions_into_chunks(
         chunks.append(current_chunk)
     
     return chunks
-
-
-def calculate_compression_ratio(original: str, summary: str) -> float:
-    """Вычисляет степень сжатия текста"""
-    if not summary:
-        return 1.0
-    return len(original) / len(summary)
-
-
-def estimate_tokens(text: str, chars_per_token: float = 3.5) -> int:
-    """Оценивает количество токенов в тексте"""
-    return int(len(text) / chars_per_token)
-
-
-def format_context_for_model(context_parts: Dict[str, str]) -> str:
-    """
-    Форматирует контекст для передачи модели
-    
-    Args:
-        context_parts: Словарь с частями контекста
-            - cumulative: кумулятивная строка
-            - l1_summaries: суммаризации L1
-            - raw_tail: сырой хвост
-    
-    Returns:
-        Отформатированный контекст
-    """
-    parts = []
-    
-    # Системное сообщение
-    system_msg = """Ты получаешь контекст диалога в нескольких частях:
-
-1. <sum_block>...</sum_block> - кумулятивные суммаризации всего диалога
-2. ## Чанк: - конспекты групп сообщений среднего уровня детализации
-3. Последние сообщения - полный текст последней части диалога
-
-Учитывай всю предоставленную информацию при формировании ответа, особенно последние сообщения."""
-    parts.append(system_msg)
-    
-    # Кумулятивный контекст
-    if context_parts.get("cumulative"):
-        parts.append(f"# Кумулятивный контекст (история обсуждения):\n{context_parts['cumulative']}")
-    
-    # Суммаризации L1
-    if context_parts.get("l1_summaries"):
-        parts.append(f"# Конспекты недавних обсуждений:\n{context_parts['l1_summaries']}")
-    
-    # Сырой хвост
-    if context_parts.get("raw_tail"):
-        parts.append(f"# Последние сообщения (полный текст):\n{context_parts['raw_tail']}")
-    
-    return "\n\n".join(parts)
-
-
-def validate_context_config(config: Dict[str, Any]) -> List[str]:
-    """Валидирует конфигурацию контекста"""
-    errors = []
-    
-    if not config.get("enabled", True):
-        return errors  # Если контекст отключен, не валидируем
-    
-    raw_tail = config.get("raw_tail", {})
-    l1_chunks = config.get("l1_chunks", {})
-    summarization = config.get("summarization", {})
-    
-    # Проверка сырого хвоста
-    if raw_tail.get("char_limit", 0) <= 0:
-        errors.append("raw_tail.char_limit должен быть положительным числом")
-    
-    if raw_tail.get("min_interactions", 0) < 0:
-        errors.append("raw_tail.min_interactions не может быть отрицательным")
-    
-    # Проверка чанков L1
-    if l1_chunks.get("target_char_limit", 0) <= 0:
-        errors.append("l1_chunks.target_char_limit должен быть положительным числом")
-    
-    if l1_chunks.get("compression_ratio", 0) <= 1:
-        errors.append("l1_chunks.compression_ratio должен быть больше 1")
-    
-    # Проверка порогов суммаризации
-    if summarization.get("l2_trigger_count", 0) <= 0:
-        errors.append("summarization.l2_trigger_count должен быть положительным числом")
-    
-    return errors
-
-
-def generate_chunk_id(text: str, salt: str = "") -> str:
-    """Генерирует уникальный идентификатор для чанка"""
-    content = text + salt + datetime.now().isoformat()
-    return hashlib.md5(content.encode()).hexdigest()[:16]
-
-
-def safe_truncate(text: str, max_chars: int, suffix: str = "...") -> str:
-    """Безопасно обрезает текст, не разбивая слова"""
-    if len(text) <= max_chars:
-        return text
-    
-    # Пытаемся обрезать на границе предложения
-    truncated = text[:max_chars]
-    last_period = truncated.rfind('. ')
-    last_question = truncated.rfind('? ')
-    last_exclamation = truncated.rfind('! ')
-    
-    cut_point = max(last_period, last_question, last_exclamation)
-    if cut_point > max_chars * 0.7:  # Если нашли разумную точку обрезки
-        return truncated[:cut_point + 1] + suffix
-    
-    # Иначе обрезаем на границе слова
-    last_space = truncated.rfind(' ')
-    if last_space > max_chars * 0.8:
-        return truncated[:last_space] + suffix
-    
-    return truncated + suffix
-
 
 def format_interaction_for_summary(interaction: SimpleInteraction) -> str:
     """Форматирует взаимодействие для суммаризации"""

@@ -63,20 +63,6 @@ class Dialog(BaseModel):
         """Добавляет взаимодействие в контекст"""
         self.context_manager.add_interaction(user_message, assistant_message)
     
-    def get_context_stats(self) -> Dict[str, Any]:
-        """Получает статистику контекста"""
-        return self.context_manager.get_stats()
-    
-    def save_context_state(self):
-        """Сохраняет состояние контекста"""
-        return self.context_manager.save_state()
-    
-    def cleanup_context(self):
-        """Очищает контекст при удалении диалога"""
-        from services.context.factory import ContextManagerFactory
-        ContextManagerFactory.remove_for_dialog(self.id)
-        self._context_manager_ref = None
-    
     # ========== ОСНОВНЫЕ МЕТОДЫ С КЭШИРОВАНИЕМ ==========
     
     def to_ui_format(self) -> List[Dict[str, str]]:
@@ -176,35 +162,6 @@ class Dialog(BaseModel):
         """Открепляет диалог (НЕ инвалидирует кэш)"""
         self.pinned = False
         self.pinned_position = None
-    
-    # ========== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ==========
-    
-    def get_last_message(self) -> Optional[Message]:
-        """Получает последнее сообщение в диалоге"""
-        if self.history:
-            return self.history[-1]
-        return None
-    
-    def get_message_count(self) -> int:
-        """Получает количество сообщений"""
-        return len(self.history)
-    
-    def is_cache_valid(self) -> bool:
-        """Проверяет, действителен ли кэш"""
-        if self._cached_ui_format is None or self._history_hash is None:
-            return False
-        
-        current_hash = self._calculate_history_hash()
-        return self._history_hash == current_hash
-    
-    def get_cache_info(self) -> Dict[str, Any]:
-        """Возвращает информацию о кэше для отладки"""
-        return {
-            "cached": self._cached_ui_format is not None,
-            "hash_valid": self.is_cache_valid(),
-            "history_length": len(self.history),
-            "cache_size": len(self._cached_ui_format) if self._cached_ui_format else 0
-        }
     
     # ========== МЕТОДЫ СЕРИАЛИЗАЦИИ ==========
     

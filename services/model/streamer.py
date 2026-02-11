@@ -188,15 +188,6 @@ class StreamManager(IStreamManager):
                 prompt += "<think>"
             return prompt
     
-    def interrupt_generation(self):
-        """Внешний метод для прерывания текущей генерации."""
-        if self._active_stop_event and not self._active_stop_event.is_set():
-            self._active_stop_event.set()
-    
-    def is_streaming_active(self) -> bool:
-        """Проверяет, активен ли стриминг"""
-        return self._streaming_active
-    
     def get_status(self) -> Dict[str, Any]:
         """Возвращает статус стриминга"""
         return {

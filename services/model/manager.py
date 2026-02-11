@@ -195,15 +195,3 @@ class ModelService:
     def is_initialized(self) -> bool:
         """Проверяет, инициализирована ли модель"""
         return self.lifecycle_manager.is_initialized()
-    
-    def interrupt_generation(self):
-        """Прерывает активную генерацию"""
-        self.stream_manager.interrupt_generation()
-    
-    def reload_model(self) -> bool:
-        """Перезагружает модель"""
-        return self.lifecycle_manager.reload()
-    
-    def cleanup(self):
-        """Очищает ресурсы модели"""
-        self.lifecycle_manager.cleanup()

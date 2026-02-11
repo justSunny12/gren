@@ -15,25 +15,6 @@ def format_history_for_model(history) -> List[Dict[str, str]]:
         for msg in history
     ]
 
-
-def format_history_for_ui(history_or_dialog: Union[List, Dialog]) -> List[Dict[str, str]]:
-    """
-    Форматирует историю для отображения в UI.
-    
-    Поддерживает как список сообщений, так и объект Dialog.
-    Если передан Dialog, использует его кэшированный метод to_ui_format().
-    """
-    # Если передан Dialog, используем его кэшированный метод
-    if isinstance(history_or_dialog, Dialog):
-        return history_or_dialog.to_ui_format()
-    
-    # Иначе считаем, что передан список сообщений и форматируем вручную
-    return [
-        {"role": msg.role.value, "content": msg.content}
-        for msg in history_or_dialog
-    ]
-
-
 def clean_text_for_name(text: str, max_word_length: int = 30) -> str:
     """Очищает текст для использования в названии чата"""
     # Убираем лишние пробелы

@@ -5,17 +5,15 @@
 import asyncio
 import threading
 import time
-from typing import List, Dict, Any, Optional, Callable
+from typing import Dict, Any, Optional
 from dataclasses import dataclass
-import json
 from datetime import datetime
-import gc
 import re
 import os
 
 import mlx.core as mx
 import mlx.nn as nn
-from mlx_lm import load, generate, utils as mlx_utils
+from mlx_lm import load, generate
 from mlx_lm.sample_utils import make_sampler, make_logits_processors
 
 from container import container
@@ -337,11 +335,6 @@ class BaseSummarizer:
         
         return response
     
-    async def summarize_batch(self, texts: List[str], **kwargs) -> List[SummaryResult]:
-        """Суммаризация батча текстов"""
-        tasks = [self.summarize(text, **kwargs) for text in texts]
-        return await asyncio.gather(*tasks)
-    
     def unload_model(self):
         """Выгружает модель из памяти"""
         with self._model_lock:
@@ -361,7 +354,6 @@ class L1Summarizer(BaseSummarizer):
         super().__init__(model_name, config)
         
         # Конфигурация L1
-        self.compression_target = config.get("l1_chunks", {}).get("compression_ratio", 12.0)
         self.max_input_length = config.get("l1_chunks", {}).get("max_char_limit", 2000)
     
     def _get_system_prompt(self, **kwargs) -> str:
@@ -427,7 +419,6 @@ class L2Summarizer(BaseSummarizer):
         super().__init__(model_name, config)
         
         # Конфигурация L2
-        self.compression_target = config.get("l2_summary", {}).get("compression_ratio", 30.0)
         self.max_input_length = config.get("l2_summary", {}).get("max_char_limit", 4000)
     
     def _get_system_prompt(self, **kwargs) -> str:
@@ -533,28 +524,6 @@ class SummarizerFactory:
         return results
     
     @classmethod
-    def get_l1_summarizer(cls, config: Dict[str, Any]) -> L1Summarizer:
-        """Получает или создает суммаризатор L1"""
-        key = "l1_summarizer"
-        
-        with cls._lock:
-            if key not in cls._instances:
-                cls._instances[key] = L1Summarizer(config)
-            
-            return cls._instances[key]
-    
-    @classmethod
-    def get_l2_summarizer(cls, config: Dict[str, Any]) -> L2Summarizer:
-        """Получает или создает суммаризатор L2"""
-        key = "l2_summarizer"
-        
-        with cls._lock:
-            if key not in cls._instances:
-                cls._instances[key] = L2Summarizer(config)
-            
-            return cls._instances[key]
-    
-    @classmethod
     def get_all_summarizers(cls, config: Dict[str, Any]) -> Dict[str, BaseSummarizer]:
         """Получает все суммаризаторы с поддержкой предзагрузки"""
         with cls._lock:
@@ -655,11 +624,6 @@ class SummarizerFactory:
     def is_preloaded(cls) -> bool:
         """Проверяет, были ли модели предзагружены"""
         return cls._preloaded
-    
-    @classmethod
-    def reset_preload_flag(cls):
-        """Сбрасывает флаг предзагрузки (для тестов)"""
-        cls._preloaded = False
     
     @classmethod
     def unload_all(cls):

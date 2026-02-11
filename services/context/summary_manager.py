@@ -294,45 +294,6 @@ class SummaryManager:
                 error=error_msg
             )
     
-    def wait_for_task(self, task_id: str, timeout: float = 30.0) -> Optional[SummaryResult]:
-        """Ожидает завершения задачи"""
-        start_time = time.time()
-        
-        while time.time() - start_time < timeout:
-            with self._lock:
-                if task_id in self._completed_tasks:
-                    return self._completed_tasks[task_id]
-                elif task_id in self._failed_tasks:
-                    return SummaryResult(
-                        summary="",
-                        original_length=0,
-                        summary_length=0,
-                        compression_ratio=1.0,
-                        processing_time=0.0,
-                        success=False,
-                        error=self._failed_tasks[task_id]
-                    )
-            
-            time.sleep(0.1)
-        
-        return None
-    
-    def cancel_task(self, task_id: str) -> bool:
-        """Отменяет задачу"""
-        with self._lock:
-            # Нельзя отменить выполняющуюся задачу
-            if task_id in self._running_tasks:
-                return False
-            
-            # Удаляем из очереди (сложно, но можно попробовать)
-            # Для простоты просто помечаем как отмененную
-            if task_id in self._completed_tasks:
-                del self._completed_tasks[task_id]
-            if task_id in self._failed_tasks:
-                del self._failed_tasks[task_id]
-            
-            return True
-    
     def get_stats(self) -> Dict[str, Any]:
         """Возвращает статистику менеджера"""
         with self._lock:
@@ -352,39 +313,4 @@ class SummaryManager:
                     "failed_tasks_dict": len(self._failed_tasks)
                 },
                 "summarizers": summarizer_stats
-            }
-    
-    def get_queue_info(self) -> Dict[str, Any]:
-        """Возвращает информацию об очереди задач"""
-        with self._lock:
-            # Создаем копию очереди для анализа
-            temp_queue = queue.PriorityQueue()
-            tasks_by_type = {"l1": 0, "l2": 0}
-            priorities = []
-            
-            # Копируем и анализируем очередь
-            while True:
-                try:
-                    priority, task = self._task_queue.get_nowait()
-                    temp_queue.put((priority, task))
-                    
-                    tasks_by_type[task.task_type] += 1
-                    priorities.append(-priority)  # Конвертируем обратно
-                except queue.Empty:
-                    break
-            
-            # Восстанавливаем очередь
-            while True:
-                try:
-                    priority, task = temp_queue.get_nowait()
-                    self._task_queue.put((priority, task))
-                except queue.Empty:
-                    break
-            
-            return {
-                "total_in_queue": sum(tasks_by_type.values()),
-                "by_type": tasks_by_type,
-                "avg_priority": sum(priorities) / len(priorities) if priorities else 0,
-                "min_priority": min(priorities) if priorities else 0,
-                "max_priority": max(priorities) if priorities else 0
             }

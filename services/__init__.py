@@ -12,9 +12,9 @@ from .chat.manager import ChatManager
 
 # Глобальный экземпляр будет создаваться в container.py
 __all__ = [
-    'ConfigService', 'config_service',
+    'ConfigService',
     'ModelService',
     'DialogManager',
     'ChatManager',
-    'UserConfigService', 'user_config_service',
+    'UserConfigService',
 ]

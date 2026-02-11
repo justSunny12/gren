@@ -47,37 +47,3 @@ class ContextManagerFactory:
                     manager.cleanup()
                 except:
                     pass
-    
-    @classmethod
-    def get_all_managers(cls) -> Dict[str, ContextManager]:
-        """Возвращает все менеджеры контекста"""
-        with cls._lock:
-            return cls._instances.copy()
-    
-    @classmethod
-    def cleanup_all(cls):
-        """Очищает все менеджеры контекста"""
-        with cls._lock:
-            for dialog_id, manager in list(cls._instances.items()):
-                try:
-                    manager.cleanup()
-                except:
-                    pass
-                del cls._instances[dialog_id]
-    
-    @classmethod
-    def get_stats(cls) -> Dict[str, Any]:
-        """Возвращает статистику по всем менеджерам"""
-        with cls._lock:
-            stats = {
-                'total_managers': len(cls._instances),
-                'managers': {}
-            }
-            
-            for dialog_id, manager in cls._instances.items():
-                try:
-                    stats['managers'][dialog_id] = manager.get_stats()
-                except Exception as e:
-                    stats['managers'][dialog_id] = {'error': str(e)}
-            
-            return stats

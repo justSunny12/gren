@@ -106,31 +106,11 @@ class DialogOperations:
         return None
     
     @staticmethod
-    def update_dialog_timestamp(dialog_id: str, dialogs: Dict[str, Dialog],
-                               storage: DialogStorage) -> bool:
-        """Обновляет timestamp диалога"""
-        if dialog_id in dialogs:
-            dialogs[dialog_id].updated = datetime.now()
-            storage.save_dialog(dialogs[dialog_id])
-            return True
-        return False
-    
-    @staticmethod
     def add_message(dialog_id: str, role: MessageRole, content: str,
                    dialogs: Dict[str, Dialog], storage: DialogStorage) -> bool:
         """Добавляет сообщение в диалог"""
         if dialog_id in dialogs:
             dialogs[dialog_id].add_message(role, content)
-            storage.save_dialog(dialogs[dialog_id])
-            return True
-        return False
-    
-    @staticmethod
-    def clear_dialog(dialog_id: str, dialogs: Dict[str, Dialog],
-                    storage: DialogStorage) -> bool:
-        """Очищает историю диалога"""
-        if dialog_id in dialogs:
-            dialogs[dialog_id].clear_history()
             storage.save_dialog(dialogs[dialog_id])
             return True
         return False

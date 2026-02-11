@@ -95,33 +95,6 @@ class ModelLifecycleManager(IModelLifecycleManager):
         """Возвращает блокировку для генерации"""
         return self._generate_lock
     
-    def cleanup(self):
-        """Очищает ресурсы модели"""
-        try:
-            # Очищаем кэш MLX
-            if hasattr(mx, 'clear_cache'):
-                mx.clear_cache()
-            
-            # Освобождаем ссылки
-            self._model = None
-            self._tokenizer = None
-            self._initialized = False
-            
-            print("✅ Ресурсы модели очищены")
-            
-        except Exception as e:
-            print(f"⚠️ Ошибка при очистке ресурсов модели: {e}")
-    
-    def reload(self) -> bool:
-        """Перезагружает модель"""
-        try:
-            self.cleanup()
-            self._model, self._tokenizer, _ = self.initialize(force_reload=True)
-            return self._initialized
-        except Exception as e:
-            print(f"❌ Ошибка перезагрузки модели: {e}")
-            return False
-    
     def get_status(self) -> Dict[str, Any]:
         """Возвращает статус модели"""
         return {

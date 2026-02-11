@@ -51,11 +51,6 @@ class ConfigService:
         """Получает стандартную конфигурацию"""
         return self.load_default_config()
     
-    def get_context_config(self) -> Dict[str, Any]:
-        """Получает конфигурацию контекста"""
-        config = self.get_config()
-        return config.get("context", {})
-    
     def get_config(self) -> Dict[str, Any]:
         """Получает объединенную конфигурацию"""
         if self._merged_config is not None:
@@ -121,15 +116,6 @@ class ConfigService:
             print(f"⚠️ Ошибка обновления настроек: {e}")
             return False
     
-    def get_user_settings(self) -> Dict[str, Any]:
-        """Получает текущие пользовательские настройки"""
-        try:
-            from services.user_config_service import user_config_service
-            user_config = user_config_service.get_user_config()
-            return user_config.to_dict()
-        except Exception:
-            return {}
-    
     def reset_user_settings(self) -> bool:
         """Сбрасывает пользовательские настройки"""
         try:
@@ -143,11 +129,6 @@ class ConfigService:
             
         except Exception:
             return False
-    
-    def reload(self) -> Dict[str, Any]:
-        """Перезагружает конфигурацию"""
-        self._merged_config = None
-        return self.get_config()
 
 # Глобальный экземпляр конфиг сервиса
 config_service = ConfigService()

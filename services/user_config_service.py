@@ -1,6 +1,5 @@
 # /services/user_config_service.py
 import os
-import json
 import yaml
 from typing import Dict, Any, Optional
 from models.user_config_models import UserConfig
@@ -61,19 +60,6 @@ class UserConfigService:
         except Exception:
             return False
     
-    def update_user_setting(self, section: str, key: str, value: Any) -> bool:
-        """Обновляет конкретную настройку пользователя"""
-        # Загружаем текущую конфигурацию
-        user_config = self.get_user_config()
-        
-        # Обновляем нужную настройку
-        if section == "generation":
-            if hasattr(user_config.generation, key):
-                setattr(user_config.generation, key, value)
-        
-        # Сохраняем
-        return self.save_user_config(user_config)
-    
     def get_user_config(self) -> UserConfig:
         """Получает пользовательскую конфигурацию (загружает если нужно)"""
         if self._user_config is None:
@@ -81,22 +67,6 @@ class UserConfigService:
             if config is None:
                 self._user_config = UserConfig()
         return self._user_config
-    
-    def merge_with_defaults(self, user_config: UserConfig, default_config: Dict[str, Any]) -> Dict[str, Any]:
-        """Объединяет пользовательские настройки со стандартными"""
-        result = default_config.copy()
-        
-        # Объединяем настройки генерации
-        if user_config.generation.max_tokens is not None:
-            result.setdefault("generation", {})["default_max_tokens"] = user_config.generation.max_tokens
-        
-        if user_config.generation.temperature is not None:
-            result.setdefault("generation", {})["default_temperature"] = user_config.generation.temperature
-        
-        if user_config.generation.enable_thinking is not None:
-            result.setdefault("generation", {})["default_enable_thinking"] = user_config.generation.enable_thinking
-        
-        return result
     
     def reset_to_defaults(self) -> bool:
         """Сбрасывает пользовательские настройки к стандартным"""

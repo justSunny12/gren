@@ -3,7 +3,6 @@
 Заменяет старый dialog_service.py
 """
 from typing import Dict, Optional, List, Any
-from datetime import datetime
 from models.dialog import Dialog
 from models.enums import MessageRole
 from .storage import DialogStorage
@@ -137,25 +136,11 @@ class DialogManager:
             current_dialog_id=self.current_dialog_id
         )
     
-    def update_dialog_timestamp(self, dialog_id: str) -> bool:
-        return self.operations.update_dialog_timestamp(
-            dialog_id=dialog_id,
-            dialogs=self.dialogs,
-            storage=self.storage
-        )
-    
     def add_message(self, dialog_id: str, role: MessageRole, content: str) -> bool:
         return self.operations.add_message(
             dialog_id=dialog_id,
             role=role,
             content=content,
-            dialogs=self.dialogs,
-            storage=self.storage
-        )
-    
-    def clear_dialog(self, dialog_id: str) -> bool:
-        return self.operations.clear_dialog(
-            dialog_id=dialog_id,
             dialogs=self.dialogs,
             storage=self.storage
         )

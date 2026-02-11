@@ -9,8 +9,6 @@ class GenerationParameters:
     
     def __init__(self, config: dict):
         self.config = config
-        # УБИРАЕМ thinking_config - он больше не нужен
-        # Все параметры берутся из основного конфига
     
     def get_generation_parameters(
         self,
@@ -50,20 +48,4 @@ class GenerationParameters:
             "repetition_penalty": final_repetition_penalty,
             "top_k": final_top_k,
             "enable_thinking": use_thinking  # ← Только этот флаг!
-        }
-    
-    def get_ui_parameters_range(self) -> Dict[str, tuple]:
-        """Возвращает диапазоны параметров для UI"""
-        return {
-            "max_tokens": (
-                self.config.get("min_max_tokens", 64),
-                self.config.get("max_max_tokens", 2048)
-            ),
-            "temperature": (
-                self.config.get("min_temperature", 0.1),
-                self.config.get("max_temperature", 1.5)
-            ),
-            "top_p": (0.1, 1.0),
-            "repetition_penalty": (1.0, 2.0),
-            "top_k": (1, 100)
         }

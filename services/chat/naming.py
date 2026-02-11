@@ -29,47 +29,6 @@ def generate_simple_name(prompt: str, config: dict) -> str:
     
     return name
 
-
-def validate_chat_name(name: str, config: dict) -> Tuple[bool, str]:
-    """Валидирует название чата"""
-    if not name:
-        return False, "Название не может быть пустым"
-    
-    name = name.strip()
-    chat_naming_config = config.get("chat_naming", {})
-    name_validation = chat_naming_config.get("name_validation", {})
-    
-    # Проверка минимальной длины
-    min_length = chat_naming_config.get("min_name_length", 1)
-    if len(name) < min_length:
-        return False, f"Название должно быть не короче {min_length} символа"
-    
-    # Проверка на только пробелы
-    if not name_validation.get("allow_whitespace_only", True) and name.isspace():
-        return False, "Название не может состоять только из пробелов"
-    
-    # Проверка максимальной длины
-    max_length = chat_naming_config.get("max_name_length", 50)
-    if len(name) > max_length:
-        return False, f"Название не должно превышать {max_length} символов"
-    
-    # Проверка на специальные символы
-    if not name_validation.get("allow_special_chars", True):
-        if re.search(r'[^\w\sА-Яа-яЁё\-.,!?]', name):
-            return False, "Название содержит запрещенные символы"
-    
-    # Проверка процента специальных символов
-    max_special_percent = name_validation.get("max_special_chars_percent", 30)
-    if max_special_percent < 100:
-        special_chars = re.findall(r'[^\w\sА-Яа-яЁё]', name)
-        if special_chars:
-            special_percent = (len(special_chars) / len(name)) * 100
-            if special_percent > max_special_percent:
-                return False, f"Слишком много специальных символов ({special_percent:.0f}%)"
-    
-    return True, ""
-
-
 def is_default_name(name: str, config: dict) -> bool:
     """Проверяет, является ли название стандартным"""
     if not name:

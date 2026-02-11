@@ -3,16 +3,15 @@
 Менеджер контекста диалога с многоуровневой суммаризацией
 """
 import asyncio
-import threading
 import json
 import os
-from typing import List, Tuple, Optional, Dict, Any
+from typing import List, Dict, Any
 from dataclasses import dataclass
 from datetime import datetime
 from typing import List as TypingList
 
 from models.dialog import Dialog
-from models.context import DialogContextState, InteractionChunk, L2SummaryBlock, MessageInteraction, CumulativeContext, ChunkType
+from models.context import DialogContextState, InteractionChunk, L2SummaryBlock, CumulativeContext, ChunkType
 from models.enums import MessageRole
 from services.context.summary_manager import SummaryManager
 from services.context.utils import parse_text_to_interactions, group_interactions_into_chunks, format_interaction_for_summary, extract_message_indices_from_interactions
@@ -146,7 +145,7 @@ class ContextManager:
     def add_interaction(self, user_message: str, assistant_message: str):
         """Добавляет новое взаимодействие с правильной логикой проверки переполнения"""
         # Создаем взаимодействие
-        interaction = MessageInteraction(
+        interaction = SimpleInteraction(
             user_message=user_message,
             assistant_message=assistant_message,
             user_timestamp=datetime.now(),
@@ -416,13 +415,3 @@ class ContextManager:
         except Exception as e:
             print(f"❌ Ошибка загрузки состояния контекста: {e}")
             return False
-    
-    def get_stats(self) -> Dict[str, Any]:
-        """Возвращает статистику контекста"""
-        return self.state.get_stats()
-    
-    def cleanup(self):
-        """Очищает ресурсы менеджера контекста"""
-        if hasattr(self, 'summary_manager'):
-            self.summary_manager.stop()
-        self.save_state()
