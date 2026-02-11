@@ -351,6 +351,8 @@ class ContextManager:
     
     def get_context_for_generation(self) -> str:
         """Возвращает контекст для генерации с четким разделением уровней"""
+        if len(self.dialog.history) < 2:  # Если в диалоге меньше 2 сообщений (нет взаимодействий) — контекст пуст
+            return ""
         context_parts = []
         
         # Системное сообщение с инструкцией
