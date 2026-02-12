@@ -2,8 +2,8 @@
 from .base import BaseHandler
 
 class InitializationHandler(BaseHandler):
-    """Обработчик инициализации приложения"""
-    
+    """Обработчик инициализации приложения."""
+
     def init_app_handler(self):
         try:
             if not self.dialog_service.dialogs:
@@ -13,26 +13,17 @@ class InitializationHandler(BaseHandler):
 
             dialog = self.dialog_service.get_dialog(chat_id)
             history = dialog.to_ui_format() if dialog else []
-                
+
             # Инициализация — скролл в самый верх
             chat_list_data = self.get_chat_list_data(scroll_target='top')
-            
-            generation_config = self.config.get("generation", {})
-            max_tokens = generation_config.get("default_max_tokens", 512)
-            temperature = generation_config.get("default_temperature", 0.7)
 
-            # enable_thinking больше не возвращаем
-            return history, chat_id, max_tokens, temperature, chat_list_data
+            # Возвращаем только историю, текущий id и данные списка чатов
+            return history, chat_id, chat_list_data
 
         except Exception as e:
             print(f"❌ Ошибка в init_app_handler: {e}")
-            default_config = self.config_service.get_default_config()
-            generation_config = default_config.get("generation", {})
-            return [], None, \
-                   generation_config.get("default_max_tokens", 512), \
-                   generation_config.get("default_temperature", 0.7), \
-                   "[]"
-        
+            return [], None, "[]"
+
     def get_chat_list_data(self, scroll_target: str = 'none'):
         from .chat_list import ChatListHandler
         handler = ChatListHandler()

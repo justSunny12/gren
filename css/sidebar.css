@@ -1,32 +1,35 @@
 /* css/sidebar.css - Стили сайдбара */
 #sidebar_container {
     height: 100vh !important;
-    overflow-y: auto !important;
-    padding: 15px !important;
+    padding: 15px 15px 0 15px !important;
     background: rgb(249, 250, 251);
     min-width: 300px !important;
     max-width: 300px !important;
     flex-shrink: 0 !important;
     position: relative !important;
     z-index: 10 !important;
-    display: flex !important;
-    flex-direction: column !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;  /* скролл всего сайдбара при крайней необходимости */
 }
 
+/* Контейнер списка чатов – точная высота */
 .chat-list-container {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    height: 50vh;
+    width: 100% !important;
+    height: calc(100vh - 89px) !important; 
+    min-height: 200px !important;         
+    overflow-y: auto !important;          
+    overflow-x: hidden !important;
+    margin: 0 !important;
+    padding: 0 !important;
 }
 
 .chat-list {
-    flex: 1;
+    width: 100% !important;
     background: transparent;
     padding: 0 !important;
+    margin: 0 !important;
     border: none;
-    overflow-y: auto;
-    height: 100%;
 }
 
 /* Стили для разделителей групп */
@@ -43,9 +46,9 @@
 }
 
 /* Первый разделитель без отступа сверху */
-/* .chat-list > .group-divider:first-child {
+.chat-list > .group-divider:first-child {
     margin-top: 0;
-} */
+}
 
 .chat-item {
     padding: 8px 8px 8px 12px;
@@ -235,16 +238,14 @@
 .new-chat-btn {
     width: 100% !important;
     padding: 12px !important;
-    font-size: 15px !important;
-    font-weight: 600 !important;
+    font-size: 16px !important;
     border-radius: 32px !important;
     height: 48px !important;
-    margin-bottom: 0 !important;
+    margin-bottom: 10px !important;
     background-color: white;
     color: #111827;
-    box-shadow: 0 2 6px rgba(0, 0, 4, 0.08);
-    font-weight: normal !important;
-    font-size: 16px !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 4, 0.08);
+    display: block !important;
 }
 
 .new-chat-btn:hover {
@@ -391,65 +392,4 @@
     width: 100px;
     height: 20px;
     pointer-events: auto !important;
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-    #sidebar_container {
-        min-width: 280px !important;
-        width: 280px !important;
-        padding: 12px !important;
-    }
-    
-    .chat-list-container {
-        margin-bottom: 12px !important;
-    }
-    
-    .chat-item {
-        min-height: 32px;
-        padding: 6px 6px;
-    }
-    
-    .chat-item .chat-name {
-        font-size: 13px;
-    }
-    
-    .group-divider {
-        font-size: 10px;
-        padding: 5px 8px;
-        margin: 10px 0 5px 0;
-    }
-    
-    .chat-control {
-        width: 20px;
-        height: 20px;
-        margin-left: 6px;
-    }
-    
-    .chat-control::before {
-        font-size: 14px;
-    }
-    
-    .chat-context-menu {
-        min-width: 140px;
-        right: 6px;
-    }
-    
-    .chat-context-menu-item {
-        padding: 6px 10px;
-        font-size: 12px;
-    }
-    
-    .chat-context-menu-item .menu-icon {
-        width: 14px;
-        height: 14px;
-        font-size: 12px;
-    }
-    
-    .new-chat-btn {
-        padding: 10px !important;
-        font-size: 14px !important;
-        height: 44px !important;
-        margin-bottom: 12px !important; /* Уменьшаем для мобильных */
-    }
 }

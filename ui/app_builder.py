@@ -4,12 +4,11 @@ from ui.layouts.main_layout import create_main_layout
 from ui.events import EventBinder
 
 def create_app():
-    """Создает приложение с привязанными событиями"""
-    
+    """Создаёт приложение с привязанными событиями."""
     with gr.Blocks(title="Gren Chat", fill_width=True) as demo:
         current_dialog_id = gr.State(value=None)
-        
-        # Теперь получаем 8 значений
+
+        # Получаем компоненты из основного layout
         (
             sidebar_components,
             chatbot,
@@ -21,20 +20,21 @@ def create_app():
             search_btn,
             settings_btn
         ) = create_main_layout()
-        
+
+        # Из сайдбара забираем нужные компоненты
+        create_dialog_btn = sidebar_components["create_dialog_btn"]
+        chat_input = sidebar_components["chat_input"]
+        settings_data = sidebar_components["settings_data"]
+        js_trigger = sidebar_components["js_trigger"]
+        generation_js_trigger = sidebar_components["generation_js_trigger"]
+
         # Дополнительные компоненты
         chat_list_data = gr.Textbox(
             visible=False,
             elem_id="chat_list_data",
             interactive=False
         )
-        
-        js_trigger = gr.HTML(visible=False)
-        generation_js_trigger = gr.HTML(
-            visible=False,
-            elem_id="generation_js_trigger"
-        )
-        
+
         # Собираем все компоненты в словарь
         components = {
             "demo": demo,
@@ -44,17 +44,19 @@ def create_app():
             "submit_btn": submit_btn,
             "stop_btn": stop_btn,
             "attach_btn": attach_btn,
-            "thinking_btn": thinking_btn,      # <-- добавили
-            "search_btn": search_btn,          # <-- добавили
+            "thinking_btn": thinking_btn,
+            "search_btn": search_btn,
             "settings_btn": settings_btn,
+            "create_dialog_btn": create_dialog_btn,
+            "chat_input": chat_input,
+            "settings_data": settings_data,
             "chat_list_data": chat_list_data,
             "js_trigger": js_trigger,
             "generation_js_trigger": generation_js_trigger,
-            **sidebar_components
         }
-        
+
         # Привязываем события
         event_binder = EventBinder()
         event_binder.bind_all_events(demo, components, current_dialog_id)
-        
+
         return demo

@@ -1,14 +1,11 @@
 /* static/js/modules/utils.js - Вспомогательные функции */
-// Проверяем, что SELECTORS загружены
 if (!window.SELECTORS) {
     console.error('SELECTORS не определены! Загрузите selectors.js первым');
 }
 
-// Глобальные переменные (используем window для доступа из других файлов)
 window.activeContextMenu = null;
 window.lastChatClick = 0;
 
-// Вспомогательные функции
 window.debounce = function(func, wait) {
     let timeout;
     return function executedFunction(...args) {
@@ -23,21 +20,18 @@ window.debounce = function(func, wait) {
 
 window.closeAllContextMenus = function() {
     if (!window.SELECTORS) return;
-    
-    // Снимаем флаги со всех элементов
+
     document.querySelectorAll('.chat-item.context-menu-open').forEach(item => {
         item.classList.remove('context-menu-open');
     });
-    
-    // Закрываем все видимые меню
+
     document.querySelectorAll(`${window.SELECTORS.CONTEXT_MENU}.show`).forEach(menu => {
         menu.classList.remove('show');
         if (menu.parentNode) {
             menu.parentNode.removeChild(menu);
         }
     });
-    
-    // Также удаляем все меню, даже скрытые (на всякий случай)
+
     document.querySelectorAll(`${window.SELECTORS.CONTEXT_MENU}`).forEach(menu => {
         if (menu.parentNode) {
             menu.parentNode.removeChild(menu);
@@ -47,7 +41,6 @@ window.closeAllContextMenus = function() {
 
 window.getChatInputField = function() {
     if (!window.SELECTORS) return null;
-    
     const targetDiv = document.getElementById(window.SELECTORS.CHAT_INPUT_FIELD.replace('#', ''));
     return targetDiv ? targetDiv.querySelector('textarea') : null;
 };
@@ -64,7 +57,6 @@ window.loadScript = function(src, callback) {
         if (callback) callback();
         return;
     }
-    
     const script = document.createElement('script');
     script.src = src;
     script.onload = function() {
@@ -77,13 +69,31 @@ window.loadScript = function(src, callback) {
     document.head.appendChild(script);
 };
 
+// НОВАЯ ФУНКЦИЯ: унифицированная отправка команд
+window.sendCommand = function(command) {
+    const chatInput = window.getChatInputField();
+    if (!chatInput) {
+        console.error('Не найдено поле ввода для отправки команды');
+        return false;
+    }
+    chatInput.value = command;
+    chatInput.dispatchEvent(new Event('input', { bubbles: true }));
+    // Очищаем поле после отправки (опционально, как в генерации)
+    setTimeout(() => {
+        chatInput.value = '';
+    }, 50);
+    return true;
+};
+
 // Инициализация при загрузке DOM
 document.addEventListener('DOMContentLoaded', function() {
-    // Загружаем модальные окна если они еще не загружены
     if (!window.deleteConfirmationModal) {
         window.loadScript('static/js/modules/delete-modal.js');
     }
     if (!window.renameChatModal) {
         window.loadScript('static/js/modules/rename-modal.js');
+    }
+    if (!window.settingsModal) {
+        window.loadScript('static/js/modules/settings-modal.js');
     }
 });

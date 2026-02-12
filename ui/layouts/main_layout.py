@@ -1,13 +1,13 @@
-# /ui/layouts/main_layout.py
+# ui/layouts/main_layout.py
 import gradio as gr
 
 def create_main_layout():
-    """Создает главный layout приложения"""
+    """Создаёт главный layout приложения (без параметров в сайдбаре)."""
     with gr.Row(elem_classes="main-row"):
         # Сайдбар
         from ui.layouts.sidebar_layout import create_sidebar_layout
         sidebar_components = create_sidebar_layout()
-        
+
         # Основное содержимое
         with gr.Column(elem_classes="main-content"):
             with gr.Column(elem_classes="chat-main-container"):
@@ -21,7 +21,7 @@ def create_main_layout():
                         elem_classes="chatbot",
                         container=True,
                     )
-                
+
                 # Область ввода
                 with gr.Column(elem_classes="input-plate"):
                     with gr.Row(elem_classes="input-row"):
@@ -35,7 +35,7 @@ def create_main_layout():
                             )
                             # Контейнер для кнопок
                             with gr.Row(elem_classes="generation-buttons-wrapper"):
-                                # ЛЕВАЯ ГРУППА — теперь с реальными кнопками
+                                # ЛЕВАЯ ГРУППА
                                 with gr.Row(elem_classes="left-buttons"):
                                     thinking_btn = gr.Button(
                                         "Глубокое мышление",
@@ -66,8 +66,8 @@ def create_main_layout():
                                         scale=1,
                                         visible=True
                                     )
-    
-    # Возвращаем все созданные кнопки (теперь их 5: thinking, search, attach, submit, stop)
+
+    # Возвращаем все созданные компоненты
     return (
         sidebar_components,
         chatbot,

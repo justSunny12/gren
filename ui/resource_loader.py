@@ -2,20 +2,20 @@
 import os
 
 class ResourceLoader:
-    """Загрузчик ресурсов (CSS, JS)"""
-    
+    """Загрузчик ресурсов (CSS, JS)."""
+
     @staticmethod
     def load_css():
-        """Загружает все CSS файлы из static/css/"""
+        """Загружает все CSS файлы из css/."""
         css_files = [
             'css/base.css',
-            'css/sidebar.css', 
+            'css/sidebar.css',
             'css/chat_window.css',
-            'css/input_area.css'
+            'css/input_area.css',
+            'css/modals.css'          # <-- добавлено
         ]
-        
+
         css_content = ""
-        
         for css_file in css_files:
             try:
                 if os.path.exists(css_file):
@@ -25,23 +25,24 @@ class ResourceLoader:
                     print(f"⚠️ CSS файл не найден: {css_file}")
             except Exception as e:
                 print(f"⚠️ Ошибка загрузки CSS файла {css_file}: {e}")
-        
+
         return css_content
-    
+
     @staticmethod
     def load_js():
-        """Загружает все JavaScript файлы"""
+        """Загружает все JavaScript файлы."""
         js_files = [
             'static/js/config/selectors.js',      # 1. Селекторы
             'static/js/modules/utils.js',         # 2. Утилиты
             'static/js/modules/delete-modal.js',  # 3. Модальное окно удаления
             'static/js/modules/rename-modal.js',  # 4. Модальное окно переименования
-            'static/js/modules/chat-list.js',     # 5. Список чатов
-            'static/js/modules/context-menu.js',  # 6. Контекстное меню
-            'static/js/modules/generation-control.js',  # 7. Управление кнопками генерации
-            'static/js/main.js'                   # 8. Основной код
+            'static/js/modules/settings-modal.js',# 5. Модальное окно настроек (НОВОЕ)
+            'static/js/modules/chat-list.js',     # 6. Список чатов
+            'static/js/modules/context-menu.js',  # 7. Контекстное меню
+            'static/js/modules/generation-control.js', # 8. Управление генерацией
+            'static/js/main.js'                  # 9. Основной код
         ]
-        
+
         js_content = ""
         for js_file in js_files:
             try:
@@ -52,11 +53,10 @@ class ResourceLoader:
                     print(f"⚠️ JS файл не найден: {js_file}")
             except Exception as e:
                 print(f"⚠️ Ошибка загрузки JS файла {js_file}: {e}")
-        
+
         js_code = f"""
         <script type="text/javascript">
         {js_content}
         </script>
         """
-        
         return js_code

@@ -1,10 +1,11 @@
 # handlers/commands.py
 import urllib.parse
+import json
 from .base import BaseHandler
 from services.user_config_service import user_config_service
 
 class CommandHandler(BaseHandler):
-    """Обработчик команд из чатов (удаление, переименование, закрепление, мышление)"""
+    """Обработчик команд из чатов (удаление, переименование, закрепление, мышление, настройки)"""
     
     def handle_chat_pinning(self, pin_command: str):
         try:
@@ -106,6 +107,65 @@ class CommandHandler(BaseHandler):
             return None, "", chat_list_data
         except Exception:
             return None, "", self.get_chat_list_data(scroll_target='none')
+    
+    def handle_settings_apply(self, command: str):
+        """
+        Формат: settings:apply:{"max_tokens":2048,"temperature":0.8}
+        """
+        try:
+            parts = command.split(':', 2)
+            if len(parts) != 3 or parts[0] != 'settings' or parts[1] != 'apply':
+                # Возвращаем текущее состояние без изменений
+                current_dialog = self.dialog_service.get_current_dialog()
+                history = current_dialog.to_ui_format() if current_dialog else []
+                chat_id = current_dialog.id if current_dialog else ""
+                return history, chat_id, self.get_chat_list_data(scroll_target='none')
+
+            settings_str = parts[2]
+            settings = json.loads(settings_str)
+
+            max_tokens = settings.get("max_tokens")
+            temperature = settings.get("temperature")
+
+            update_data = {}
+            if max_tokens is not None:
+                update_data["max_tokens"] = max_tokens
+            if temperature is not None:
+                update_data["temperature"] = temperature
+
+            if not update_data:
+                current_dialog = self.dialog_service.get_current_dialog()
+                history = current_dialog.to_ui_format() if current_dialog else []
+                chat_id = current_dialog.id if current_dialog else ""
+                return history, chat_id, self.get_chat_list_data(scroll_target='none')
+
+            success = self.config_service.update_user_settings_batch({
+                "generation": update_data
+            })
+
+            if success:
+                user_config_service.invalidate_cache()
+                self._config = None
+
+            # ВАЖНО: возвращаем текущий диалог без изменений
+            current_dialog = self.dialog_service.get_current_dialog()
+            if current_dialog:
+                history = current_dialog.to_ui_format()
+                chat_id = current_dialog.id
+            else:
+                history = []
+                chat_id = ""
+
+            chat_list_data = self.get_chat_list_data(scroll_target='none')
+            return history, chat_id, chat_list_data
+
+        except Exception as e:
+            print(f"❌ Ошибка в handle_settings_apply: {e}")
+            # При ошибке тоже возвращаем текущее состояние
+            current_dialog = self.dialog_service.get_current_dialog()
+            history = current_dialog.to_ui_format() if current_dialog else []
+            chat_id = current_dialog.id if current_dialog else ""
+            return history, chat_id, self.get_chat_list_data(scroll_target='none')
     
     def get_chat_list_data(self, scroll_target: str = 'none'):
         from .chat_list import ChatListHandler

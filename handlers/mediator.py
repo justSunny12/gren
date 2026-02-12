@@ -1,11 +1,12 @@
 # handlers/mediator.py
 from typing import Dict, Callable, Any
+import json
 
 class UIMediator:
     def __init__(self):
         self._handlers: Dict[str, Callable] = {}
         self._setup_default_handlers()
-    
+
     def _setup_default_handlers(self):
         from .commands import CommandHandler
         from .chat_operations import ChatOperationsHandler
@@ -23,15 +24,17 @@ class UIMediator:
         self.register("send_message_stream", self._message_handler.send_message_stream_handler)
         self.register("init_app", self._init_handler.init_app_handler)
         self.register("stop_generation", self._message_handler.stop_active_generation)
-    
+        # Новый обработчик для получения текущих настроек
+        self.register("get_current_settings", self._get_current_settings_handler)
+
     def register(self, event_type: str, handler: Callable):
         self._handlers[event_type] = handler
-    
+
     def dispatch(self, event_type: str, *args, **kwargs) -> Any:
         if event_type not in self._handlers:
             raise ValueError(f"Обработчик не найден для события: {event_type}")
         return self._handlers[event_type](*args, **kwargs)
-    
+
     def _handle_chat_selection(self, chat_id: str):
         if not chat_id:
             return [], "", self._chat_list_handler.get_chat_list_data()
@@ -48,26 +51,68 @@ class UIMediator:
                 history = current_dialog.to_ui_format() if current_dialog else []
                 new_id = current_dialog.id if current_dialog else ""
             return history, new_id, chat_list_data
+        elif chat_id.startswith('settings:apply:'):
+            return self._command_handler.handle_settings_apply(chat_id)
         else:
             return self._chat_ops_handler.handle_chat_switch(chat_id)
-    
+
+    def _get_current_settings_handler(self):
+        from container import container
+        from services.user_config_service import user_config_service
+
+        config_service = container.get("config_service")
+        
+        # 1. Получаем исходный (не смерженный) дефолтный конфиг
+        default_config = config_service.get_default_config()
+        gen_defaults = default_config.get("generation", {})
+
+        # 2. Получаем пользовательские настройки
+        user_config = user_config_service.get_user_config(force_reload=True)
+
+        # 3. Текущие значения: если пользовательские не заданы, берём из дефолтного конфига
+        current_max_tokens = user_config.generation.max_tokens
+        if current_max_tokens is None:
+            current_max_tokens = gen_defaults.get("default_max_tokens", 2048)
+
+        current_temperature = user_config.generation.temperature
+        if current_temperature is None:
+            current_temperature = gen_defaults.get("default_temperature", 0.7)
+
+        # 4. Диапазоны и шаги тоже берём из дефолтного конфига
+        data = {
+            "current_max_tokens": current_max_tokens,
+            "current_temperature": current_temperature,
+            "default_max_tokens": gen_defaults.get("default_max_tokens", 2048),   # ВАЖНО: из оригинального конфига!
+            "default_temperature": gen_defaults.get("default_temperature", 0.7), # ВАЖНО: из оригинального конфига!
+            "min_max_tokens": gen_defaults.get("min_max_tokens", 64),
+            "max_max_tokens": gen_defaults.get("max_max_tokens", 4096),
+            "step_max_tokens": 64,  # фиксировано в model_config.yaml (или можно вынести)
+            "min_temperature": gen_defaults.get("min_temperature", 0.1),
+            "max_temperature": gen_defaults.get("max_temperature", 1.5),
+            "step_temperature": 0.05  # фиксировано
+        }
+        return json.dumps(data, ensure_ascii=False)
+
     def get_chat_list_data(self):
         return self.dispatch("get_chat_list_data")
-    
+
     def handle_chat_selection(self, chat_id: str):
         return self.dispatch("handle_chat_selection", chat_id)
-    
+
     def create_chat_with_js_handler(self):
         return self.dispatch("create_chat")
-    
+
     async def send_message_stream_handler(self, prompt, chat_id, max_tokens, temperature):
         async for result in self.dispatch("send_message_stream", prompt, chat_id, max_tokens, temperature):
             yield result
-    
+
     def init_app_handler(self):
         return self.dispatch("init_app")
-    
+
     def stop_active_generation(self):
         return self.dispatch("stop_generation")
+
+    def get_current_settings(self):
+        return self.dispatch("get_current_settings")
 
 ui_handlers = UIMediator()

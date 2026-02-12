@@ -2,6 +2,8 @@
 import gradio as gr
 from handlers import ui_handlers
 import asyncio
+from container import container
+from services.user_config_service import user_config_service
 
 class MessageEvents:
     @staticmethod
@@ -9,7 +11,7 @@ class MessageEvents:
         if prompt and prompt.strip():
             return "", prompt
         return "", ""
-    
+
     @staticmethod
     def stop_generation():
         success = ui_handlers.stop_active_generation()
@@ -23,12 +25,27 @@ class MessageEvents:
             """
             return js_code
         return ""
-    
+
     @staticmethod
-    async def stream_response_only(saved_prompt, chat_id, max_tokens, temperature):
+    async def stream_response_only(saved_prompt, chat_id):
         if not saved_prompt or saved_prompt.strip() == "":
             yield [], chat_id or "", "[]", ""
             return
+
+        # Получаем актуальные настройки из конфига
+        config_service = container.get("config_service")
+        user_config = user_config_service.get_user_config(force_reload=True)
+
+        # Берём значения: если пользовательские не заданы, берём дефолтные из основного конфига
+        gen_config = config_service.get_config().get("generation", {})
+        max_tokens = user_config.generation.max_tokens
+        if max_tokens is None:
+            max_tokens = gen_config.get("default_max_tokens", 2048)
+
+        temperature = user_config.generation.temperature
+        if temperature is None:
+            temperature = gen_config.get("default_temperature", 0.7)
+
         try:
             async for history, _, dialog_id, chat_list_data, js_code in ui_handlers.send_message_stream_handler(
                 saved_prompt, chat_id, max_tokens, temperature
@@ -48,10 +65,9 @@ class MessageEvents:
                 yield [], "", "[]", ""
         except Exception:
             yield [], chat_id or "", "[]", ""
-    
+
     @staticmethod
     def bind_message_events(submit_btn, stop_btn, user_input, current_dialog_id, chatbot,
-                            max_tokens_slider, temperature_slider,
                             chat_list_data, generation_js_trigger):
         saved_prompt = gr.State()
         submit_btn.click(
@@ -60,7 +76,7 @@ class MessageEvents:
             outputs=[user_input, saved_prompt]
         ).then(
             fn=MessageEvents.stream_response_only,
-            inputs=[saved_prompt, current_dialog_id, max_tokens_slider, temperature_slider],
+            inputs=[saved_prompt, current_dialog_id],
             outputs=[chatbot, current_dialog_id, chat_list_data, generation_js_trigger]
         )
         stop_btn.click(
@@ -74,6 +90,6 @@ class MessageEvents:
             outputs=[user_input, saved_prompt]
         ).then(
             fn=MessageEvents.stream_response_only,
-            inputs=[saved_prompt, current_dialog_id, max_tokens_slider, temperature_slider],
+            inputs=[saved_prompt, current_dialog_id],
             outputs=[chatbot, current_dialog_id, chat_list_data, generation_js_trigger]
         )
