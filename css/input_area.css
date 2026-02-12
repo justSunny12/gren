@@ -1,4 +1,8 @@
 /* input_area.css - ФИКС ДЛЯ КРУГЛОЙ КНОПКИ */
+
+/* ============================ КОНТЕЙНЕРЫ ============================ */
+
+/* прозрачный контейнер блока*/
 .input-plate {
     flex-shrink: 0 !important;
     height: 150px !important;
@@ -18,15 +22,12 @@
     box-shadow: 0px 2px 8px rgba(0, 0, 0, 0.08) !important;
 }
 
-.generating {
-    border-radius: 26px;
-    border-color: #4363f5 !important;
-}
-
+/* родительский контейнер области ввода и кнопок*/
 .input-container {
     height: 100% !important;
 }
 
+/* внешний контейнер области ввода */
 .input-row {
     display: flex !important;
     align-items: stretch !important;
@@ -42,14 +43,13 @@
     position: relative !important;
 }
 
-.chat-input {
-    padding: 0 !important;
-    margin: 0 !important;
-    flex: 1 !important;
-    display: flex !important;
-    align-items: stretch !important;
+/* настраиваем текст для всех вложенных объектов */
+.input-row > * {
+    line-height: normal !important;
+    font-size: 14px !important;
 }
 
+/* внутренний контейнер области ввода */
 .chat-input-wrapper {
     flex: 1 !important;
     height: 100% !important;
@@ -64,28 +64,16 @@
     overflow: hidden !important;
 }
 
-/* УБИРАЕМ ВСЕ внутренние обертки Gradio */
-.chat-input-wrapper > div,
-.chat-input-wrapper > .gr-textbox,
-.chat-input-wrapper > .wrap,
-.chat-input-wrapper > .wrap.s,
-.chat-input-wrapper > .block.chat_input,
-.chat-input-wrapper > * {
-    margin: 0 !important;
+/* область ввода */
+.chat-input {
     padding: 0 !important;
-    border: none !important;
-    background: transparent !important;
-    width: 100% !important;
-    height: 100% !important;
+    margin: 0 !important;
+    flex: 1 !important;
     display: flex !important;
     align-items: stretch !important;
-    justify-content: stretch !important;
-    box-sizing: border-box !important;
-    overflow: hidden !important;
-    flex: 1 !important;
 }
 
-/* Специфично для самого textarea */
+/* textarea */
 .chat-input-wrapper textarea {
     width: 100% !important;
     height: 100% !important;
@@ -109,9 +97,7 @@
     line-height: 1.5 !important;
 }
 
-/* --------------------------------------------------------- */
-/* generation-buttons-wrapper – растянут на всю ширину, приклеен к низу */
-/* --------------------------------------------------------- */
+/* контейнер элементов управления */
 .chat-input-wrapper .generation-buttons-wrapper {
     position: absolute !important;
     left: 0 !important;
@@ -130,14 +116,12 @@
     overflow: visible !important;
 }
 
-/* --------------------------------------------------------- */
-/* Левая и правая группы – внутренние flex-контейнеры        */
-/* --------------------------------------------------------- */
+/* контейнеры групп кнопок */
 .left-buttons,
 .right-buttons {
     display: flex !important;
     align-items: center !important;
-    gap: 8px !important;            /* единый отступ между кнопками в группе */
+    gap: 8px !important;
     height: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
@@ -148,15 +132,13 @@
     max-width: fit-content !important;
 }
 
-/* Правая группа по умолчанию прижимает свои кнопки к правому краю */
 .right-buttons {
     justify-content: flex-end !important;
     margin-left: auto !important;   /* дополнительная страховка */
 }
 
-/* --------------------------------------------------------- */
-/* Стили самих кнопок – больше никакого absolute!            */
-/* --------------------------------------------------------- */
+/* ============================ БАЗОВЫЕ КНОПКИ ============================ */
+
 .chat-input-wrapper .generation-buttons-wrapper button {
     width: 40px !important;
     height: 40px !important;
@@ -185,37 +167,6 @@
     background: rgb(242, 243, 244) !important;
 }
 
-/* КНОПКА ОТПРАВКИ (СИНЯЯ) */
-.chat-input-wrapper .generation-buttons-wrapper button.send-btn {
-    background: #4363f5 !important;
-    border: none !important;
-}
-
-.chat-input-wrapper .generation-buttons-wrapper button.send-btn:hover {
-    background: rgb(83, 117, 235) !important;
-}
-
-/* КНОПКА ОСТАНОВКИ (КРАСНАЯ) */
-.chat-input-wrapper .generation-buttons-wrapper button.stop-btn {
-    border: none !important;
-    background: rgb(227, 59, 47) !important;
-    display: none !important; /* Скрываем по умолчанию */
-}
-
-.chat-input-wrapper .generation-buttons-wrapper button.stop-btn:hover {
-    background: rgb(217, 68, 63) !important;
-}
-
-/* Когда активна кнопка остановки, показываем её, а кнопку отправки скрываем */
-.chat-input-wrapper .generation-buttons-wrapper button.stop-btn.active {
-    display: flex !important;
-}
-
-.chat-input-wrapper .generation-buttons-wrapper button.send-btn.hidden {
-    display: none !important;
-}
-
-/* СТИЛЬ ДЛЯ НЕАКТИВНОЙ КНОПКИ */
 .chat-input-wrapper .generation-buttons-wrapper button:disabled {
     cursor: not-allowed !important;
     transform: none !important;
@@ -225,13 +176,6 @@
     background: #4363f5 !important;
 }
 
-/* Стиль для SVG внутри неактивной кнопки */
-.chat-input-wrapper .generation-buttons-wrapper button:disabled svg {
-    color: rgba(255, 255, 255, 0.7) !important;
-    stroke: rgba(255, 255, 255, 0.7) !important;
-}
-
-/* ИКОНКА В КНОПКЕ */
 .chat-input-wrapper .generation-buttons-wrapper button svg {
     /* width: 20px !important;
     height: 20px !important;
@@ -247,16 +191,58 @@
     margin: 0 !important;
     color: #111827 !important;
     stroke: #111827 !important;
+    fill: none !important;
     pointer-events: none !important;
 }
 
-.chat-input-wrapper .generation-buttons-wrapper button.attach-btn {
+/* Стиль для SVG внутри неактивной кнопки */
+.chat-input-wrapper .generation-buttons-wrapper button:disabled svg {
+    color: rgba(255, 255, 255, 0.7) !important;
+    stroke: rgba(255, 255, 255, 0.7) !important;
+}
+
+/* ============================ КНОПКА ОТПРАВКИ ============================ */
+
+.chat-input-wrapper .generation-buttons-wrapper button.send-btn {
+    background: #4363f5 !important;
     border: none !important;
 }
 
-.chat-input-wrapper .generation-buttons-wrapper button.attach-btn:hover {
-    background: rgb(242, 243, 244) !important;
+.chat-input-wrapper .generation-buttons-wrapper button.send-btn svg {
+    stroke: #ffffff !important;
+    fill: none !important;
 }
+
+.chat-input-wrapper .generation-buttons-wrapper button.send-btn:hover {
+    background: rgb(83, 117, 235) !important;
+}
+
+.chat-input-wrapper .generation-buttons-wrapper button.send-btn.hidden {
+    display: none !important;
+}
+
+/* ============================ КНОПКА ОСТАНОВКИ ============================ */
+
+.chat-input-wrapper .generation-buttons-wrapper button.stop-btn {
+    border: none !important;
+    background: #4363f5 !important;
+    display: none !important; /* Скрываем по умолчанию */
+}
+
+.chat-input-wrapper .generation-buttons-wrapper button.stop-btn svg {
+    stroke: none !important;
+    fill: #ffffff !important;
+}
+
+.chat-input-wrapper .generation-buttons-wrapper button.stop-btn:hover {
+    background: rgb(83, 117, 235) !important;
+}
+
+.chat-input-wrapper .generation-buttons-wrapper button.stop-btn.active {
+    display: flex !important;
+}
+
+/* ============================ КНОПКИ МЫШЛЕНИЯ И ПОИСКА ============================ */
 
 .chat-input-wrapper .generation-buttons-wrapper button.thinking-btn {
     font-size: 15px !important;
@@ -265,14 +251,28 @@
     white-space: nowrap !important;
     width: fit-content !important;
     max-width: none !important;
-    color: #111827 !important;
     flex: 0 0 auto !important;
     padding: 0 12px !important;
 }
 
-/* .chat-input-wrapper .generation-buttons-wrapper button.thinking-btn:hover {
-    background: rgb(242, 243, 244) !important;
-} */
+.chat-input-wrapper .generation-buttons-wrapper button.thinking-btn.thinking-btn-active {
+    background: rgb(235, 241, 253) !important;
+    border-color: rgb(186, 199, 250) !important;
+    color: rgb(67, 99, 245) !important;
+}
+
+.chat-input-wrapper .generation-buttons-wrapper button.thinking-btn.thinking-btn-active svg {
+    stroke: rgb(67, 99, 245) !important;
+}
+
+.chat-input-wrapper .generation-buttons-wrapper button.thinking-btn svg,
+.chat-input-wrapper .generation-buttons-wrapper button.search-btn svg {
+    position: static !important;
+    transform: none !important;
+    margin-right: 6px !important;
+    display: inline-block !important;
+    vertical-align: middle !important;
+}
 
 .chat-input-wrapper .generation-buttons-wrapper button.search-btn {
     font-size: 15px !important;
@@ -286,13 +286,43 @@
     padding: 0 12px !important;
 }
 
-/* .chat-input-wrapper .generation-buttons-wrapper button.search-btn:hover {
-    background: rgb(242, 243, 244) !important;
-} */
+/* ============================ КНОПКА "ПРИКРЕПИТЬ" ============================ */
 
-/* .chat-input-wrapper .generation-buttons-wrapper button.settings-btn {
-    background: white !important;
-} */
+.chat-input-wrapper .generation-buttons-wrapper button.attach-btn {
+    border: none !important;
+}
+
+.chat-input-wrapper .generation-buttons-wrapper button.attach-btn svg {
+    stroke: none !important;
+    fill: #111827 !important;
+}
+
+.chat-input-wrapper .generation-buttons-wrapper button.attach-btn:hover {
+    background: rgb(242, 243, 244) !important;
+}
+
+/* ============================ БЛОК БОРЬБЫ С GRADIO ============================ */
+
+/* сброс и переопределение встроенных стилей Gradio */
+.chat-input-wrapper > div,
+.chat-input-wrapper > .gr-textbox,
+.chat-input-wrapper > .wrap,
+.chat-input-wrapper > .wrap.s,
+.chat-input-wrapper > .block.chat_input,
+.chat-input-wrapper > * {
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    background: transparent !important;
+    width: 100% !important;
+    height: 100% !important;
+    display: flex !important;
+    align-items: stretch !important;
+    justify-content: stretch !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    flex: 1 !important;
+}
 
 /* ФИКС ДЛЯ GRADIO COLUMN */
 .gr-column.chat-input-wrapper,
@@ -310,64 +340,10 @@ div[class*="chat-input-wrapper"] {
     position: relative !important; /* Для абсолютного позиционирования кнопки */
 }
 
-/* Убираем все псевдоэлементы которые могут создавать отступы */
-.gr-column::before,
-.gr-column::after,
-.gr-row::before,
-.gr-row::after,
-.wrap::before,
-.wrap::after {
-    content: none !important;
-    display: none !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    border: none !important;
-}
-
-/* ФИКС ДЛЯ ВЕРТИКАЛЬНЫХ ОТСТУПОВ В FLEXBOX */
-.chat-input-wrapper {
-    min-height: 0 !important;
-    max-height: 100% !important;
-}
-
-/* Если проблема осталась, попробуйте этот ядерный вариант */
-.input-row {
-    line-height: 0 !important;
-    font-size: 0 !important;
-}
-
-.input-row > * {
-    line-height: normal !important;
-    font-size: 14px !important;
-}
-
-/* Убираем все возможные флекс-пробелы */
-.input-row {
-    gap: 0 !important;
-    row-gap: 0 !important;
-    column-gap: 0 !important;
-}
-
-/* ДОПОЛНИТЕЛЬНАЯ ЗАЩИТА: Изоляция кнопки от flex-контейнеров */
-.input-plate,
+/* ДОПОЛНИТЕЛЬНАЯ ЗАЩИТА: Изоляция кнопки от flex-контейнеров - удалить, если не аффектит*/
+/* .input-plate,
 .input-row,
 .chat-input,
 .chat-input-wrapper {
     position: relative !important;
-}
-
-
-.chat-input-wrapper .generation-buttons-wrapper button.thinking-btn svg,
-.chat-input-wrapper .generation-buttons-wrapper button.search-btn svg {
-    position: static !important;
-    transform: none !important;
-    margin-right: 6px !important;
-    display: inline-block !important;
-    vertical-align: middle !important;
-}
-
-/* Для кнопок без текста можно оставить как есть, но добавим поворот attach-btn */
-/* .chat-input-wrapper .generation-buttons-wrapper button.attach-btn svg {
-    position: static !important;
-    transform: rotate(-45deg) !important;
 } */

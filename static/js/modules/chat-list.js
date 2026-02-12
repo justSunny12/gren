@@ -28,8 +28,6 @@ window.setActiveChatClass = function(chatId) {
  * @param {string} scrollTarget - 'top', 'today' или 'none'
  */
 window.renderChatList = function(chats, scrollTarget = 'none') {
-    // console.log('[renderChatList] Вход. scrollTarget аргумент:', scrollTarget);
-    
     if (!window.SELECTORS) return;
     
     const container = document.querySelector(window.SELECTORS.CHAT_LIST);
@@ -78,17 +76,14 @@ window.renderChatList = function(chats, scrollTarget = 'none') {
     
     // === УПРАВЛЕНИЕ СКРОЛЛОМ ===
     let target = scrollTarget;
-    // Приоритет у поля _scroll_target из данных (если есть)
     if (chats && typeof chats === 'object' && chats._scroll_target !== undefined) {
         target = chats._scroll_target;
-        // console.log('[renderChatList] Принято _scroll_target =', target);
     }
     
     if (target === 'top') {
         requestAnimationFrame(() => {
             const scrollContainer = document.querySelector('.chat-list');
             if (scrollContainer) {
-                // console.log('[renderChatList] Прокручиваем .chat-list вверх');
                 scrollContainer.scrollTop = 0;
             } else {
                 const fallback = document.querySelector(window.SELECTORS.CHAT_LIST);
@@ -102,24 +97,25 @@ window.renderChatList = function(chats, scrollTarget = 'none') {
             const scrollContainer = document.querySelector('.chat-list') || document.querySelector(window.SELECTORS.CHAT_LIST);
             if (!scrollContainer) return;
             
-            // Ищем заголовок группы "Сегодня"
             const todayHeader = Array.from(document.querySelectorAll('.group-divider')).find(
                 el => el.textContent.trim() === 'Сегодня'
             );
             
             if (todayHeader) {
                 todayHeader.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                // console.log('[renderChatList] Прокручиваем к заголовку "Сегодня"');
             } else {
-                // Если группы "Сегодня" нет, прокручиваем вверх
                 scrollContainer.scrollTop = 0;
-                // console.log('[renderChatList] Группа "Сегодня" не найдена, прокручиваем вверх');
             }
         });
-    } else {
-        // console.log('[renderChatList] Скролл НЕ выполнен');
     }
     // =======================================================
+    
+    // === ИНИЦИАЛИЗАЦИЯ СОСТОЯНИЯ КНОПКИ МЫШЛЕНИЯ ===
+    if (chats && typeof chats === 'object' && chats._thinking_state !== undefined) {
+        if (window.setThinkingButtonState) {
+            window.setThinkingButtonState(chats._thinking_state);
+        }
+    }
     
     // === ВИЗУАЛЬНОЕ ВЫДЕЛЕНИЕ АКТИВНОГО ЧАТА ===
     const activeChat = chatListData.find(chat => chat.is_current);

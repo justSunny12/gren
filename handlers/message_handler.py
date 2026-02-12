@@ -1,11 +1,11 @@
 # handlers/message_handler.py
 import threading
-from typing import AsyncGenerator, List, Optional, Tuple, Dict, Any
+from typing import AsyncGenerator, List, Optional, Tuple
 from .base import BaseHandler
+from services.user_config_service import user_config_service
+from models.enums import MessageRole
 
 class MessageHandler(BaseHandler):
-    """Обработчик сообщений с поддержкой асинхронного стриминга"""
-    
     def __init__(self):
         super().__init__()
         self._active_stop_event = None
@@ -25,42 +25,37 @@ class MessageHandler(BaseHandler):
         prompt: str,
         chat_id: Optional[str],
         max_tokens: Optional[int],
-        temperature: Optional[float],
-        enable_thinking: Optional[bool]
-    ) -> AsyncGenerator[Tuple[List[Dict], str, str, str, str], None]:
-        from models.enums import MessageRole
-                
+        temperature: Optional[float]
+    ) -> AsyncGenerator[Tuple[List[dict], str, str, str, str], None]:
         if not self._stream_lock.acquire(blocking=False):
             error_history = [{"role": MessageRole.ASSISTANT.value,
                             "content": "⚠️ Уже выполняется другая генерация. Подождите."}]
             js_code = "if (window.toggleGenerationButtons) { window.toggleGenerationButtons(false); }"
             yield error_history, "", chat_id or "", self.get_chat_list_data(scroll_target='today'), js_code
             return
-                
         try:
             if not chat_id:
                 chat_id = self.dialog_service.create_dialog()
-            
             self.dialog_service.add_message(chat_id, MessageRole.USER, prompt)
             dialog = self.dialog_service.get_dialog(chat_id)
             if not dialog:
-                raise ValueError(f"Диалог {chat_id} не найден после добавления сообщения")
-            
+                raise ValueError(f"Диалог {chat_id} не найден")
             history_with_user_message = list(dialog.to_ui_format())
             js_code = "if (window.toggleGenerationButtons) { window.toggleGenerationButtons(true); }"
             yield history_with_user_message, "", chat_id, self.get_chat_list_data(scroll_target='today'), js_code
-            
             stop_event = threading.Event()
             self._active_stop_event = stop_event
             self._active_dialog_id = chat_id
-            
             context = dialog.get_context_for_generation()
             messages_for_model = []
             if context:
                 messages_for_model.append({"role": "system", "content": context})
             for msg in dialog.history:
                 messages_for_model.append({"role": msg.role.value, "content": msg.content})
-            
+            user_config = user_config_service.get_user_config(force_reload=True)
+            enable_thinking = user_config.generation.enable_thinking
+            if enable_thinking is None:
+                enable_thinking = False
             async for result in self.chat_service.process_message_stream(
                 prompt=prompt,
                 dialog_id=chat_id,
@@ -71,10 +66,7 @@ class MessageHandler(BaseHandler):
                 messages_for_model=messages_for_model
             ):
                 yield result
-                            
-        except Exception as e:
-            import traceback
-            traceback.print_exc()
+        except Exception:
             try:
                 dialog = self.dialog_service.get_dialog(chat_id) if chat_id else None
                 history = dialog.to_ui_format() if dialog else []
@@ -82,7 +74,6 @@ class MessageHandler(BaseHandler):
                 history = []
             js_code = "if (window.toggleGenerationButtons) { window.toggleGenerationButtons(false); }"
             yield history, "", chat_id or "", self.get_chat_list_data(scroll_target='today'), js_code
-            
         finally:
             self._active_stop_event = None
             self._active_dialog_id = None

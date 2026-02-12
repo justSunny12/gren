@@ -3,21 +3,15 @@ import gradio as gr
 from container import container
 
 def create_sidebar_layout():
-    """Создает layout боковой панели с новым списком чатов"""
-    # Загружаем конфиг для диапазонов
     config = container.get_config()
     gen_config = config.get("generation", {})
-
     with gr.Column(scale=1, min_width=380, elem_id="sidebar_container"):
-        # 1. Кнопка создания нового чата
         create_dialog_btn = gr.Button(
             "➕ Новый чат",
             variant="primary",
             size="lg",
             elem_classes="new-chat-btn"
         )
-
-        # 2. Контейнер списка чатов
         gr.HTML("""
         <div class="chat-list-container">
             <div class="chat-list" id="chat_list">
@@ -27,8 +21,6 @@ def create_sidebar_layout():
             </div>
         </div>
         """)
-
-        # 3. Параметры модели (аккордеон)
         with gr.Accordion("⚙️ Параметры генерации", open=True, elem_classes="params-accordion") as params_accordion:
             max_tokens = gr.Slider(
                 minimum=gen_config.get("min_max_tokens", 64),
@@ -44,17 +36,8 @@ def create_sidebar_layout():
                 step=0.1,
                 label="Температура"
             )
-            enable_thinking = gr.Checkbox(
-                label="🧠 Глубокое размышление",
-                value=gen_config.get("default_enable_thinking", False),
-                info="Включает внутренние размышления модели"
-            )
-
-            # Кнопка сброса настроек
             with gr.Row():
                 reset_settings_btn = gr.Button("🔄 Сбросить к стандартным", variant="secondary", size="sm")
-
-        # Скрытое поле для передачи ID выбранного чата
         chat_input = gr.Textbox(
             elem_id="chat_input_field",
             label="",
@@ -65,24 +48,18 @@ def create_sidebar_layout():
             elem_classes="hidden-input",
             interactive=True
         )
-
-        # Скрытый триггер для JavaScript (старый)
         js_trigger = gr.HTML(visible=False)
-        
-        # НОВЫЙ: Специальный JS триггер для событий генерации
         generation_js_trigger = gr.HTML(
             visible=False,
             elem_id="generation_js_trigger"
         )
-
     return {
         "create_dialog_btn": create_dialog_btn,
         "max_tokens": max_tokens,
         "temperature": temperature,
-        "enable_thinking": enable_thinking,
         "reset_settings_btn": reset_settings_btn,
         "chat_input": chat_input,
         "js_trigger": js_trigger,
-        "generation_js_trigger": generation_js_trigger,  # <-- Новый триггер
+        "generation_js_trigger": generation_js_trigger,
         "params_accordion": params_accordion
     }

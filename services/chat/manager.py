@@ -1,9 +1,12 @@
 # services/chat/manager.py
-import asyncio
+"""
+Главный менеджер для координации всех компонентов чата
+"""
+
 import threading
 import traceback
 import re
-from typing import AsyncGenerator, List, Dict, Optional, Tuple, Any
+from typing import AsyncGenerator, List, Dict, Optional, Tuple
 
 from .core import validate_message, sanitize_user_input
 from .formatter import format_history_for_model
@@ -24,8 +27,62 @@ class ChatManager:
         user_message: str,
         assistant_message: str
     ) -> Optional[str]:
-        # ... (без изменений, скролл не затрагивает)
-        pass
+        """Асинхронно генерирует название чата через L2 суммаризатор (4B)."""
+        try:
+            config = self.operations.get_config()
+            naming_config = config.get("chat_naming", {})
+            if not naming_config.get("enabled", True):
+                return None
+
+            max_length = naming_config.get("max_name_length", 50)
+            
+            from services.context.summarizers import SummarizerFactory
+            summarizers = SummarizerFactory.get_all_summarizers(
+                config.get("context", {})
+            )
+            l2_summarizer = summarizers["l2"]
+
+            interaction_text = (
+                f"Пользователь: {user_message}\n"
+                f"Ассистент: {assistant_message}"
+            )
+
+            system_prompt = naming_config.get("system_prompt")
+            user_prompt = f"Диалог:\n{interaction_text}\n\nКраткое название:"
+
+            result = await l2_summarizer.summarize(
+                interaction_text,
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                max_tokens=naming_config.get("max_tokens", 50),
+                temperature=naming_config.get("temperature", 0.3),
+                top_p=naming_config.get("top_p", 0.9),
+                top_k=naming_config.get("top_k", 40),
+                repetition_penalty=naming_config.get("repetition_penalty", 1.1)
+            )
+
+            if not result.success:
+                print(f"⚠️ Не удалось сгенерировать название: {result.error}")
+                return None
+
+            # Постобработка
+            name = result.summary.strip()
+            if '\n' in name:
+                name = name.split('\n', 1)[0].strip()
+            name = re.sub(r'^(название|title|name|ответ|answer|assistant|ai):\s*', '', name, flags=re.IGNORECASE)
+            name = re.sub(r'^\[L[12]\s*Summary\]\s*', '', name)
+            name = name.strip('"\'`').strip()
+            if len(name) > max_length:
+                name = name[:max_length-3] + "..."
+            name = " ".join(name.splitlines())
+
+            return name if name else None
+
+        except Exception as e:
+            print(f"❌ Ошибка в _generate_chat_name: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
     
     def _get_chat_list_data(self, scroll_target: str = 'none') -> str:
         from handlers.chat_list import ChatListHandler
@@ -146,6 +203,18 @@ class ChatManager:
                 "content": f"⚠️ Ошибка: {str(e)[:100]}"
             })
             yield (error_history, "", dialog_id, self._get_chat_list_data('today'), "")
+            
+        except Exception as e:
+            print(f"❌ Ошибка в process_message_stream: {e}")
+            traceback.print_exc()
+            self._clear_cache(cache_key)
+            base_history = dialog.to_ui_format()
+            error_history = list(base_history)
+            error_history.append({
+                "role": MessageRole.ASSISTANT.value,
+                "content": f"⚠️ Ошибка: {str(e)[:100]}"
+            })
+            yield (error_history, "", dialog_id, self._get_chat_list_data(), "")
     
     def _get_cached_history(self, cache_key: str, base_history: List[Dict]) -> List[Dict]:
         if cache_key not in self._partial_update_cache:
