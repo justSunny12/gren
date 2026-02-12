@@ -22,10 +22,6 @@
     margin: 0 50px !important;
 }
 
-.char-window {
-    padding: 0 !important;
-}
-
 /* Главный контейнер чата */
 .chat-main-container {
     height: 100vh !important;
