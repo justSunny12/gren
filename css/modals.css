@@ -1,0 +1,262 @@
+/* css/modals.css - Единые стили для всех модальных окон */
+
+/* ========== Базовые стили всех модальных окон ========== */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    backdrop-filter: blur(4px);
+    animation: modal-fade-in 0.2s ease;
+}
+
+.modal-container {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    max-width: 90vw;
+    overflow: hidden;
+    animation: modal-slide-up 0.3s ease;
+}
+
+.modal-header {
+    padding: 24px 24px 16px 24px;
+}
+
+.modal-title {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #111827;
+}
+
+.modal-content {
+    padding: 0 24px 20px 24px;
+}
+
+.modal-footer {
+    padding: 0 24px 24px 24px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    background: white;
+}
+
+.modal-btn {
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s ease;
+    min-width: 80px;
+}
+
+.modal-btn.cancel {
+    background: #f3f4f6;
+    color: #374151;
+    border: 1px solid #d1d5db;
+}
+
+.modal-btn.cancel:hover {
+    background: #e5e7eb;
+    border-color: #9ca3af;
+}
+
+.modal-btn.confirm {
+    background: #3b82f6;
+    color: white;
+}
+
+.modal-btn.confirm:hover {
+    background: #2563eb;
+}
+
+.modal-btn.confirm:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
+}
+
+@keyframes modal-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes modal-slide-up {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ========== Специфичные стили для модалки удаления ========== */
+.delete-modal-container {
+    width: 400px;
+}
+
+.delete-modal-message {
+    color: #374151;
+    line-height: 1.5;
+    font-size: 15px;
+    margin: 0;
+}
+
+.delete-modal-btn.confirm {
+    background: #dc2626;
+}
+
+.delete-modal-btn.confirm:hover {
+    background: #b91c1c;
+}
+
+.rename-modal-container .modal-footer {
+    padding-top: 4px;    /* небольшой отступ сверху */
+    padding-bottom: 16px; /* было 24px */
+}
+
+/* ========== Специфичные стили для модалки переименования ========== */
+.rename-modal-container {
+    max-width: 420px;
+    min-width: 320px;
+    width: 100%;
+}
+
+.rename-input-container {
+    position: relative;
+    margin-bottom: 4px;
+}
+
+.rename-input-with-counter {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.rename-modal-input {
+    width: 100%;
+    padding: 9px 65px 9px 12px;
+    font-size: 14px;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 6px;
+    transition: all 0.12s ease;
+    box-sizing: border-box;
+    font-family: inherit;
+    line-height: 1.4;
+    height: 40px;
+    background: #fafafa;
+}
+
+.rename-modal-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    background: white;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.rename-modal-input.rename-input-error {
+    border-color: #dc2626;
+    background: white;
+}
+
+.rename-char-counter {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 11px;
+    color: #9ca3af;
+    background: transparent;
+    padding: 0 6px;
+    pointer-events: none;
+}
+
+.rename-char-counter.near-limit {
+    color: #f59e0b;
+    font-weight: 600;
+}
+
+.rename-char-counter.over-limit {
+    color: #dc2626;
+    font-weight: 600;
+}
+
+.rename-modal-message {
+    margin-top: 2px;
+    margin-bottom: 12px;
+    font-size: 12px;
+    min-height: 14px;
+    padding-left: 2px;
+}
+
+.rename-modal-message.error {
+    color: #dc2626;
+}
+
+/* ========== Стили для модалки настроек ========== */
+.gen-settings-modal-container {
+    width: 480px;
+    max-width: 95vw;
+}
+
+.gen-settings-section {
+    margin-bottom: 24px;
+}
+
+.gen-settings-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    font-size: 14px;
+    color: #374151;
+}
+
+.gen-settings-label span {
+    font-weight: 500;
+}
+
+.gen-settings-reset-btn {
+    background: none;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 12px;
+    color: #6b7280;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.gen-settings-reset-btn:hover {
+    background: #f3f4f6;
+    border-color: #9ca3af;
+    color: #111827;
+}
+
+.gen-settings-slider {
+    width: 100%;
+    margin: 10px 0;
+}
+
+.gen-settings-value {
+    font-size: 14px;
+    color: #111827;
+    font-weight: 500;
+    margin-left: 8px;
+}
+
+.gen-settings-hint {
+    font-size: 12px;
+    color: #6b7280;
+    margin-top: 4px;
+}
