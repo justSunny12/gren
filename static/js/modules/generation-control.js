@@ -226,34 +226,31 @@ function setupSearchButtonIcon() {
 
 /**
  * Устанавливает иконку для кнопки "Прикрепить файл" (attach-btn)
- * Иконка скрепки (lucide paperclip) повёрнута на -45 градусов.
- * Кнопка не содержит текста, поэтому полностью заменяем содержимое.
  */
 function setupAttachButtonIcon() {
-    const attachBtn = document.querySelector('.generation-buttons-wrapper .attach-btn');
-    if (!attachBtn) return;
-    if (attachBtn.querySelector('svg')) return;
+    const btn = document.querySelector('.generation-buttons-wrapper .attach-btn');
+    if (!btn) return;
+    if (btn.querySelector('svg.deepseek-attach-icon')) return; // проверка по классу
+
+    btn.innerHTML = '';
 
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-    svg.setAttribute('width', '20');
-    svg.setAttribute('height', '20');
-    svg.setAttribute('viewBox', '0 0 24 24');
-    svg.setAttribute('fill', 'none');
-    svg.setAttribute('stroke', 'currentColor');
-    svg.setAttribute('stroke-width', '2');
-    svg.setAttribute('stroke-linecap', 'round');
-    svg.setAttribute('stroke-linejoin', 'round');
-    svg.setAttribute('class', 'lucide lucide-paperclip-icon lucide-paperclip');
+    svg.setAttribute('version', '1.0');
+    svg.setAttribute('viewBox', '0 0 316 332');  // оригинальный viewBox
+    svg.setAttribute('width', '50');
+    svg.setAttribute('height', '50');
+    svg.setAttribute('fill', 'currentColor');
+    svg.setAttribute('stroke', 'none');  // важно: это fill-иконка, а не stroke
+    svg.classList.add('deepseek-attach-icon');  // уникальный класс для CSS
+    svg.style.setProperty('left', 'calc(50% + 1px)', 'important');
 
-    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    path.setAttribute('d', 'm16 6-8.414 8.586a2 2 0 0 0 2.829 2.829l8.414-8.586a4 4 0 1 0-5.657-5.657l-8.379 8.551a6 6 0 1 0 8.485 8.485l8.379-8.551');
+    // Ваш точный SVG-клон
+    svg.innerHTML = `
+        <path d="M136.7 114c-9.2 2.3-16 8-19.9 16.5-2.1 4.6-2.3 6.7-2.6 25.7-.2 11.4.1 23.7.7 27.3 3.3 21.7 21.4 36.7 42.5 35.2 13.1-.9 24.1-6.9 31-17 6.6-9.6 6.9-11.6 7.4-38.5l.4-24.2h-9l-.4 22.7c-.5 25.9-1.2 29.1-8 36.8-5.1 5.8-10.8 9.1-18.1 10.4-14.7 2.7-29.5-5.7-34.7-19.6-1.8-4.8-2-7.8-2-28.5 0-21.6.1-23.5 2.1-27.6 6.6-13.4 27.1-13.6 33.9-.1 1.8 3.5 2 5.9 2 26.2 0 21.1-.1 22.5-2 24.2-2.7 2.5-8 2.2-10.2-.6-1.6-1.8-1.8-4.4-1.8-19.5V146h-10v16.2c0 17.9.8 22.2 4.7 26.9 7.5 8.9 21.5 7.2 27.1-3.2 2.3-4.3 2.3-4.8 2-27.9-.3-22.4-.4-23.7-2.6-28-6.4-12.3-20.2-19-32.5-16"/>
+    `;
 
-    svg.appendChild(path);
-
-    // Полностью очищаем кнопку и вставляем SVG
-    attachBtn.innerHTML = '';
-    attachBtn.appendChild(svg);
+    btn.appendChild(svg);
 }
 
 // --- Функция обновления состояния кнопки отправки ---

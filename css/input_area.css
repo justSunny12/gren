@@ -247,7 +247,6 @@
     margin: 0 !important;
     color: #111827 !important;
     stroke: #111827 !important;
-    fill: none !important;
     pointer-events: none !important;
 }
 
@@ -368,7 +367,7 @@ div[class*="chat-input-wrapper"] {
 }
 
 /* Для кнопок без текста можно оставить как есть, но добавим поворот attach-btn */
-.chat-input-wrapper .generation-buttons-wrapper button.attach-btn svg {
+/* .chat-input-wrapper .generation-buttons-wrapper button.attach-btn svg {
     position: static !important;
     transform: rotate(-45deg) !important;
-}
+} */
