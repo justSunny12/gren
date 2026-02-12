@@ -22,7 +22,7 @@ def create_main_layout():
                         container=True,
                     )
                 
-                # Область ввода (с кнопками внутри)
+                # Область ввода
                 with gr.Column(elem_classes="input-plate"):
                     with gr.Row(elem_classes="input-row"):
                         with gr.Column(elem_classes="chat-input-wrapper"):
@@ -33,14 +33,49 @@ def create_main_layout():
                                 max_lines=4,
                                 scale=9
                             )
-                            # Контейнер для кнопок отправки и остановки
-                            # Обе кнопки видимы, но управляются через CSS
+                            # Контейнер для кнопок
                             with gr.Row(elem_classes="generation-buttons-wrapper"):
-                                 # Контейнер для будущих левых кнопок
-                                    gr.HTML('<div class="left-buttons"></div>', visible=False)  # скрыт, пока нет кнопок
-                                    # Контейнер для правых кнопок (отправка/стоп)
-                                    with gr.Row(elem_classes="right-buttons"):
-                                        submit_btn = gr.Button(elem_classes="send-btn", scale=1)
-                                        stop_btn = gr.Button(elem_classes="stop-btn", scale=1, visible=True)
-                                    
-                                    return sidebar_components, chatbot, user_input, submit_btn, stop_btn
+                                # ЛЕВАЯ ГРУППА — теперь с реальными кнопками
+                                with gr.Row(elem_classes="left-buttons"):
+                                    thinking_btn = gr.Button(
+                                        "Глубокое мышление",
+                                        elem_classes="thinking-btn",
+                                        scale=1
+                                    )
+                                    search_btn = gr.Button(
+                                        "Поиск",
+                                        elem_classes="search-btn",
+                                        scale=1
+                                    )
+                                    settings_btn = gr.Button(
+                                        elem_classes="settings-btn",
+                                        scale=1
+                                    )
+                                # ПРАВАЯ ГРУППА
+                                with gr.Row(elem_classes="right-buttons"):
+                                    attach_btn = gr.Button(
+                                        elem_classes="attach-btn",
+                                        scale=1
+                                    )
+                                    submit_btn = gr.Button(
+                                        elem_classes="send-btn",
+                                        scale=1
+                                    )
+                                    stop_btn = gr.Button(
+                                        elem_classes="stop-btn",
+                                        scale=1,
+                                        visible=True
+                                    )
+    
+    # Возвращаем все созданные кнопки (теперь их 5: thinking, search, attach, submit, stop)
+    return (
+        sidebar_components,
+        chatbot,
+        user_input,
+        submit_btn,
+        stop_btn,
+        attach_btn,
+        thinking_btn,
+        search_btn,
+        settings_btn
+    )

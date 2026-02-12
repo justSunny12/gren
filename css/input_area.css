@@ -15,7 +15,6 @@
     padding: 0 !important;
     overflow: hidden !important;
     position: relative !important;
-    /* НОВОЕ: Добавляем тень */
     box-shadow: 0px 2px 8px rgba(0, 0, 0, 0.08) !important;
 }
 
@@ -96,7 +95,7 @@
     resize: none !important;
     padding: 16px 60px 16px 18px !important;
     background: white !important;
-    border: 1px solid #e5e7eb !important;
+    border: 1px solid rgb(229,229,229) !important;
     border-radius: 26px !important;
     font-family: inherit !important;
     transition: all 0.2s ease !important;
@@ -144,6 +143,9 @@
     padding: 0 !important;
     border: none !important;
     background: transparent !important;
+    flex: 0 1 auto !important;      /* не растягиваться, но можно сжаться */
+    width: auto !important;
+    max-width: fit-content !important;
 }
 
 /* Правая группа по умолчанию прижимает свои кнопки к правому краю */
@@ -155,7 +157,7 @@
 /* --------------------------------------------------------- */
 /* Стили самих кнопок – больше никакого absolute!            */
 /* --------------------------------------------------------- */
-.generation-buttons-wrapper button {
+.chat-input-wrapper .generation-buttons-wrapper button {
     width: 40px !important;
     height: 40px !important;
     min-width: 40px !important;
@@ -163,10 +165,10 @@
     min-height: 40px !important;
     max-height: 40px !important;
     padding: 0 !important;
-    margin: 0 !important;           /* отступы заданы через gap у родителя */
-    border-radius: 50% !important;
-    border: none !important;
-    color: white !important;
+    margin: 0 !important;
+    border-radius: 20px !important;
+    border: 1px solid rgb(229, 229, 229) !important;
+    background-color: white;
     cursor: pointer !important;
     transition: all 0.2s ease !important;
     display: flex !important;
@@ -175,59 +177,62 @@
     font-size: 0 !important;
     line-height: 0 !important;
     flex-shrink: 0 !important;
-    /* position, top, left – удалены */
+    position: relative !important;
+    box-shadow: none !important;
+}
+
+.chat-input-wrapper .generation-buttons-wrapper button:hover {
+    background: rgb(242, 243, 244) !important;
 }
 
 /* КНОПКА ОТПРАВКИ (СИНЯЯ) */
-.generation-buttons-wrapper button.send-btn {
+.chat-input-wrapper .generation-buttons-wrapper button.send-btn {
     background: #4363f5 !important;
+    border: none !important;
 }
 
-.generation-buttons-wrapper button.send-btn:hover {
-    background: #0056b3 !important;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+.chat-input-wrapper .generation-buttons-wrapper button.send-btn:hover {
+    background: rgb(83, 117, 235) !important;
 }
 
 /* КНОПКА ОСТАНОВКИ (КРАСНАЯ) */
-.generation-buttons-wrapper button.stop-btn {
+.chat-input-wrapper .generation-buttons-wrapper button.stop-btn {
+    border: none !important;
     background: rgb(227, 59, 47) !important;
     display: none !important; /* Скрываем по умолчанию */
 }
 
-.generation-buttons-wrapper button.stop-btn:hover {
-    background: rgb(200, 40, 30) !important;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+.chat-input-wrapper .generation-buttons-wrapper button.stop-btn:hover {
+    background: rgb(217, 68, 63) !important;
 }
 
 /* Когда активна кнопка остановки, показываем её, а кнопку отправки скрываем */
-.generation-buttons-wrapper button.stop-btn.active {
+.chat-input-wrapper .generation-buttons-wrapper button.stop-btn.active {
     display: flex !important;
 }
 
-.generation-buttons-wrapper button.send-btn.hidden {
+.chat-input-wrapper .generation-buttons-wrapper button.send-btn.hidden {
     display: none !important;
 }
 
 /* СТИЛЬ ДЛЯ НЕАКТИВНОЙ КНОПКИ */
-.generation-buttons-wrapper button:disabled {
+.chat-input-wrapper .generation-buttons-wrapper button:disabled {
     cursor: not-allowed !important;
     transform: none !important;
-    box-shadow: none !important;
 }
 
-.generation-buttons-wrapper button:disabled:hover {
+.chat-input-wrapper .generation-buttons-wrapper button:disabled:hover {
     background: #4363f5 !important;
-    box-shadow: none !important;
 }
 
 /* Стиль для SVG внутри неактивной кнопки */
-.generation-buttons-wrapper button:disabled svg {
+.chat-input-wrapper .generation-buttons-wrapper button:disabled svg {
     color: rgba(255, 255, 255, 0.7) !important;
     stroke: rgba(255, 255, 255, 0.7) !important;
 }
 
 /* ИКОНКА В КНОПКЕ */
-.generation-buttons-wrapper button svg {
+.chat-input-wrapper .generation-buttons-wrapper button svg {
     width: 20px !important;
     height: 20px !important;
     min-width: 20px !important;
@@ -245,6 +250,50 @@
     fill: none !important;
     pointer-events: none !important;
 }
+
+.chat-input-wrapper .generation-buttons-wrapper button.attach-btn {
+    border: none !important;
+}
+
+.chat-input-wrapper .generation-buttons-wrapper button.attach-btn:hover {
+    background: rgb(242, 243, 244) !important;
+}
+
+.chat-input-wrapper .generation-buttons-wrapper button.thinking-btn {
+    font-size: 15px !important;
+    font-weight: normal !important;
+    line-height: 1.4 !important;
+    white-space: nowrap !important;
+    width: fit-content !important;
+    max-width: none !important;
+    color: #111827 !important;
+    flex: 0 0 auto !important;
+    padding: 0 12px !important;
+}
+
+/* .chat-input-wrapper .generation-buttons-wrapper button.thinking-btn:hover {
+    background: rgb(242, 243, 244) !important;
+} */
+
+.chat-input-wrapper .generation-buttons-wrapper button.search-btn {
+    font-size: 15px !important;
+    font-weight: normal !important;
+    line-height: 1.4 !important;
+    white-space: nowrap !important;
+    width: fit-content !important;
+    max-width: none !important;
+    color: #111827 !important;
+    flex: 0 0 auto !important;
+    padding: 0 12px !important;
+}
+
+/* .chat-input-wrapper .generation-buttons-wrapper button.search-btn:hover {
+    background: rgb(242, 243, 244) !important;
+} */
+
+/* .chat-input-wrapper .generation-buttons-wrapper button.settings-btn {
+    background: white !important;
+} */
 
 /* ФИКС ДЛЯ GRADIO COLUMN */
 .gr-column.chat-input-wrapper,

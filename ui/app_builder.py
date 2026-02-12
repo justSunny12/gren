@@ -4,13 +4,23 @@ from ui.layouts.main_layout import create_main_layout
 from ui.events import EventBinder
 
 def create_app():
-    """Создает приложение с привязанными событиями (всё в одном контексте)"""
+    """Создает приложение с привязанными событиями"""
     
-    with gr.Blocks(title="Qwen3-30B Chat", fill_width=True) as demo:
+    with gr.Blocks(title="Gren Chat", fill_width=True) as demo:
         current_dialog_id = gr.State(value=None)
         
-        # Создаем layout (теперь возвращаем 5 значений)
-        sidebar_components, chatbot, user_input, submit_btn, stop_btn = create_main_layout()
+        # Теперь получаем 8 значений
+        (
+            sidebar_components,
+            chatbot,
+            user_input,
+            submit_btn,
+            stop_btn,
+            attach_btn,
+            thinking_btn,
+            search_btn,
+            settings_btn
+        ) = create_main_layout()
         
         # Дополнительные компоненты
         chat_list_data = gr.Textbox(
@@ -20,8 +30,6 @@ def create_app():
         )
         
         js_trigger = gr.HTML(visible=False)
-        
-        # НОВЫЙ: Специальный триггер для JS событий генерации
         generation_js_trigger = gr.HTML(
             visible=False,
             elem_id="generation_js_trigger"
@@ -35,13 +43,17 @@ def create_app():
             "user_input": user_input,
             "submit_btn": submit_btn,
             "stop_btn": stop_btn,
+            "attach_btn": attach_btn,
+            "thinking_btn": thinking_btn,      # <-- добавили
+            "search_btn": search_btn,          # <-- добавили
+            "settings_btn": settings_btn,
             "chat_list_data": chat_list_data,
             "js_trigger": js_trigger,
-            "generation_js_trigger": generation_js_trigger,  # <-- Новый триггер
+            "generation_js_trigger": generation_js_trigger,
             **sidebar_components
         }
         
-        # Привязываем события ВНУТРИ контекста
+        # Привязываем события
         event_binder = EventBinder()
         event_binder.bind_all_events(demo, components, current_dialog_id)
         
