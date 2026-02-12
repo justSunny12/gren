@@ -110,61 +110,51 @@
     line-height: 1.5 !important;
 }
 
-/* КОНТЕЙНЕР ДЛЯ ОБЕИХ КНОПОК - АБСОЛЮТНОЕ ПОЗИЦИОНИРОВАНИЕ БЕЗ FLEX РАСТЯЖКИ */
-.generation-buttons-wrapper {
+/* --------------------------------------------------------- */
+/* generation-buttons-wrapper – растянут на всю ширину, приклеен к низу */
+/* --------------------------------------------------------- */
+.chat-input-wrapper .generation-buttons-wrapper {
     position: absolute !important;
-    right: 10px !important;
-    bottom: 10px !important;
-    width: 40px !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 10px !important;        /* отступ снизу */
     height: 40px !important;
-    min-width: 40px !important;
-    max-width: 40px !important;
     min-height: 40px !important;
     max-height: 40px !important;
-    flex: none !important;          /* ВАЖНО: отключаем flex растягивание */
-    flex-shrink: 0 !important;
-    flex-grow: 0 !important;
-    align-self: flex-end !important;
     box-sizing: border-box !important;
     margin: 0 !important;
-    padding: 0 !important;
-    display: block !important;      /* Меняем на block вместо flex */
-    overflow: hidden !important;
+    padding: 0 10px !important;     /* воздух по бокам */
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important; /* левая/правая группы */
     z-index: 10 !important;
+    overflow: visible !important;
 }
 
-/* ЯДЕРНЫЙ ХАК: Убираем ВСЕ flex свойства у всех оберток кнопки */
-.generation-buttons-wrapper,
-.generation-buttons-wrapper *,
-.generation-buttons-wrapper > div,
-.generation-buttons-wrapper > .gr-button,
-.generation-buttons-wrapper > .wrap,
-.generation-buttons-wrapper > .wrap.s,
-.generation-buttons-wrapper > .block,
-.generation-buttons-wrapper > .block > * {
-    display: block !important;
-    position: static !important;
-    flex: none !important;
-    flex-shrink: 0 !important;
-    flex-grow: 0 !important;
-    align-self: auto !important;
-    align-items: normal !important;
-    justify-content: normal !important;
+/* --------------------------------------------------------- */
+/* Левая и правая группы – внутренние flex-контейнеры        */
+/* --------------------------------------------------------- */
+.left-buttons,
+.right-buttons {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;            /* единый отступ между кнопками в группе */
+    height: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
     border: none !important;
     background: transparent !important;
-    width: 40px !important;
-    height: 40px !important;
-    min-width: 40px !important;
-    max-width: 40px !important;
-    min-height: 40px !important;
-    max-height: 40px !important;
-    box-sizing: border-box !important;
-    overflow: hidden !important;
 }
 
-/* КНОПКИ - КРУГЛЫЕ И ФИКСИРОВАННОГО РАЗМЕРА, ПОЗИЦИОНИРОВАНИЕ АБСОЛЮТНОЕ */
+/* Правая группа по умолчанию прижимает свои кнопки к правому краю */
+.right-buttons {
+    justify-content: flex-end !important;
+    margin-left: auto !important;   /* дополнительная страховка */
+}
+
+/* --------------------------------------------------------- */
+/* Стили самих кнопок – больше никакого absolute!            */
+/* --------------------------------------------------------- */
 .generation-buttons-wrapper button {
     width: 40px !important;
     height: 40px !important;
@@ -173,7 +163,7 @@
     min-height: 40px !important;
     max-height: 40px !important;
     padding: 0 !important;
-    margin: 0 !important;
+    margin: 0 !important;           /* отступы заданы через gap у родителя */
     border-radius: 50% !important;
     border: none !important;
     color: white !important;
@@ -182,12 +172,10 @@
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    font-size: 0 !important; /* Убираем любой текст */
+    font-size: 0 !important;
     line-height: 0 !important;
-    position: absolute !important;  /* Абсолютное позиционирование для наложения */
-    top: 0 !important;
-    left: 0 !important;
-    flex: none !important;
+    flex-shrink: 0 !important;
+    /* position, top, left – удалены */
 }
 
 /* КНОПКА ОТПРАВКИ (СИНЯЯ) */
@@ -242,36 +230,20 @@
 .generation-buttons-wrapper button svg {
     width: 20px !important;
     height: 20px !important;
-    stroke-width: 2.5px !important;
+    min-width: 20px !important;
+    min-height: 20px !important;
+    max-width: 20px !important;
+    max-height: 20px !important;
     display: block !important;
     position: absolute !important;
     top: 50% !important;
     left: 50% !important;
     transform: translate(-50%, -50%) !important;
     margin: 0 !important;
-}
-
-/* ЖЕСТКИЙ КОНТРОЛЬ РАЗМЕРА ИКОНКИ */
-.generation-buttons-wrapper button svg {
-    width: 20px !important;
-    height: 20px !important;
-    min-width: 20px !important;
-    min-height: 20px !important;
-    max-width: 20px !important;
-    max-height: 20px !important;
-    display: block !important;
     color: white !important;
     stroke: white !important;
     fill: none !important;
     pointer-events: none !important;
-}
-
-/* Также фиксируем размер всего что внутри кнопки */
-.generation-buttons-wrapper button * {
-    width: 12px !important;
-    height: 12px !important;
-    max-width: 12px !important;
-    max-height: 12px !important;
 }
 
 /* ФИКС ДЛЯ GRADIO COLUMN */
@@ -334,9 +306,4 @@ div[class*="chat-input-wrapper"] {
 .chat-input,
 .chat-input-wrapper {
     position: relative !important;
-}
-
-.generation-buttons-wrapper {
-    display: block !important;
-    position: absolute !important;
 }

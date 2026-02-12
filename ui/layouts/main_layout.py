@@ -35,15 +35,12 @@ def create_main_layout():
                             )
                             # Контейнер для кнопок отправки и остановки
                             # Обе кнопки видимы, но управляются через CSS
-                            with gr.Column(elem_classes="generation-buttons-wrapper"):
-                                submit_btn = gr.Button(
-                                    elem_classes="send-btn",
-                                    scale=1
-                                )
-                                stop_btn = gr.Button(
-                                    elem_classes="stop-btn",
-                                    scale=1,
-                                    visible=True  # ВАЖНО: делаем видимой
-                                )
-    
-    return sidebar_components, chatbot, user_input, submit_btn, stop_btn
+                            with gr.Row(elem_classes="generation-buttons-wrapper"):
+                                 # Контейнер для будущих левых кнопок
+                                    gr.HTML('<div class="left-buttons"></div>', visible=False)  # скрыт, пока нет кнопок
+                                    # Контейнер для правых кнопок (отправка/стоп)
+                                    with gr.Row(elem_classes="right-buttons"):
+                                        submit_btn = gr.Button(elem_classes="send-btn", scale=1)
+                                        stop_btn = gr.Button(elem_classes="stop-btn", scale=1, visible=True)
+                                    
+                                    return sidebar_components, chatbot, user_input, submit_btn, stop_btn
