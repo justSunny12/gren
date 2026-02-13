@@ -3,6 +3,7 @@
     height: 100vh !important;
     padding: 15px 15px 0 15px !important;
     background: rgb(249, 250, 251);
+    border-right: 1px solid rgb(239, 241, 241);
     min-width: 300px !important;
     max-width: 300px !important;
     flex-shrink: 0 !important;

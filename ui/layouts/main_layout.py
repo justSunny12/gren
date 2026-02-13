@@ -17,7 +17,7 @@ def create_main_layout():
                         label="",
                         show_label=False,
                         height=None,
-                        avatar_images=(None, "https://avatars.githubusercontent.com/u/1024"),
+                        avatar_images=(None, None),
                         elem_classes="chatbot",
                         container=True,
                     )
