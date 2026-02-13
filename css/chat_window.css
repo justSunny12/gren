@@ -3,13 +3,11 @@
     flex: 1 !important;
     min-height: 0 !important;
     overflow-y: auto !important;
-    padding: 0 !important;
+    /* padding: 0 10% !important; */
     border: none !important;
     border-radius: 0 !important;
     background: white !important;
     box-sizing: border-box !important;
-    width: 80% !important;
-    align-self: center !important;
 }
 
 /* Чатбот */
@@ -18,10 +16,16 @@
     flex-direction: column !important;
     gap: 12px !important;
     margin: 0 !important;
-    padding: 0 !important;
+    /* padding: 0 10% !important; */
     border: none !important;
+    /* width: 80% !important;
+    align-self: center; */
     background: transparent !important;
     height: 100%;
+}
+
+#chat_window > div {
+    padding: 0 10% !important;
 }
 
 /* Контейнеры сообщений */
@@ -171,4 +175,8 @@
     color: #666;
     padding: 2px 4px;
     font-weight: 300;
+}
+
+.chat-window-container::-webkit-scrollbar {
+    width: 6px !important;
 }
