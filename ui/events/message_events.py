@@ -28,15 +28,14 @@ class MessageEvents:
 
     @staticmethod
     async def stream_response_only(saved_prompt, chat_id):
+        global container  # указываем, что используем глобальный объект
         if not saved_prompt or saved_prompt.strip() == "":
             yield [], chat_id or "", "[]", ""
             return
 
-        # Получаем актуальные настройки из конфига
         config_service = container.get("config_service")
         user_config = user_config_service.get_user_config(force_reload=True)
 
-        # Берём значения: если пользовательские не заданы, берём дефолтные из основного конфига
         gen_config = config_service.get_config().get("generation", {})
         max_tokens = user_config.generation.max_tokens
         if max_tokens is None:
@@ -54,7 +53,6 @@ class MessageEvents:
         except asyncio.CancelledError:
             ui_handlers.stop_active_generation()
             try:
-                from container import container
                 dialog_service = container.get_dialog_service()
                 current_dialog = dialog_service.get_current_dialog()
                 history = current_dialog.to_ui_format() if current_dialog else []
