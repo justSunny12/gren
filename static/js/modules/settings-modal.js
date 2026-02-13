@@ -13,6 +13,26 @@ class SettingsModal {
         this.defaultMaxTokens = 2048;
         this.defaultTemperature = 0.7;
 
+        // Ссылки на DOM-элементы
+        this.maxTokensSlider = null;
+        this.temperatureSlider = null;
+        this.maxTokensValue = null;
+        this.temperatureValue = null;
+        this.resetMaxTokensBtn = null;
+        this.resetTemperatureBtn = null;
+        this.cancelBtn = null;
+        this.applyBtn = null;
+
+        // Обработчики (именованные, чтобы можно было удалить)
+        this.maxTokensInputHandler = null;
+        this.temperatureInputHandler = null;
+        this.resetMaxTokensHandler = null;
+        this.resetTemperatureHandler = null;
+        this.cancelHandler = null;
+        this.applyHandler = null;
+        this.overlayClickHandler = null;
+        this.escapeHandler = null;
+
         this.init();
     }
 
@@ -84,32 +104,39 @@ class SettingsModal {
         this.applyBtn = document.getElementById('applySettingsBtn');
     }
 
-    // Привязывает обработчики событий (удаляет старые, добавляет новые)
-    attachEvents() {
-        // Удаляем старые обработчики
-        if (this.maxTokensSlider) {
+    // Удаляет все ранее привязанные обработчики
+    detachEvents() {
+        if (this.maxTokensSlider && this.maxTokensInputHandler) {
             this.maxTokensSlider.removeEventListener('input', this.maxTokensInputHandler);
         }
-        if (this.temperatureSlider) {
+        if (this.temperatureSlider && this.temperatureInputHandler) {
             this.temperatureSlider.removeEventListener('input', this.temperatureInputHandler);
         }
-        if (this.resetMaxTokensBtn) {
+        if (this.resetMaxTokensBtn && this.resetMaxTokensHandler) {
             this.resetMaxTokensBtn.removeEventListener('click', this.resetMaxTokensHandler);
         }
-        if (this.resetTemperatureBtn) {
+        if (this.resetTemperatureBtn && this.resetTemperatureHandler) {
             this.resetTemperatureBtn.removeEventListener('click', this.resetTemperatureHandler);
         }
-        if (this.cancelBtn) {
+        if (this.cancelBtn && this.cancelHandler) {
             this.cancelBtn.removeEventListener('click', this.cancelHandler);
         }
-        if (this.applyBtn) {
+        if (this.applyBtn && this.applyHandler) {
             this.applyBtn.removeEventListener('click', this.applyHandler);
         }
-        if (this.modal) {
+        if (this.modal && this.overlayClickHandler) {
             this.modal.removeEventListener('click', this.overlayClickHandler);
         }
+        // EscapeHandler глобальный, удаляем только если он был добавлен
+        if (this.escapeHandler) {
+            document.removeEventListener('keydown', this.escapeHandler);
+            this.escapeHandler = null;
+        }
+    }
 
-        // Создаём новые обработчики с привязкой к this
+    // Создаёт и привязывает новые обработчики
+    attachEvents() {
+        // Создаём обработчики с привязкой к this
         this.maxTokensInputHandler = (e) => {
             this.maxTokensValue.textContent = e.target.value;
         };
@@ -117,12 +144,14 @@ class SettingsModal {
             this.temperatureValue.textContent = parseFloat(e.target.value).toFixed(2);
         };
         this.resetMaxTokensHandler = () => {
+            console.log('[SettingsModal] reset max tokens to default:', this.defaultMaxTokens);
             if (this.maxTokensSlider) {
                 this.maxTokensSlider.value = this.defaultMaxTokens;
                 this.maxTokensValue.textContent = this.defaultMaxTokens;
             }
         };
         this.resetTemperatureHandler = () => {
+            console.log('[SettingsModal] reset temperature to default:', this.defaultTemperature);
             if (this.temperatureSlider) {
                 this.temperatureSlider.value = this.defaultTemperature;
                 this.temperatureValue.textContent = this.defaultTemperature.toFixed(2);
@@ -132,6 +161,11 @@ class SettingsModal {
         this.applyHandler = () => this.applySettings();
         this.overlayClickHandler = (e) => {
             if (e.target === this.modal) {
+                this.hide();
+            }
+        };
+        this.escapeHandler = (e) => {
+            if (e.key === 'Escape' && this.modal?.style.display !== 'none') {
                 this.hide();
             }
         };
@@ -158,16 +192,8 @@ class SettingsModal {
         if (this.modal) {
             this.modal.addEventListener('click', this.overlayClickHandler);
         }
-
-        // Глобальный обработчик Escape (один раз)
-        if (!this.escapeHandler) {
-            this.escapeHandler = (e) => {
-                if (e.key === 'Escape' && this.modal?.style.display !== 'none') {
-                    this.hide();
-                }
-            };
-            document.addEventListener('keydown', this.escapeHandler);
-        }
+        // Глобальный обработчик Escape
+        document.addEventListener('keydown', this.escapeHandler);
     }
 
     init() {
@@ -175,16 +201,18 @@ class SettingsModal {
     }
 
     show(settingsData) {
+        console.log('[SettingsModal] show with data:', settingsData);
         this.currentSettings = settingsData;
 
-        // Сохраняем дефолтные значения из конфига в поля класса
+        // Сохраняем дефолтные значения из конфига
         this.defaultMaxTokens = settingsData.default_max_tokens;
         this.defaultTemperature = settingsData.default_temperature;
 
         // Обновляем ссылки на DOM
         this.refreshElements();
 
-        // Перепривязываем обработчики
+        // Удаляем старые обработчики и привязываем новые
+        this.detachEvents();
         this.attachEvents();
 
         // Устанавливаем диапазоны
@@ -225,15 +253,17 @@ class SettingsModal {
             temperature: temperature
         };
 
+        console.log('[SettingsModal] apply settings:', settings);
+
+        // Отправляем команду на сервер
         if (window.sendCommand) {
             window.sendCommand('settings:apply:' + JSON.stringify(settings));
-        } else {
-            const chatInput = window.getChatInputField();
-            if (chatInput) {
-                chatInput.value = 'settings:apply:' + JSON.stringify(settings);
-                chatInput.dispatchEvent(new Event('input', { bubbles: true }));
-                setTimeout(() => { chatInput.value = ''; }, 50);
-            }
+        }
+
+        // Обновляем кэш настроек на клиенте
+        if (window.appSettings) {
+            window.appSettings.current_max_tokens = maxTokens;
+            window.appSettings.current_temperature = temperature;
         }
 
         this.hide();
@@ -249,6 +279,7 @@ window.settingsModal = new SettingsModal();
 
 window.showSettingsModal = function(settingsData) {
     if (!window.settingsModal) {
+        console.error('settingsModal не инициализирован');
         return;
     }
     window.settingsModal.show(settingsData);

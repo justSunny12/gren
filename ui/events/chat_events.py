@@ -3,7 +3,6 @@ import gradio as gr
 from handlers import ui_handlers
 
 class ChatEvents:
-    """Обработчики событий чата."""
 
     @staticmethod
     def bind_chat_selection_events(chat_input, chatbot, current_dialog_id, chat_list_data):
@@ -28,27 +27,46 @@ class ChatEvents:
         )
 
     @staticmethod
-    def bind_settings_button_events(settings_btn, settings_data, generation_js_trigger):
-        """При нажатии на кнопку настроек получаем текущие параметры и передаём в JS."""
-        settings_btn.click(
-            fn=ui_handlers.get_current_settings,
-            inputs=[],
-            outputs=[settings_data]
-        ).then(
+    def bind_settings_button_events(settings_btn, settings_data):
+        """При нажатии на кнопку настроек – читаем данные из settings_data и показываем модалку.
+           НИКАКОГО ВЫЗОВА PYTHON!"""
+        # Сначала сохраняем настройки в глобальную переменную при их обновлении
+        settings_data.change(
             fn=None,
             inputs=[settings_data],
             outputs=[],
             js="""
-            (settings_json) => {
+            (data) => {
                 try {
-                    const data = typeof settings_json === 'string' ? JSON.parse(settings_json) : settings_json;
+                    window.appSettings = data;
+                    console.log('✅ Настройки кэшированы:', data);
+                } catch (e) {
+                    console.error('Ошибка кэширования настроек:', e);
+                }
+                return [];
+            }
+            """
+        )
+
+        # Клик по кнопке – используем window.appSettings
+        settings_btn.click(
+            fn=None,  # БЕЗ Python-функции!
+            inputs=[],
+            outputs=[],
+            js="""
+            () => {
+                try {
+                    if (!window.appSettings) {
+                        console.error('Настройки ещё не загружены');
+                        return [];
+                    }
                     if (window.showSettingsModal) {
-                        window.showSettingsModal(data);
+                        window.showSettingsModal(window.appSettings);
                     } else {
-                        console.error('window.showSettingsModal не определён');
+                        console.error('showSettingsModal not defined');
                     }
                 } catch (e) {
-                    console.error('Ошибка при открытии модального окна настроек:', e);
+                    console.error('Error opening settings modal:', e);
                 }
                 return [];
             }
@@ -57,7 +75,6 @@ class ChatEvents:
 
     @staticmethod
     def bind_chat_list_update(chat_list_data):
-        """Привязывает обновление списка чатов через JavaScript с учётом флага скролла."""
         return chat_list_data.change(
             fn=None,
             inputs=[chat_list_data],

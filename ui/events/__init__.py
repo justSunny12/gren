@@ -12,15 +12,12 @@ class EventBinder:
         self.generation_events = GenerationEvents()
 
     def bind_all_events(self, demo, components, current_dialog_id):
-        # События выбора чата
         self.chat_events.bind_chat_selection_events(
             components["chat_input"],
             components["chatbot"],
             current_dialog_id,
             components["chat_list_data"]
         )
-
-        # События создания чата
         self.chat_events.bind_chat_creation_events(
             components["create_dialog_btn"],
             components["chatbot"],
@@ -29,15 +26,11 @@ class EventBinder:
             components["js_trigger"],
             components["chat_list_data"]
         )
-
-        # Событие открытия модального окна настроек
+        # 👇 Кнопка настроек – без вызова Python, использует кэш из settings_data
         self.chat_events.bind_settings_button_events(
             components["settings_btn"],
-            components["settings_data"],
-            components["generation_js_trigger"]
+            components["settings_data"]   # передаём компонент с настройками
         )
-
-        # События отправки сообщений
         self.message_events.bind_message_events(
             components["submit_btn"],
             components["stop_btn"],
@@ -47,21 +40,18 @@ class EventBinder:
             components["chat_list_data"],
             components["generation_js_trigger"]
         )
-
-        # JS-триггер для выполнения кода после генерации
         self.generation_events.bind_generation_js_events(
             components["generation_js_trigger"]
         )
-
-        # Обновление списка чатов через JS
         self.chat_events.bind_chat_list_update(components["chat_list_data"])
 
-        # Инициализация приложения (без max_tokens, temperature)
+        # Инициализация: получаем историю, ID, список чатов И настройки
         demo.load(
             fn=ui_handlers.init_app_handler,
             outputs=[
                 components["chatbot"],
                 current_dialog_id,
-                components["chat_list_data"]
+                components["chat_list_data"],
+                components["settings_data"]   # ← добавляем выход для настроек
             ]
         )

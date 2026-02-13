@@ -4,11 +4,9 @@ from ui.layouts.main_layout import create_main_layout
 from ui.events import EventBinder
 
 def create_app():
-    """Создаёт приложение с привязанными событиями."""
     with gr.Blocks(title="Gren Chat", fill_width=True) as demo:
         current_dialog_id = gr.State(value=None)
 
-        # Получаем компоненты из основного layout
         (
             sidebar_components,
             chatbot,
@@ -21,21 +19,18 @@ def create_app():
             settings_btn
         ) = create_main_layout()
 
-        # Из сайдбара забираем нужные компоненты
         create_dialog_btn = sidebar_components["create_dialog_btn"]
         chat_input = sidebar_components["chat_input"]
-        settings_data = sidebar_components["settings_data"]
+        settings_data = sidebar_components["settings_data"]   # ← добавили
         js_trigger = sidebar_components["js_trigger"]
         generation_js_trigger = sidebar_components["generation_js_trigger"]
 
-        # Дополнительные компоненты
         chat_list_data = gr.Textbox(
             visible=False,
             elem_id="chat_list_data",
             interactive=False
         )
 
-        # Собираем все компоненты в словарь
         components = {
             "demo": demo,
             "current_dialog_id": current_dialog_id,
@@ -49,13 +44,12 @@ def create_app():
             "settings_btn": settings_btn,
             "create_dialog_btn": create_dialog_btn,
             "chat_input": chat_input,
-            "settings_data": settings_data,
+            "settings_data": settings_data,          # ← добавили
             "chat_list_data": chat_list_data,
             "js_trigger": js_trigger,
             "generation_js_trigger": generation_js_trigger,
         }
 
-        # Привязываем события
         event_binder = EventBinder()
         event_binder.bind_all_events(demo, components, current_dialog_id)
 

@@ -6,6 +6,7 @@ if (!window.SELECTORS) {
 window.activeContextMenu = null;
 window.lastChatClick = 0;
 
+// Дебаунс
 window.debounce = function(func, wait) {
     let timeout;
     return function executedFunction(...args) {
@@ -18,6 +19,7 @@ window.debounce = function(func, wait) {
     };
 };
 
+// Закрыть все контекстные меню
 window.closeAllContextMenus = function() {
     if (!window.SELECTORS) return;
 
@@ -39,19 +41,21 @@ window.closeAllContextMenus = function() {
     });
 };
 
+// Получить поле ввода чата
 window.getChatInputField = function() {
     if (!window.SELECTORS) return null;
     const targetDiv = document.getElementById(window.SELECTORS.CHAT_INPUT_FIELD.replace('#', ''));
     return targetDiv ? targetDiv.querySelector('textarea') : null;
 };
 
+// Экранирование HTML
 window.escapeHtml = function(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
 };
 
-// Функция для загрузки дополнительных JavaScript файлов
+// Загрузка дополнительных JS-файлов
 window.loadScript = function(src, callback) {
     if (document.querySelector(`script[src="${src}"]`)) {
         if (callback) callback();
@@ -69,7 +73,7 @@ window.loadScript = function(src, callback) {
     document.head.appendChild(script);
 };
 
-// НОВАЯ ФУНКЦИЯ: унифицированная отправка команд
+// Унифицированная отправка команд
 window.sendCommand = function(command) {
     const chatInput = window.getChatInputField();
     if (!chatInput) {
@@ -78,15 +82,16 @@ window.sendCommand = function(command) {
     }
     chatInput.value = command;
     chatInput.dispatchEvent(new Event('input', { bubbles: true }));
-    // Очищаем поле после отправки (опционально, как в генерации)
+    // Очищаем поле через небольшую задержку
     setTimeout(() => {
         chatInput.value = '';
     }, 50);
     return true;
 };
 
-// Инициализация при загрузке DOM
+// Инициализация приложения
 document.addEventListener('DOMContentLoaded', function() {
+    // Загружаем модальные окна, если они ещё не загружены
     if (!window.deleteConfirmationModal) {
         window.loadScript('static/js/modules/delete-modal.js');
     }
@@ -95,5 +100,48 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     if (!window.settingsModal) {
         window.loadScript('static/js/modules/settings-modal.js');
+    }
+
+    // Кэшируем настройки из скрытого поля settings_data
+    // Поле обновляется при инициализации приложения через demo.load
+    const checkSettingsInterval = setInterval(() => {
+        const settingsDataElem = document.querySelector('#settings_data');
+        if (settingsDataElem && settingsDataElem.value) {
+            try {
+                // Gradio хранит значение JSON-компонента в свойстве value
+                // Это может быть строка или уже объект
+                let settings = settingsDataElem.value;
+                if (typeof settings === 'string') {
+                    settings = JSON.parse(settings);
+                }
+                window.appSettings = settings;
+                console.log('✅ Настройки загружены в window.appSettings:', window.appSettings);
+                clearInterval(checkSettingsInterval);
+            } catch (e) {
+                console.error('Ошибка парсинга settings_data:', e);
+            }
+        }
+    }, 100);
+
+    // Дополнительно: слушаем событие change на самом компоненте Gradio (на случай обновления)
+    const settingsDataElem = document.querySelector('#settings_data');
+    if (settingsDataElem) {
+        // Gradio может обновлять элемент через внутренние механизмы,
+        // поэтому подписываемся на пользовательское событие gradio_update
+        document.addEventListener('gradio_update', function() {
+            const elem = document.querySelector('#settings_data');
+            if (elem && elem.value) {
+                try {
+                    let settings = elem.value;
+                    if (typeof settings === 'string') {
+                        settings = JSON.parse(settings);
+                    }
+                    window.appSettings = settings;
+                    console.log('🔄 Настройки обновлены:', window.appSettings);
+                } catch (e) {
+                    console.error('Ошибка обновления настроек:', e);
+                }
+            }
+        });
     }
 });

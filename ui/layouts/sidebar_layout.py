@@ -2,9 +2,7 @@
 import gradio as gr
 
 def create_sidebar_layout():
-    """Создаёт левую панель (сайдбар) без параметров генерации."""
     with gr.Column(scale=1, min_width=380, elem_id="sidebar_container"):
-        # Кнопка нового чата
         create_dialog_btn = gr.Button(
             "➕ Новый чат",
             variant="primary",
@@ -12,7 +10,6 @@ def create_sidebar_layout():
             elem_classes="new-chat-btn"
         )
 
-        # Контейнер для списка чатов (рендерится через JS)
         gr.HTML("""
         <div class="chat-list-container">
             <div class="chat-list" id="chat_list">
@@ -23,14 +20,13 @@ def create_sidebar_layout():
         </div>
         """)
 
-        # Скрытое поле для передачи данных о настройках в JS (модальное окно)
+        # 👇 Скрытое поле для хранения настроек (обновляется только при загрузке)
         settings_data = gr.JSON(
             value={},
             visible=False,
             elem_id="settings_data"
         )
 
-        # Скрытое поле для передачи команд в Python (уже существует)
         chat_input = gr.Textbox(
             elem_id="chat_input_field",
             label="",
@@ -42,7 +38,6 @@ def create_sidebar_layout():
             interactive=True
         )
 
-        # Триггеры для JS (оставляем как есть)
         js_trigger = gr.HTML(visible=False)
         generation_js_trigger = gr.HTML(
             visible=False,
@@ -52,7 +47,7 @@ def create_sidebar_layout():
     return {
         "create_dialog_btn": create_dialog_btn,
         "chat_input": chat_input,
-        "settings_data": settings_data,
+        "settings_data": settings_data,   # ← вернули
         "js_trigger": js_trigger,
         "generation_js_trigger": generation_js_trigger
     }
