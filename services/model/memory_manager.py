@@ -2,8 +2,6 @@
 Управление памятью MLX
 """
 import mlx.core as mx
-if hasattr(mx.metal, 'device_info'):
-    mx.metal.device_info = mx.device_info
 
 class MLXMemoryManager:
     """Менеджер памяти для MLX"""
