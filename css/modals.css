@@ -209,9 +209,9 @@
     color: #dc2626;
 }
 
-/* ===== МОДАЛЬНОЕ ОКНО НАСТРОЕК ===== */
+/* ===== МОДАЛЬНОЕ ОКНО НАСТРОЕК – МГНОВЕННАЯ ПЕРЕРИСОВКА ===== */
 .settings-section {
-    margin-bottom: 20px;
+    margin-bottom: 24px;
 }
 
 .settings-section:last-child {
@@ -222,7 +222,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
     font-size: 14px;
     font-weight: 500;
     color: #374151;
@@ -234,48 +234,113 @@
     gap: 12px;
 }
 
+/* ===== ОСНОВНЫЕ СТИЛИ СЛАЙДЕРА (БЕЗ ПЕРЕХОДОВ) ===== */
 .settings-slider {
+    -webkit-appearance: none;
+    appearance: none;
     flex: 1;
     height: 6px;
-    background: #e5e7eb;
-    border-radius: 3px;
+    background: transparent;
     outline: none;
+    --fill: 0%;
 }
 
+/* WebKit: трек с динамическим градиентом (без transition) */
+.settings-slider::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 6px;
+    background: linear-gradient(to right, #3b82f6, #3b82f6) 0% / var(--fill, 0%) no-repeat,
+                #e5e7eb;
+    border-radius: 6px;
+    /* Убрали transition */
+}
+
+/* WebKit: ползунок */
 .settings-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
-    width: 18px;
-    height: 18px;
+    appearance: none;
+    width: 20px;
+    height: 20px;
     background: white;
     border: 2px solid #3b82f6;
     border-radius: 50%;
     cursor: pointer;
-    transition: all 0.1s ease;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    margin-top: -7px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    transition: all 0.15s ease;
 }
 
 .settings-slider::-webkit-slider-thumb:hover {
     background: #3b82f6;
-    transform: scale(1.15);
+    transform: scale(1.2);
+    box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);
 }
 
+.settings-slider::-webkit-slider-thumb:active {
+    transform: scale(0.95);
+    background: #2563eb;
+    border-color: #2563eb;
+}
+
+/* Firefox: трек */
+.settings-slider::-moz-range-track {
+    width: 100%;
+    height: 6px;
+    background: #e5e7eb;
+    border-radius: 6px;
+}
+
+/* Firefox: заполненная часть (синяя) */
+.settings-slider::-moz-range-progress {
+    height: 6px;
+    background: #3b82f6;
+    border-radius: 6px;
+}
+
+/* Firefox: ползунок */
+.settings-slider::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    background: white;
+    border: 2px solid #3b82f6;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    transition: all 0.15s ease;
+}
+
+.settings-slider::-moz-range-thumb:hover {
+    background: #3b82f6;
+    transform: scale(1.2);
+    box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);
+}
+
+.settings-slider::-moz-range-thumb:active {
+    transform: scale(0.95);
+    background: #2563eb;
+    border-color: #2563eb;
+}
+
+/* Значение параметра */
 .settings-value {
-    min-width: 50px;
+    min-width: 55px;
     font-size: 14px;
     color: #111827;
     background: #f3f4f6;
-    padding: 4px 8px;
-    border-radius: 4px;
+    padding: 5px 10px;
+    border-radius: 20px;
     text-align: center;
-    font-weight: 500;
+    font-weight: 600;
+    letter-spacing: -0.02em;
 }
 
+/* Кнопка сброса */
 .settings-reset-btn {
     width: 32px;
     height: 32px;
     border: none;
     background: transparent;
-    border-radius: 6px;
+    border-radius: 8px;
     color: #6b7280;
     font-size: 18px;
     cursor: pointer;
@@ -293,6 +358,7 @@
 
 .settings-reset-btn:active {
     background: #e5e7eb;
+    transform: scale(0.95);
 }
 
 /* Адаптация для мобильных */
@@ -326,8 +392,8 @@
     }
 
     .settings-value {
-        min-width: 45px;
+        min-width: 50px;
         font-size: 13px;
-        padding: 3px 6px;
+        padding: 4px 8px;
     }
 }

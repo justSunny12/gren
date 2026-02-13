@@ -139,15 +139,24 @@ class SettingsModal {
         // Создаём обработчики с привязкой к this
         this.maxTokensInputHandler = (e) => {
             this.maxTokensValue.textContent = e.target.value;
+            // Обновляем CSS-переменную для синей заливки
+            const percent = ((e.target.value - e.target.min) / (e.target.max - e.target.min)) * 100;
+            e.target.style.setProperty('--fill', percent + '%');
         };
         this.temperatureInputHandler = (e) => {
             this.temperatureValue.textContent = parseFloat(e.target.value).toFixed(2);
+            // Обновляем CSS-переменную для синей заливки
+            const percent = ((e.target.value - e.target.min) / (e.target.max - e.target.min)) * 100;
+            e.target.style.setProperty('--fill', percent + '%');
         };
         this.resetMaxTokensHandler = () => {
             console.log('[SettingsModal] reset max tokens to default:', this.defaultMaxTokens);
             if (this.maxTokensSlider) {
                 this.maxTokensSlider.value = this.defaultMaxTokens;
                 this.maxTokensValue.textContent = this.defaultMaxTokens;
+                // Обновляем заливку
+                const percent = ((this.defaultMaxTokens - this.maxTokensSlider.min) / (this.maxTokensSlider.max - this.maxTokensSlider.min)) * 100;
+                this.maxTokensSlider.style.setProperty('--fill', percent + '%');
             }
         };
         this.resetTemperatureHandler = () => {
@@ -155,6 +164,9 @@ class SettingsModal {
             if (this.temperatureSlider) {
                 this.temperatureSlider.value = this.defaultTemperature;
                 this.temperatureValue.textContent = this.defaultTemperature.toFixed(2);
+                // Обновляем заливку
+                const percent = ((this.defaultTemperature - this.temperatureSlider.min) / (this.temperatureSlider.max - this.temperatureSlider.min)) * 100;
+                this.temperatureSlider.style.setProperty('--fill', percent + '%');
             }
         };
         this.cancelHandler = () => this.hide();
@@ -227,9 +239,16 @@ class SettingsModal {
         // Текущие значения
         this.maxTokensSlider.value = settingsData.current_max_tokens;
         this.maxTokensValue.textContent = settingsData.current_max_tokens;
+        // Инициализация заливки
+        const maxPercent = ((settingsData.current_max_tokens - this.maxTokensSlider.min) / 
+                           (this.maxTokensSlider.max - this.maxTokensSlider.min)) * 100;
+        this.maxTokensSlider.style.setProperty('--fill', maxPercent + '%');
 
         this.temperatureSlider.value = settingsData.current_temperature;
         this.temperatureValue.textContent = settingsData.current_temperature.toFixed(2);
+        const tempPercent = ((settingsData.current_temperature - this.temperatureSlider.min) / 
+                            (this.temperatureSlider.max - this.temperatureSlider.min)) * 100;
+        this.temperatureSlider.style.setProperty('--fill', tempPercent + '%');
 
         // Показываем окно
         this.modal.style.display = 'flex';
