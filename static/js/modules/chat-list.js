@@ -117,10 +117,20 @@ window.renderChatList = function(chats, scrollTarget = 'none') {
         }
     }
     
-    // === ВИЗУАЛЬНОЕ ВЫДЕЛЕНИЕ АКТИВНОГО ЧАТА ===
+    // === ВИЗУАЛЬНОЕ ВЫДЕЛЕНИЕ АКТИВНОГО ЧАТА И ФОКУС НА ПОЛЕ ВВОДА ===
     const activeChat = chatListData.find(chat => chat.is_current);
     if (activeChat) {
         window.setActiveChatClass(activeChat.id);
+        
+        // Установка фокуса на поле ввода, если нет активной генерации
+        if (!window.isGenerating) {
+            setTimeout(() => {
+                const inputField = document.querySelector('.chat-input-wrapper textarea');
+                if (inputField && !inputField.disabled) {
+                    inputField.focus();
+                }
+            }, 10);
+        }
     }
 };
 

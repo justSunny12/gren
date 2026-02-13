@@ -1,5 +1,8 @@
 /* static/js/modules/generation-control.js - Управление кнопками отправки, остановки и глубокого мышления */
 
+// Глобальный флаг генерации (доступен из других модулей)
+window.isGenerating = false;
+
 let isGenerating = false;
 let generationCheckInterval = null;
 let currentThinkingButtonHandler = null;
@@ -29,7 +32,10 @@ window.toggleGenerationButtons = function(generating) {
     const sendBtn = document.querySelector('.generation-buttons-wrapper .send-btn');
     const stopBtn = document.querySelector('.generation-buttons-wrapper .stop-btn');
     if (!sendBtn || !stopBtn) return;
+    
     isGenerating = generating;
+    window.isGenerating = generating;   // синхронизируем глобальную переменную
+    
     if (generating) {
         sendBtn.classList.add('hidden');
         stopBtn.classList.add('active');
