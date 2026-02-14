@@ -180,3 +180,7 @@
 .chat-window-container::-webkit-scrollbar {
     width: 6px !important;
 }
+
+.icon-button-wrapper {
+    display: none !important;
+}
