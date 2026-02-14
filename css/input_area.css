@@ -68,7 +68,7 @@
 
 /* область ввода */
 .chat-input {
-    padding: 0 !important;
+    padding: 0 0px 60px 0 !important;
     margin: 0 !important;
     flex: 1 !important;
     display: flex !important;
@@ -83,15 +83,14 @@
     max-height: 100% !important;
     box-sizing: border-box !important;
     resize: none !important;
-    padding: 16px 60px 16px 18px !important;
+    padding: 16px 20px !important;
     background: white !important;
-    border: 1px solid rgb(229,229,229) !important;
-    border-radius: 26px !important;
+    box-shadow: none !important;
     font-family: inherit !important;
     transition: all 0.2s ease !important;
     margin: 0 !important;
     display: block !important;
-    overflow: hidden !important;
+    overflow-y: auto !important;
     align-self: stretch !important;
     flex: 1 !important;
     font-size: 16px !important;
@@ -341,11 +340,3 @@ div[class*="chat-input-wrapper"] {
     overflow: hidden !important;
     position: relative !important; /* Для абсолютного позиционирования кнопки */
 }
-
-/* ДОПОЛНИТЕЛЬНАЯ ЗАЩИТА: Изоляция кнопки от flex-контейнеров - удалить, если не аффектит*/
-/* .input-plate,
-.input-row,
-.chat-input,
-.chat-input-wrapper {
-    position: relative !important;
-} */

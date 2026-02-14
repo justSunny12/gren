@@ -102,6 +102,11 @@ class ModelService:
             self._generator = ResponseGenerator()
         return self._generator
 
+    def get_tokenizer(self):
+        """Возвращает токенизатор текущей модели"""
+        _, tokenizer = self.lifecycle_manager.get_model_and_tokenizer()
+        return tokenizer
+
     def initialize(self, force_reload: bool = False) -> Tuple[Any, Any, threading.Lock]:
         """Инициализирует модель через LifecycleManager"""
         return self.lifecycle_manager.initialize(force_reload)
