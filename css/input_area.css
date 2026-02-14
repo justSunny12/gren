@@ -340,3 +340,57 @@ div[class*="chat-input-wrapper"] {
     overflow: hidden !important;
     position: relative !important; /* Для абсолютного позиционирования кнопки */
 }
+
+/* ========== АДАПТАЦИЯ ЛЕВЫХ КНОПОК ========== */
+
+/* При ширине окна <= 1000px убираем текст у кнопок "Глубокое мышление" и "Поиск", оставляем иконки */
+@media (max-width: 980px) {
+    .generation-buttons-wrapper .left-buttons button.search-btn{
+        font-size: 0 !important;
+        padding: 0 8px !important;          /* оставляем немного места для иконки */
+        width: 40px !important;
+        min-width: 40px !important;
+        max-width: 40px !important;
+        text-indent: -9999px !important;    /* дополнительное скрытие текста */
+        white-space: nowrap !important;
+        overflow: hidden !important;
+    }
+    .generation-buttons-wrapper .left-buttons button.search-btn svg{
+        margin-right: 0 !important;
+    }
+}
+
+@media (max-width: 920px) {
+    .generation-buttons-wrapper .left-buttons button.thinking-btn {
+        font-size: 0 !important;
+        padding: 0 8px !important;          /* оставляем немного места для иконки */
+        width: 40px !important;
+        min-width: 40px !important;
+        max-width: 40px !important;
+        text-indent: -9999px !important;    /* дополнительное скрытие текста */
+        white-space: nowrap !important;
+        overflow: hidden !important;
+    }
+    .generation-buttons-wrapper .left-buttons button.thinking-btn svg {
+        margin-right: 0 !important;
+    }
+}
+
+/* При ширине <= 700px скрываем кнопку настроек (иконка) */
+@media (max-width: 800px) {
+    .generation-buttons-wrapper .left-buttons button.settings-btn {
+        display: none !important;
+    }
+}
+
+/* При ширине <= 500px скрываем кнопки мышления и поиска (они уже без текста) */
+@media (max-width: 760px) {
+    .generation-buttons-wrapper .left-buttons
+     {
+        display: none !important;
+    }
+    .generation-buttons-wrapper .left-buttons{
+        gap: 0 !important;
+        padding-right: 0 !important;
+    }
+}
