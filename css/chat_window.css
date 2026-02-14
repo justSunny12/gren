@@ -170,11 +170,35 @@
     background-color: rgba(0, 0, 0, 0.05) !important;
 }
 
-.thinking-text {
+/* .thinking {
     font-style: italic;
     color: #666;
     padding: 2px 4px;
     font-weight: 300;
+} */
+
+.chatbot .prose .thinking {
+    display: block !important;
+    width: 100% !important;
+    margin: 0.5em 0 !important;
+    padding: 0.5em 1em !important;
+    background-color: #ffffff;
+    border-left: 1px solid rgb(226, 229, 233) !important;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    color: rgb(98, 102, 106) !important;
+}
+
+/* Все дочерние элементы внутри .thinking тоже делаем блочными */
+.chatbot .prose .thinking > * {
+    display: block !important;
+    margin: 0.2em 0 !important;
+}
+
+/* Если внутри есть <p>, убираем лишние отступы */
+.chatbot .prose .thinking p {
+    margin: 0.2em 0 !important;
+    color: rgb(98, 102, 106) !important;
 }
 
 .chat-window-container::-webkit-scrollbar {
@@ -183,4 +207,10 @@
 
 .icon-button-wrapper {
     display: none !important;
+}
+
+/* Принудительный перенос строк в блоках кода */
+.chatbot .prose pre code {
+    white-space: pre-wrap;
+    word-wrap: break-word;
 }

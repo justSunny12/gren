@@ -1,4 +1,4 @@
 generation:
-  enable_thinking: false
+  enable_thinking: true
   max_tokens: 4096
   temperature: 0.7
