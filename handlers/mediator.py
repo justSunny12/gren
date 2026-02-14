@@ -93,8 +93,8 @@ class UIMediator:
         }
         return json.dumps(data, ensure_ascii=False)
 
-    def get_chat_list_data(self):
-        return self.dispatch("get_chat_list_data")
+    def get_chat_list_data(self, scroll_target: str = 'none'):
+        return self.dispatch("get_chat_list_data", scroll_target)
 
     def handle_chat_selection(self, chat_id: str):
         return self.dispatch("handle_chat_selection", chat_id)

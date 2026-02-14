@@ -58,72 +58,47 @@ class MessageHandler(BaseHandler):
         max_tokens: Optional[int],
         temperature: Optional[float]
     ) -> AsyncGenerator[Tuple[List[dict], str, str, str, str], None]:
+        """
+        Асинхронно стримит ответ модели, НЕ добавляя сообщение пользователя.
+        Предполагается, что сообщение пользователя уже добавлено в диалог.
+        """
         if not self._stream_lock.acquire(blocking=False):
             error_history = [{"role": MessageRole.ASSISTANT.value,
                             "content": "⚠️ Уже выполняется другая генерация. Подождите."}]
             js_code = "if (window.toggleGenerationButtons) { window.toggleGenerationButtons(false); }"
             yield error_history, "", chat_id or "", self.get_chat_list_data(scroll_target='today'), js_code
             return
+
         try:
-            if not chat_id:
-                chat_id = self.dialog_service.create_dialog()
-            self.dialog_service.add_message(chat_id, MessageRole.USER, prompt)
             dialog = self.dialog_service.get_dialog(chat_id)
             if not dialog:
                 raise ValueError(f"Диалог {chat_id} не найден")
-            history_with_user_message = list(dialog.to_ui_format())
-            js_code = "if (window.toggleGenerationButtons) { window.toggleGenerationButtons(true); }"
-            yield history_with_user_message, "", chat_id, self.get_chat_list_data(scroll_target='today'), js_code
-            stop_event = threading.Event()
-            self._active_stop_event = stop_event
-            self._active_dialog_id = chat_id
 
-            # ========== НОВАЯ ЛОГИКА ФОРМИРОВАНИЯ ПРОМПТА ==========
-            # Получаем сжатый контекст от менеджера (суммаризации + сырой хвост)
+            # Получаем контекст (суммаризации и т.д.)
             context = dialog.get_context_for_generation()
             messages_for_model = []
             if context:
-                # Всё, что вернул менеджер, отправляем как системное сообщение
                 messages_for_model.append({"role": "system", "content": context})
-            # Добавляем только последнее сообщение пользователя (текущий запрос)
-            # Оно уже есть в истории как последнее, но для надёжности используем prompt
             messages_for_model.append({"role": "user", "content": prompt})
-            # =======================================================
 
             user_config = user_config_service.get_user_config(force_reload=True)
             enable_thinking = user_config.generation.enable_thinking
             if enable_thinking is None:
                 enable_thinking = False
 
-            # Подсчёт длины контекста в токенах (опционально)
-            prompt_tokens = self._get_prompt_token_count(messages_for_model)
-            
-            # Измерение TTFT
-            start_time = time.time()
-            first_token_received = False
+            stop_event = threading.Event()
+            self._active_stop_event = stop_event
+            self._active_dialog_id = chat_id
 
             async for result in self.chat_service.process_message_stream(
-                prompt=prompt,  # Этот параметр может не использоваться, но оставим для совместимости
+                prompt=prompt,
                 dialog_id=chat_id,
                 max_tokens=max_tokens,
                 temperature=temperature,
                 enable_thinking=enable_thinking,
                 stop_event=stop_event,
-                messages_for_model=messages_for_model  # Передаём новый промпт
+                messages_for_model=messages_for_model
             ):
-                # result — кортеж (history, "", dialog_id, chat_list_data, js_code)
-                history = result[0]
-
-                # Проверяем появление первого токена
-                if not first_token_received and history:
-                    last_msg = history[-1]
-                    if last_msg.get('role') == 'assistant' and last_msg.get('content'):
-                        if last_msg['content'].strip():
-                            ttft = time.time() - start_time
-                            token_info = f", контекст: {prompt_tokens} токенов" if prompt_tokens else ""
-                            # print(f"⚡ TTFT: {ttft:.3f} сек{token_info}")
-                            first_token_received = True
-
                 yield result
 
         except Exception as e:
