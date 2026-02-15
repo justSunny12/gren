@@ -17,7 +17,6 @@ class InitializationHandler(BaseHandler):
 
             chat_list_data = self.get_chat_list_data(scroll_target='top')
 
-            # === ПОЛУЧАЕМ НАСТРОЙКИ ===
             from container import container
             from services.user_config_service import user_config_service
 
@@ -47,13 +46,11 @@ class InitializationHandler(BaseHandler):
                 "step_temperature": 0.05
             }
             settings_json = json.dumps(settings_data, ensure_ascii=False)
-            # ===========================
 
             return history, chat_id, chat_list_data, settings_json
 
         except Exception as e:
             print(f"❌ Ошибка в init_app_handler: {e}")
-            # Возвращаем пустые настройки по умолчанию
             default_settings = {
                 "current_max_tokens": 2048,
                 "current_temperature": 0.7,
@@ -67,8 +64,3 @@ class InitializationHandler(BaseHandler):
                 "step_temperature": 0.05
             }
             return [], None, "[]", json.dumps(default_settings, ensure_ascii=False)
-
-    def get_chat_list_data(self, scroll_target: str = 'none'):
-        from .chat_list import ChatListHandler
-        handler = ChatListHandler()
-        return handler.get_chat_list_data(scroll_target=scroll_target)

@@ -49,21 +49,6 @@ class IStreamManager(Protocol):
     ) -> AsyncGenerator[str, None]:
         """Асинхронно стримит ответ модели"""
         ...
-    
-    async def stream_response_with_context(
-        self,
-        messages: List[Dict[str, str]],
-        model,
-        tokenizer,
-        params: Dict[str, Any],
-        stop_event: Opt[threading.Event] = None
-    ) -> AsyncGenerator[Tuple[str, Any, Any], None]:
-        """Асинхронно стримит ответ с контекстом"""
-        ...
-    
-    def interrupt_generation(self):
-        """Прерывает активную генерацию"""
-        ...
 
 class IModelLifecycleManager(Protocol):
     """Протокол для управления жизненным циклом модели"""
@@ -82,10 +67,6 @@ class IModelLifecycleManager(Protocol):
     
     def get_lock(self) -> threading.Lock:
         """Возвращает блокировку для генерации"""
-        ...
-    
-    def cleanup(self):
-        """Очищает ресурсы модели"""
         ...
 
 class IMemoryManager(Protocol):

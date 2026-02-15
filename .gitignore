@@ -17,7 +17,7 @@ llm_cache/
 #for dumps
 # static/
 # css/
-services/
+# services/
 
 #tests
 tests/

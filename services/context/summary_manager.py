@@ -293,24 +293,3 @@ class SummaryManager:
                 success=False,
                 error=error_msg
             )
-    
-    def get_stats(self) -> Dict[str, Any]:
-        """Возвращает статистику менеджера"""
-        with self._lock:
-            summarizer_stats = SummarizerFactory.get_stats()
-            
-            return {
-                "manager": {
-                    "is_running": self._worker_thread is not None and self._worker_thread.is_alive(),
-                    "total_tasks": self._total_tasks,
-                    "successful_tasks": self._successful_tasks,
-                    "failed_tasks": self._failed_tasks_count,
-                    "success_rate": self._successful_tasks / max(self._total_tasks, 1),
-                    "avg_processing_time": self._total_processing_time / max(self._successful_tasks, 1),
-                    "queue_size": self._task_queue.qsize(),
-                    "running_tasks": len(self._running_tasks),
-                    "completed_tasks": len(self._completed_tasks),
-                    "failed_tasks_dict": len(self._failed_tasks)
-                },
-                "summarizers": summarizer_stats
-            }

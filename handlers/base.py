@@ -37,3 +37,9 @@ class BaseHandler:
             return False
         self._last_chat_switch = current_time
         return True
+
+    def get_chat_list_data(self, scroll_target: str = 'none') -> str:
+        """Получает данные списка чатов в JSON."""
+        from .chat_list import ChatListHandler
+        handler = ChatListHandler()
+        return handler.get_chat_list_data(scroll_target=scroll_target)

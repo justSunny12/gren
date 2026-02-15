@@ -6,36 +6,14 @@ import asyncio
 import json
 import os
 from typing import List, Dict, Any
-from dataclasses import dataclass
 from datetime import datetime
-from typing import List as TypingList
 
 from models.dialog import Dialog
 from models.context import DialogContextState, InteractionChunk, L2SummaryBlock, CumulativeContext, ChunkType
 from models.enums import MessageRole
 from services.context.summary_manager import SummaryManager
+from .interaction import SimpleInteraction
 from services.context.utils import parse_text_to_interactions, group_interactions_into_chunks, format_interaction_for_summary, extract_message_indices_from_interactions
-
-@dataclass
-class SimpleInteraction:
-    """Упрощенная версия взаимодействия для внутреннего использования"""
-    user_message: str
-    assistant_message: str
-    message_indices: TypingList[int] = None
-    
-    def __post_init__(self):
-        if self.message_indices is None:
-            self.message_indices = []
-    
-    @property
-    def text(self) -> str:
-        """Текст взаимодействия"""
-        return f"Пользователь: {self.user_message}\nАссистент: {self.assistant_message}"
-    
-    @property
-    def char_count(self) -> int:
-        """Количество символов"""
-        return len(self.text)
 
 class ContextManager:
     """Управляет контекстом диалога с многоуровневой суммаризацией"""

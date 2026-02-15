@@ -115,7 +115,6 @@ class CommandHandler(BaseHandler):
         try:
             parts = command.split(':', 2)
             if len(parts) != 3 or parts[0] != 'settings' or parts[1] != 'apply':
-                # Возвращаем текущее состояние без изменений
                 current_dialog = self.dialog_service.get_current_dialog()
                 history = current_dialog.to_ui_format() if current_dialog else []
                 chat_id = current_dialog.id if current_dialog else ""
@@ -147,7 +146,6 @@ class CommandHandler(BaseHandler):
                 user_config_service.invalidate_cache()
                 self._config = None
 
-            # ВАЖНО: возвращаем текущий диалог без изменений
             current_dialog = self.dialog_service.get_current_dialog()
             if current_dialog:
                 history = current_dialog.to_ui_format()
@@ -161,13 +159,7 @@ class CommandHandler(BaseHandler):
 
         except Exception as e:
             print(f"❌ Ошибка в handle_settings_apply: {e}")
-            # При ошибке тоже возвращаем текущее состояние
             current_dialog = self.dialog_service.get_current_dialog()
             history = current_dialog.to_ui_format() if current_dialog else []
             chat_id = current_dialog.id if current_dialog else ""
             return history, chat_id, self.get_chat_list_data(scroll_target='none')
-    
-    def get_chat_list_data(self, scroll_target: str = 'none'):
-        from .chat_list import ChatListHandler
-        handler = ChatListHandler()
-        return handler.get_chat_list_data(scroll_target=scroll_target)

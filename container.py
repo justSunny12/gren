@@ -66,9 +66,6 @@ class Container:
     
     def get_model_service(self):
         return self.get("model_service")
-    
-    def get_ui_handlers(self):
-        return self.get("ui_handlers")
 
 # Глобальный контейнер
 container = Container()

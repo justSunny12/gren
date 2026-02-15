@@ -6,30 +6,8 @@ import re
 from typing import List
 
 # Вместо импорта MessageInteraction, создаем простую структуру
-from dataclasses import dataclass
-from typing import List as TypingList
-
-
-@dataclass
-class SimpleInteraction:
-    """Упрощенная версия взаимодействия для работы в утилитах"""
-    user_message: str
-    assistant_message: str
-    message_indices: TypingList[int] = None
-    
-    def __post_init__(self):
-        if self.message_indices is None:
-            self.message_indices = []
-    
-    @property
-    def text(self) -> str:
-        """Текст взаимодействия"""
-        return f"Пользователь: {self.user_message}\nАссистент: {self.assistant_message}"
-    
-    @property
-    def char_count(self) -> int:
-        """Количество символов"""
-        return len(self.text)
+from .interaction import SimpleInteraction
+from typing import List
 
 def parse_text_to_interactions(text: str) -> List[SimpleInteraction]:
     """

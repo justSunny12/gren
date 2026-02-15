@@ -6,44 +6,9 @@ from typing import AsyncGenerator, List, Optional, Tuple
 from .base import BaseHandler
 from services.user_config_service import user_config_service
 from models.enums import MessageRole
+from services.model.thinking_handler import ThinkingHandler  # ← новый импорт
 
-def format_think_markdown(text: str) -> str:
-    """
-    Заменяет <think> на '<div class="thinking">', а </think> на '</div>' в потоке.
-    Удаляет все переносы строк сразу после открывающего тега.
-    """
-    if not text:
-        return text
-    result = []
-    i = 0
-    n = len(text)
-    while i < n:
-        if text.startswith('<think>', i):
-            result.append('<div class="thinking">')
-            i += 7
-            # Удаляем все последующие переносы строк
-            while i < n and text[i] == '\n':
-                i += 1
-        elif text.startswith('</think>', i):
-            result.append('</div>')
-            i += 8
-        else:
-            result.append(text[i])
-            i += 1
-    return ''.join(result)
-
-
-def clean_think_block(text: str) -> str:
-    """
-    Удаляет последний перенос строки перед закрывающим тегом </div> в блоке .thinking.
-    Применяется после завершения генерации.
-    """
-    if not text:
-        return text
-    # Ищем блок .thinking, который заканчивается на \n</div>
-    pattern = r'(<div class="thinking">.*?)\n(</div>)'
-    return re.sub(pattern, r'\1\2', text, flags=re.DOTALL)
-
+# Удалены локальные функции format_think_markdown и clean_think_block
 
 class MessageHandler(BaseHandler):
     def __init__(self):
@@ -126,7 +91,7 @@ class MessageHandler(BaseHandler):
             ):
                 # ===== ПРЕОБРАЗОВАНИЕ ТЕГОВ THINK В HTML-БЛОК =====
                 if acc_text and history and history[-1].get('role') == MessageRole.ASSISTANT.value:
-                    formatted = format_think_markdown(acc_text)
+                    formatted = ThinkingHandler.format_think_markdown(acc_text)
                     history[-1]['content'] = formatted
                 # ===================================================
 
@@ -147,9 +112,9 @@ class MessageHandler(BaseHandler):
                 if final_dialog and final_dialog.history and final_dialog.history[-1].role == MessageRole.ASSISTANT:
                     original = final_dialog.history[-1].content
                     # Применяем основное форматирование (на случай, если что-то не применилось)
-                    formatted = format_think_markdown(original)
+                    formatted = ThinkingHandler.format_think_markdown(original)
                     # Удаляем конечный перенос перед закрывающим тегом
-                    cleaned = clean_think_block(formatted)
+                    cleaned = ThinkingHandler.clean_think_block(formatted)
                     if cleaned != original:
                         final_dialog.history[-1].content = cleaned
                         self.dialog_service.save_dialog(dialog_id_out)
@@ -163,8 +128,8 @@ class MessageHandler(BaseHandler):
                 dialog = self.dialog_service.get_dialog(chat_id) if chat_id else None
                 if dialog and dialog.history and dialog.history[-1].role == MessageRole.ASSISTANT:
                     original = dialog.history[-1].content
-                    formatted = format_think_markdown(original)
-                    cleaned = clean_think_block(formatted)
+                    formatted = ThinkingHandler.format_think_markdown(original)
+                    cleaned = ThinkingHandler.clean_think_block(formatted)
                     if cleaned != original:
                         dialog.history[-1].content = cleaned
                         self.dialog_service.save_dialog(chat_id)
@@ -183,8 +148,3 @@ class MessageHandler(BaseHandler):
             self._active_stop_event.set()
             return True
         return False
-
-    def get_chat_list_data(self, scroll_target: str = 'none'):
-        from .chat_list import ChatListHandler
-        handler = ChatListHandler()
-        return handler.get_chat_list_data(scroll_target=scroll_target)

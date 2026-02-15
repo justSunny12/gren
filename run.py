@@ -2,6 +2,7 @@
 import atexit
 import time
 import sys
+import asyncio
 import os
 from ui import create_main_ui
 from container import container
@@ -15,6 +16,22 @@ def cleanup_on_exit():
     except Exception as e:
         print(f"  ℹ️ Незначительная ошибка при завершении: {e}")
     print(f"  ✅ Работа приложения завершена")
+
+async def warmup_model_async(model_service):
+    """Асинхронный прогрев модели через stream_response."""
+    warmup_messages = [{"role": "user", "content": "Привет"}]
+    try:
+        # Просто итерируемся по стриму, чтобы модель поработала
+        async for _ in model_service.stream_response(
+            messages=warmup_messages,
+            max_tokens=10,
+            temperature=0.1,
+            enable_thinking=False
+        ):
+            pass  # ничего не делаем с чанками
+        print("  ✅ Прогрев основной модели завершён успешно\n")
+    except Exception as e:
+        print(f"  ℹ️ Прогрев основной модели не удался: {e}, но модель загружена")
 
 def initialize_model():
     """Инициализирует модель (основную и суммаризатор)."""
@@ -31,18 +48,16 @@ def initialize_model():
         if model is not None:
             print(f"  ✅ Основная модель загружена за {load_time:.2f} секунд")
             
-            # Прогрев основной модели
+            # Прогрев основной модели через новый асинхронный метод
             try:
-                warmup_messages = [{"role": "user", "content": "Привет"}]
-                warmup_response = model_service.generate_response(
-                    warmup_messages, 
-                    max_tokens=10,
-                    temperature=0.1,
-                    enable_thinking=False
-                )
-                print("  ✅ Прогрев основной модели завершён успешно\n")
-            except Exception as e:
-                print(f"  ℹ️ Прогрев основной модели не удался: {e}, но модель загружена")
+                asyncio.run(warmup_model_async(model_service))
+            except RuntimeError as e:
+                # Если event loop уже запущен (например, в некоторых окружениях)
+                print(f"  ⚠️ Не удалось запустить асинхронный прогрев: {e}")
+                # Пробуем создать новый цикл
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                loop.run_until_complete(warmup_model_async(model_service))
             
             # --- ПРЕДЗАГРУЗКА СУММАРИЗАТОРА ---
             try:
@@ -51,15 +66,13 @@ def initialize_model():
                 context_config = config.get("context", {})
                 
                 if context_config.get("enabled", True):
-                    # Проверяем наличие локального пути
                     model_config = context_config.get("model", {})
                     local_path = model_config.get("local_path")
                     if not local_path or not os.path.exists(local_path):
                         print(f"❌ Локальный путь для модели суммаризации не найден: {local_path}")
                         print("❌ Суммаризация отключена. Укажите правильный local_path в context_config.yaml")
-                        return True  # основная модель всё равно работает
+                        return True
                     
-                    # Предзагружаем, если нужно
                     loading_config = context_config.get("loading", {})
                     if loading_config.get("preload", True):
                         success = SummarizerFactory.preload_summarizers(context_config)
