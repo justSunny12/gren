@@ -61,7 +61,7 @@ def initialize_model():
             
             # --- ПРЕДЗАГРУЗКА СУММАРИЗАТОРА ---
             try:
-                from services.context.summarizers import SummarizerFactory
+                from services.context.summarizer_factory import SummarizerFactory
                 config = container.get_config()
                 context_config = config.get("context", {})
                 

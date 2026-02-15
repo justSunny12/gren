@@ -15,8 +15,8 @@ saved_dialogs/
 llm_cache/
 
 #for dumps
-# static/
-# css/
+static/
+css/
 # services/
 
 #tests
