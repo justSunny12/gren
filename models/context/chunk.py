@@ -2,7 +2,7 @@
 from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime
 from typing import List
-import hashlib
+import uuid
 
 from .enums import ChunkType
 
@@ -31,7 +31,7 @@ class InteractionChunk(BaseModel):
         compression_ratio = original_char_count / max(summary_chars, 1)
         
         return cls(
-            id=hashlib.md5(summary.encode()).hexdigest()[:16],
+            id=uuid.uuid4().hex[:16],  # Генерация уникального ID
             summary=summary,
             original_char_count=original_char_count,
             summary_char_count=summary_chars,
@@ -69,7 +69,7 @@ class L2SummaryBlock(BaseModel):
         compression_ratio = original_char_count / max(summary_chars, 1)
         
         return cls(
-            id=hashlib.md5(summary.encode()).hexdigest()[:16],
+            id=uuid.uuid4().hex[:16],  # Генерация уникального ID
             l1_chunk_ids=chunk_ids,
             summary=summary,
             summary_char_count=summary_chars,
