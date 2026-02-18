@@ -35,21 +35,12 @@ class ChatOperationsHandler(BaseHandler):
             dialog_id = self.dialog_service.create_dialog()
             dialog = self.dialog_service.get_dialog(dialog_id)
             
+            # Получаем обновлённые данные списка с флагом скролла к today
             chat_list_data = self.get_chat_list_data(scroll_target='today')
             
-            js_code = f"""
-            <script>
-            (function() {{
-                const data = {chat_list_data};
-                if (window.renderChatList) {{
-                    window.renderChatList(data, data._scroll_target);
-                }}
-            }})();
-            </script>
-            """
-            
             history = dialog.to_ui_format()
-            return history, "", dialog_id, js_code, chat_list_data
+            # Возвращаем пустой js_code, так как рендер произойдёт через chat_list_data.change
+            return history, "", dialog_id, "", chat_list_data
             
         except Exception as e:
             self.logger.error("Ошибка при создании чата: %s", e)

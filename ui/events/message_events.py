@@ -21,7 +21,6 @@ class MessageEvents:
         if not prompt or not prompt.strip():
             return [], chat_id or "", "[]", ""
 
-        # Получаем dialog_service через контейнер
         dialog_service = container.get_dialog_service()
 
         if not chat_id:
@@ -32,7 +31,6 @@ class MessageEvents:
         dialog = dialog_service.get_dialog(chat_id)
         history = dialog.to_ui_format() if dialog else []
 
-        # Получаем обновлённые данные списка чатов через ui_handlers
         chat_list_data = ui_handlers.get_chat_list_data(scroll_target='today')
         return history, chat_id, chat_list_data, prompt
 
@@ -69,7 +67,6 @@ class MessageEvents:
             temperature = gen_config.get("default_temperature", 0.7)
 
         try:
-            # send_message_stream_handler возвращает (history, "", dialog_id, chat_list_data, js_code)
             async for history, _, dialog_id, chat_list_data, js_code in ui_handlers.send_message_stream_handler(
                 saved_prompt, chat_id, max_tokens, temperature
             ):
@@ -86,25 +83,20 @@ class MessageEvents:
             except Exception:
                 yield [], "", "[]", ""
         except Exception as e:
-            # Здесь используем print, так как логгер может быть недоступен в этом контексте
             print(f"❌ Ошибка в stream_response_only: {e}")
             import traceback
             traceback.print_exc()
             yield [], chat_id or "", "[]", ""
 
     @staticmethod
-    def bind_message_events(demo, submit_btn, stop_btn, user_input, current_dialog_id,
-                            chatbot, chat_list_data, generation_js_trigger):
-        saved_prompt = gr.State()
-
-        # Единая цепочка для обоих триггеров (клик по кнопке и отправка по Enter)
-        send_chain = demo.on(
-            triggers=[submit_btn.click, user_input.submit],
+    def _setup_send_chain(event_trigger, saved_prompt, user_input, current_dialog_id,
+                          chatbot, chat_list_data, generation_js_trigger):
+        """Прикрепляет цепочку обработки отправки сообщения к заданному триггеру."""
+        event_trigger(
             fn=MessageEvents.clear_input_and_save_prompt,
             inputs=[user_input],
             outputs=[user_input, saved_prompt]
-        )
-        send_chain.then(
+        ).then(
             fn=MessageEvents.add_user_message,
             inputs=[saved_prompt, current_dialog_id],
             outputs=[chatbot, current_dialog_id, chat_list_data, saved_prompt]
@@ -112,6 +104,21 @@ class MessageEvents:
             fn=MessageEvents.stream_response_only,
             inputs=[saved_prompt, current_dialog_id],
             outputs=[chatbot, current_dialog_id, chat_list_data, generation_js_trigger]
+        )
+
+    @staticmethod
+    def bind_message_events(submit_btn, stop_btn, user_input, current_dialog_id,
+                            chatbot, chat_list_data, generation_js_trigger):
+        saved_prompt = gr.State()
+
+        # Используем общий метод для обоих триггеров
+        MessageEvents._setup_send_chain(
+            submit_btn.click, saved_prompt, user_input, current_dialog_id,
+            chatbot, chat_list_data, generation_js_trigger
+        )
+        MessageEvents._setup_send_chain(
+            user_input.submit, saved_prompt, user_input, current_dialog_id,
+            chatbot, chat_list_data, generation_js_trigger
         )
 
         # Остановка генерации

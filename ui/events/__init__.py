@@ -31,7 +31,6 @@ class EventBinder:
             components["settings_data"]
         )
         self.message_events.bind_message_events(
-            demo,  # ← передаём demo первым аргументом
             components["submit_btn"],
             components["stop_btn"],
             components["user_input"],
