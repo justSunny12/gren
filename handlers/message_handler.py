@@ -128,7 +128,8 @@ class MessageHandler(BaseHandler):
                         dialog.history[-1].content = cleaned
                         self.dialog_service.save_dialog(chat_id)
                 history = dialog.to_ui_format() if dialog else []
-            except:
+            except Exception as inner_e:
+                self.logger.error("Ошибка при восстановлении после сбоя генерации: %s", inner_e)
                 history = []
             js_code = "if (window.toggleGenerationButtons) { window.toggleGenerationButtons(false); }"
             yield history, "", chat_id or "", self.get_chat_list_data(scroll_target='today'), js_code
