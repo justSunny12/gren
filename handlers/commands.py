@@ -158,7 +158,7 @@ class CommandHandler(BaseHandler):
             return history, chat_id, chat_list_data
 
         except Exception as e:
-            print(f"❌ Ошибка в handle_settings_apply: {e}")
+            self.logger.error("Ошибка в handle_settings_apply: %s", e)
             current_dialog = self.dialog_service.get_current_dialog()
             history = current_dialog.to_ui_format() if current_dialog else []
             chat_id = current_dialog.id if current_dialog else ""

@@ -50,7 +50,7 @@ class InitializationHandler(BaseHandler):
             return history, chat_id, chat_list_data, settings_json
 
         except Exception as e:
-            print(f"❌ Ошибка в init_app_handler: {e}")
+            self.logger.error("Ошибка в init_app_handler: %s", e)
             default_settings = {
                 "current_max_tokens": 2048,
                 "current_temperature": 0.7,

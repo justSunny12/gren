@@ -135,7 +135,9 @@ class BaseSummarizer:
                     self._tokenizer.pad_token = self._tokenizer.eos_token
                 self._tokenizer.padding_side = "left"
 
-                print(f"   ✅ Модель {self.model_name} загружена за {time.time() - start_time:.2f} сек")
+                from container import container
+                logger = container.get_logger()
+                logger.info("   ✅ Модель %s загружена за %.2f сек", self.model_name, time.time() - start_time)
                 return True
             except Exception as e:
                 self._load_error = str(e)

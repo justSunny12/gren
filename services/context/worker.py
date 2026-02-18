@@ -78,5 +78,7 @@ class SummaryWorker:
 
                 self.scheduler.task_done()
             except Exception as e:
-                print(f"❌ Ошибка в воркере: {e}")
+                from container import container
+                logger = container.get_logger()
+                logger.error("Ошибка в воркере: %s", e)
                 self.scheduler.task_done()

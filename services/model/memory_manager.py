@@ -25,7 +25,8 @@ class MLXMemoryManager:
                 logger.info("🛠️  Установлен лимит памяти MLX: %.2f GB", limit_bytes/1024**3)
                 return True
             except Exception as e:
-                print(f"⚠️ Не удалось установить лимит памяти: {e}")
+                logger = container.get_logger()
+                logger.warning("Не удалось установить лимит памяти: %s", e)
                 return False
         
         return False

@@ -35,6 +35,8 @@ class ContextStatePersistence:
 
     def save(self, state: DialogContextState, file_path: Optional[str] = None) -> bool:
         """Сохраняет состояние в файл."""
+        from container import container
+        logger = container.get_logger()
         if file_path is None:
             file_path = self.get_state_file_path()
         try:
@@ -43,11 +45,13 @@ class ContextStatePersistence:
                 json.dump(state_dict, f, ensure_ascii=False, indent=2)
             return True
         except Exception as e:
-            print(f"❌ Ошибка сохранения состояния контекста: {e}")
+            logger.error("Ошибка сохранения состояния контекста: %s", e)
             return False
 
     def load(self, file_path: Optional[str] = None) -> Optional[DialogContextState]:
         """Загружает состояние из файла."""
+        from container import container
+        logger = container.get_logger()
         if file_path is None:
             file_path = self.get_state_file_path()
         try:
@@ -57,5 +61,5 @@ class ContextStatePersistence:
                 state_dict = json.load(f)
             return DialogContextState.model_validate(state_dict)
         except Exception as e:
-            print(f"❌ Ошибка загрузки состояния контекста: {e}")
+            logger.error("Ошибка загрузки состояния контекста: %s", e)
             return None

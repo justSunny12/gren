@@ -76,9 +76,9 @@ class ModelLifecycleManager(IModelLifecycleManager):
                 return None, None, self._generate_lock
                 
         except Exception as e:
-            print(f"❌ Ошибка загрузки модели: {e}")
-            import traceback
-            traceback.print_exc()
+            from container import container
+            logger = container.get_logger()
+            logger.error("Ошибка загрузки модели: %s", e)
             return None, None, self._generate_lock
     
     def is_initialized(self) -> bool:

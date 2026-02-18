@@ -7,6 +7,10 @@ class ResourceLoader:
     @staticmethod
     def load_css():
         """Загружает все CSS файлы из css/."""
+        
+        from container import container
+        logger = container.get_logger()
+        
         css_files = [
             'css/base.css',
             'css/sidebar.css',
@@ -22,15 +26,19 @@ class ResourceLoader:
                     with open(css_file, 'r', encoding='utf-8') as f:
                         css_content += f.read() + "\n"
                 else:
-                    print(f"⚠️ CSS файл не найден: {css_file}")
+                    logger.warning("CSS файл не найден: %s", css_file)
             except Exception as e:
-                print(f"⚠️ Ошибка загрузки CSS файла {css_file}: {e}")
+                logger.error("Ошибка загрузки CSS файла %s: %s", css_file, e)
 
         return css_content
 
     @staticmethod
     def load_js():
         """Загружает все JavaScript файлы."""
+        
+        from container import container
+        logger = container.get_logger()
+        
         js_files = [
             'static/js/config/selectors.js',      # 1. Селекторы
             'static/js/modules/utils.js',         # 2. Утилиты
@@ -50,9 +58,9 @@ class ResourceLoader:
                     with open(js_file, 'r', encoding='utf-8') as f:
                         js_content += f.read() + "\n\n"
                 else:
-                    print(f"⚠️ JS файл не найден: {js_file}")
+                    logger.warning("JS файл не найден: %s", js_file)
             except Exception as e:
-                print(f"⚠️ Ошибка загрузки JS файла {js_file}: {e}")
+                logger.error("Ошибка загрузки JS файла %s: %s", js_file, e)
 
         js_code = f"""
         <script type="text/javascript">

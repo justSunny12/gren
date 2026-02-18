@@ -34,6 +34,8 @@ class MessageStreamProcessor:
         stop_event: Optional[threading.Event]
     ) -> AsyncGenerator[Tuple[List[Dict], str, str, str, str], None]:
         """Основной метод обработки потока."""
+        from container import container
+        logger = container.get_logger()
         # Валидация
         is_valid, error = validate_message(prompt)
         if not is_valid:
@@ -90,7 +92,7 @@ class MessageStreamProcessor:
                 dialog.add_interaction_to_context(prompt, final_text)
                 dialog.save_context_state()
             except Exception as e:
-                print(f"⚠️ Ошибка при работе с контекстом: {e}")
+                logger.error("Ошибка при работе с контекстом: %s", e)
 
             # Финальная история
             updated_dialog = self.operations.dialog_service.get_dialog(dialog_id)
@@ -118,8 +120,7 @@ class MessageStreamProcessor:
             self.cache.clear(cache_key)
 
         except Exception as e:
-            print(f"❌ Ошибка в process_message_stream: {e}")
-            traceback.print_exc()
+            logger.error("Ошибка в process_message_stream: %s", e)
             self.cache.clear(cache_key)
             base_history = dialog.to_ui_format()
             error_history = list(base_history)

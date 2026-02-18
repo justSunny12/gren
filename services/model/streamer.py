@@ -75,6 +75,9 @@ class StreamManager(IStreamManager):
                 repetition_penalty=params["repetition_penalty"]
             )
             
+            from container import container
+            logger = container.get_logger()
+            
             # Создаем синхронный генератор
             def _sync_generator() -> Iterator[str]:
                 """Синхронный генератор токенов"""
@@ -94,9 +97,7 @@ class StreamManager(IStreamManager):
                         if chunk:
                             yield chunk
                 except Exception as e:
-                    print(f"❌ Ошибка в синхронном генераторе: {e}")
-                    import traceback
-                    traceback.print_exc()
+                    logger.error("Ошибка в синхронном генераторе: %s", e)
             
             # Запускаем синхронный генератор
             sync_gen = _sync_generator()
@@ -153,9 +154,7 @@ class StreamManager(IStreamManager):
                     pass
         
         except Exception as e:
-            print(f"❌ Критическая ошибка в stream_response: {e}")
-            import traceback
-            traceback.print_exc()
+            logger.error("Критическая ошибка в stream_response: %s", e)
             raise
         
         finally:
