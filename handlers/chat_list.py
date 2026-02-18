@@ -11,11 +11,16 @@ class ChatListHandler(BaseHandler):
             thinking_state = user_config.generation.enable_thinking
             if thinking_state is None:
                 thinking_state = False
+            search_state = user_config.search_enabled
+            if search_state is None:
+                search_state = False
+
             js_data = {
                 "groups": {},
                 "flat": [],
                 "_scroll_target": scroll_target,
-                "_thinking_state": thinking_state
+                "_thinking_state": thinking_state,
+                "_search_state": search_state
             }
             for group_name, dialogs in grouped_dialogs.items():
                 group_dialogs = []
@@ -34,11 +39,11 @@ class ChatListHandler(BaseHandler):
                 js_data["groups"][group_name] = group_dialogs
             return json.dumps(js_data, ensure_ascii=False)
         except Exception as e:
-            # Логируем ошибку с полным traceback
-            self.logger.exception("Ошибка получения списка чатов: %s", e)
+            self.logger.error("Ошибка получения списка чатов: %s", e)
             return json.dumps({
                 "groups": {},
                 "flat": [],
                 "_scroll_target": "none",
-                "_thinking_state": False
+                "_thinking_state": False,
+                "_search_state": False
             }, ensure_ascii=False)

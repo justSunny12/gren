@@ -1,4 +1,4 @@
-/* static/js/modules/generation-control.js - Управление кнопками отправки, остановки и глубокого мышления */
+/* static/js/modules/generation-control.js - Управление кнопками отправки, остановки, глубокого мышления и поиска */
 
 // Глобальный флаг генерации (доступен из других модулей)
 window.isGenerating = false;
@@ -6,6 +6,7 @@ window.isGenerating = false;
 let isGenerating = false;
 let generationCheckInterval = null;
 let currentThinkingButtonHandler = null;
+let currentSearchButtonHandler = null;
 
 function findGenerationButtons(maxAttempts = 10, interval = 100) {
     return new Promise((resolve) => {
@@ -34,7 +35,7 @@ window.toggleGenerationButtons = function(generating) {
     if (!sendBtn || !stopBtn) return;
     
     isGenerating = generating;
-    window.isGenerating = generating;   // синхронизируем глобальную переменную
+    window.isGenerating = generating;
     
     if (generating) {
         sendBtn.classList.add('hidden');
@@ -216,6 +217,18 @@ window.setThinkingButtonState = function(active) {
     }
 };
 
+window.setSearchButtonState = function(active) {
+    const btn = document.querySelector('.generation-buttons-wrapper .search-btn');
+    if (!btn) return;
+    if (active) {
+        btn.classList.add('search-btn-active');
+        btn.setAttribute('data-active', 'true');
+    } else {
+        btn.classList.remove('search-btn-active');
+        btn.setAttribute('data-active', 'false');
+    }
+};
+
 function setupThinkingButtonHandler() {
     const thinkingBtn = document.querySelector('.generation-buttons-wrapper .thinking-btn');
     if (!thinkingBtn) {
@@ -230,17 +243,34 @@ function setupThinkingButtonHandler() {
         e.stopPropagation();
         const isActive = this.classList.contains('thinking-btn-active');
         window.setThinkingButtonState(!isActive);
-        const chatInput = window.getChatInputField();
-        if (chatInput) {
-            const timestamp = Date.now();
-            chatInput.value = 'thinking:toggle:' + timestamp;
-            chatInput.dispatchEvent(new Event('input', { bubbles: true }));
-            setTimeout(() => {
-                chatInput.value = '';
-            }, 100);
+        const timestamp = Date.now();
+        if (window.sendCommand) {
+            window.sendCommand('thinking:toggle:' + timestamp);
         }
     };
     thinkingBtn.addEventListener('click', currentThinkingButtonHandler);
+}
+
+function setupSearchButtonHandler() {
+    const searchBtn = document.querySelector('.generation-buttons-wrapper .search-btn');
+    if (!searchBtn) {
+        setTimeout(setupSearchButtonHandler, 100);
+        return;
+    }
+    if (currentSearchButtonHandler) {
+        searchBtn.removeEventListener('click', currentSearchButtonHandler);
+    }
+    currentSearchButtonHandler = function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const isActive = this.classList.contains('search-btn-active');
+        window.setSearchButtonState(!isActive);
+        const timestamp = Date.now();
+        if (window.sendCommand) {
+            window.sendCommand('search:toggle:' + timestamp);
+        }
+    };
+    searchBtn.addEventListener('click', currentSearchButtonHandler);
 }
 
 window.updateSendButtonState = function() {
@@ -303,6 +333,7 @@ window.initGenerationButtons = async function() {
     setupInputTracking();
     setupGenerationStartTracking();
     setupThinkingButtonHandler();
+    setupSearchButtonHandler();
     if (stopBtn) {
         stopBtn.addEventListener('click', function() {
             if (!isGenerating) return;

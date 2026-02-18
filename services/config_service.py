@@ -4,11 +4,18 @@ import os
 from typing import Dict, Any, Optional
 import copy
 from services.user_config_service import user_config_service
+from container import container
 
 class ConfigService:
     def __init__(self, config_dir: str = "config"):
         self.config_dir = config_dir
         self._merged_config: Optional[Dict[str, Any]] = None
+    
+    @property
+    def logger(self):
+        if not hasattr(self, '_logger') or self._logger is None:
+            self._logger = container.get_logger()
+        return self._logger
     
     def load_default_config(self) -> Dict[str, Any]:
         config_data = {}
@@ -62,20 +69,28 @@ class ConfigService:
             else:
                 target[key] = copy.deepcopy(value)
     
-    def update_user_settings_batch(self, settings: Dict[str, Dict[str, Any]]) -> bool:
+    def update_user_settings_batch(self, settings: Dict[str, Any]) -> bool:
         try:
             user_config = user_config_service.get_user_config()
-            for section, section_settings in settings.items():
-                if section == "generation" and hasattr(user_config, section):
-                    for key, value in section_settings.items():
-                        if hasattr(user_config.generation, key):
-                            setattr(user_config.generation, key, value)
+
+            for key, value in settings.items():
+                if key == "generation" and isinstance(value, dict):
+                    for k, v in value.items():
+                        if hasattr(user_config.generation, k):
+                            setattr(user_config.generation, k, v)
+                elif key == "search_enabled":
+                    user_config.search_enabled = value
+                # при необходимости добавляем другие секции
+
             success = user_config_service.save_user_config(user_config)
             if success:
                 self._merged_config = None
                 user_config_service.invalidate_cache()
+            else:
+                self.logger.error("❌ Ошибка сохранения конфига")
             return success
-        except Exception:
+        except Exception as e:
+            self.logger.error("Исключение в update_user_settings_batch")
             return False
     
     def reset_user_settings(self) -> bool:

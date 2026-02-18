@@ -29,13 +29,12 @@ window.setActiveChatClass = function(chatId) {
  */
 window.renderChatList = function(chats, scrollTarget = 'none') {
     if (!window.SELECTORS) return;
-    
     const container = document.querySelector(window.SELECTORS.CHAT_LIST);
     if (!container) {
         setTimeout(() => window.renderChatList(chats, scrollTarget), 50);
         return;
     }
-    
+
     if (typeof chats === 'string') {
         try {
             chats = JSON.parse(chats);
@@ -44,91 +43,81 @@ window.renderChatList = function(chats, scrollTarget = 'none') {
             chats = { groups: {}, flat: [] };
         }
     }
-    
+
+    // ДИАГНОСТИКА
+    console.log('📋 renderChatList: _thinking_state =', chats._thinking_state, '_search_state =', chats._search_state);
+
     chatListData = chats.flat || [];
     chatGroups = chats.groups || {};
-    
+
     container.innerHTML = '';
-    
+
     if (!chatGroups || Object.keys(chatGroups).length === 0) {
         container.innerHTML = '<div style="text-align: center; padding: 20px; color: #64748b;">Нет чатов</div>';
         return;
     }
-    
-    if (window.closeAllContextMenus) {
-        window.closeAllContextMenus();
-    }
-    
+
+    if (window.closeAllContextMenus) window.closeAllContextMenus();
+
     const groupOrder = ['Закрепленные', 'Сегодня', 'Вчера', '7 дней', 'Месяц', 'Более месяца'];
-    
+
     groupOrder.forEach(groupName => {
         if (chatGroups[groupName] && chatGroups[groupName].length > 0) {
             const divider = document.createElement('div');
             divider.className = 'group-divider';
             divider.textContent = groupName;
             container.appendChild(divider);
-            
+
             chatGroups[groupName].forEach(chat => {
                 createChatElement(container, chat);
             });
         }
     });
-    
-    // === УПРАВЛЕНИЕ СКРОЛЛОМ ===
+
+    // Скролл
     let target = scrollTarget;
     if (chats && typeof chats === 'object' && chats._scroll_target !== undefined) {
         target = chats._scroll_target;
     }
-    
     if (target === 'top') {
         requestAnimationFrame(() => {
-            const scrollContainer = document.querySelector('.chat-list');
-            if (scrollContainer) {
-                scrollContainer.scrollTop = 0;
-            } else {
-                const fallback = document.querySelector(window.SELECTORS.CHAT_LIST);
-                if (fallback) {
-                    fallback.scrollTop = 0;
-                }
-            }
+            const scrollContainer = document.querySelector('.chat-list') || document.querySelector(window.SELECTORS.CHAT_LIST);
+            if (scrollContainer) scrollContainer.scrollTop = 0;
         });
     } else if (target === 'today') {
         requestAnimationFrame(() => {
             const scrollContainer = document.querySelector('.chat-list') || document.querySelector(window.SELECTORS.CHAT_LIST);
             if (!scrollContainer) return;
-            
             const todayHeader = Array.from(document.querySelectorAll('.group-divider')).find(
                 el => el.textContent.trim() === 'Сегодня'
             );
-            
-            if (todayHeader) {
-                todayHeader.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            } else {
-                scrollContainer.scrollTop = 0;
-            }
+            if (todayHeader) todayHeader.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            else scrollContainer.scrollTop = 0;
         });
     }
-    // =======================================================
-    
-    // === ИНИЦИАЛИЗАЦИЯ СОСТОЯНИЯ КНОПКИ МЫШЛЕНИЯ ===
+
+    // Установка состояния кнопки мышления
     if (chats && typeof chats === 'object' && chats._thinking_state !== undefined) {
         if (window.setThinkingButtonState) {
             window.setThinkingButtonState(chats._thinking_state);
         }
     }
-    
-    // === ВИЗУАЛЬНОЕ ВЫДЕЛЕНИЕ АКТИВНОГО ЧАТА И ФОКУС НА ПОЛЕ ВВОДА ===
+
+    // Установка состояния кнопки поиска
+    if (chats && typeof chats === 'object' && chats._search_state !== undefined) {
+        if (window.setSearchButtonState) {
+            window.setSearchButtonState(chats._search_state);
+        }
+    }
+
+    // Выделение активного чата и фокус
     const activeChat = chatListData.find(chat => chat.is_current);
     if (activeChat) {
         window.setActiveChatClass(activeChat.id);
-        
-        // Установка фокуса на поле ввода, если нет активной генерации
         if (!window.isGenerating) {
             setTimeout(() => {
                 const inputField = document.querySelector('.chat-input-wrapper textarea');
-                if (inputField && !inputField.disabled) {
-                    inputField.focus();
-                }
+                if (inputField && !inputField.disabled) inputField.focus();
             }, 10);
         }
     }

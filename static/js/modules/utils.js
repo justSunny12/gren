@@ -73,7 +73,7 @@ window.loadScript = function(src, callback) {
     document.head.appendChild(script);
 };
 
-// Унифицированная отправка команд
+// Унифицированная отправка команд с логом
 window.sendCommand = function(command) {
     const chatInput = window.getChatInputField();
     if (!chatInput) {
@@ -82,7 +82,6 @@ window.sendCommand = function(command) {
     }
     chatInput.value = command;
     chatInput.dispatchEvent(new Event('input', { bubbles: true }));
-    // Очищаем поле через небольшую задержку
     setTimeout(() => {
         chatInput.value = '';
     }, 50);
@@ -103,19 +102,15 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Кэшируем настройки из скрытого поля settings_data
-    // Поле обновляется при инициализации приложения через demo.load
     const checkSettingsInterval = setInterval(() => {
         const settingsDataElem = document.querySelector('#settings_data');
         if (settingsDataElem && settingsDataElem.value) {
             try {
-                // Gradio хранит значение JSON-компонента в свойстве value
-                // Это может быть строка или уже объект
                 let settings = settingsDataElem.value;
                 if (typeof settings === 'string') {
                     settings = JSON.parse(settings);
                 }
                 window.appSettings = settings;
-                console.log('✅ Настройки загружены в window.appSettings:', window.appSettings);
                 clearInterval(checkSettingsInterval);
             } catch (e) {
                 console.error('Ошибка парсинга settings_data:', e);
@@ -126,8 +121,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Дополнительно: слушаем событие change на самом компоненте Gradio (на случай обновления)
     const settingsDataElem = document.querySelector('#settings_data');
     if (settingsDataElem) {
-        // Gradio может обновлять элемент через внутренние механизмы,
-        // поэтому подписываемся на пользовательское событие gradio_update
         document.addEventListener('gradio_update', function() {
             const elem = document.querySelector('#settings_data');
             if (elem && elem.value) {
@@ -137,7 +130,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         settings = JSON.parse(settings);
                     }
                     window.appSettings = settings;
-                    console.log('🔄 Настройки обновлены:', window.appSettings);
                 } catch (e) {
                     console.error('Ошибка обновления настроек:', e);
                 }

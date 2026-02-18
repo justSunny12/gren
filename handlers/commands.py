@@ -96,16 +96,42 @@ class CommandHandler(BaseHandler):
             if current is None:
                 current = False
             new_state = not current
+
             success = self.config_service.update_user_settings_batch({
                 "generation": {"enable_thinking": new_state}
             })
             if not success:
                 return None, "", self.get_chat_list_data(scroll_target='none')
+
             self._config = None
             user_config_service.invalidate_cache()
             chat_list_data = self.get_chat_list_data(scroll_target='none')
             return None, "", chat_list_data
-        except Exception:
+        except Exception as e:
+            self.logger.error("Ошибка в handle_thinking_toggle")
+            return None, "", self.get_chat_list_data(scroll_target='none')
+    
+    def handle_search_toggle(self, command: str):
+        try:
+            user_config_service.invalidate_cache()
+            user_config = user_config_service.get_user_config()
+            current = user_config.search_enabled
+            if current is None:
+                current = False
+            new_state = not current
+
+            success = self.config_service.update_user_settings_batch({
+                "search_enabled": new_state
+            })
+            if not success:
+                return None, "", self.get_chat_list_data(scroll_target='none')
+
+            self._config = None
+            user_config_service.invalidate_cache()
+            chat_list_data = self.get_chat_list_data(scroll_target='none')
+            return None, "", chat_list_data
+        except Exception as e:
+            self.logger.error("Ошибка в handle_search_toggle")
             return None, "", self.get_chat_list_data(scroll_target='none')
     
     def handle_settings_apply(self, command: str):

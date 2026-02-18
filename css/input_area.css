@@ -8,6 +8,7 @@
     height: 150px !important;
     min-height: 150px !important;
     max-height: 150px !important;
+    min-width: 300px !important;
     width: 80% !important;
     align-self: center !important;
     box-sizing: border-box !important;
@@ -256,13 +257,15 @@
     padding: 0 12px !important;
 }
 
-.chat-input-wrapper .generation-buttons-wrapper button.thinking-btn.thinking-btn-active {
+.chat-input-wrapper .generation-buttons-wrapper button.thinking-btn.thinking-btn-active,
+.chat-input-wrapper .generation-buttons-wrapper button.search-btn.search-btn-active {
     background: rgb(235, 241, 253) !important;
     border-color: rgb(186, 199, 250) !important;
     color: rgb(67, 99, 245) !important;
 }
 
-.chat-input-wrapper .generation-buttons-wrapper button.thinking-btn.thinking-btn-active svg {
+.chat-input-wrapper .generation-buttons-wrapper button.thinking-btn.thinking-btn-active svg,
+.chat-input-wrapper .generation-buttons-wrapper button.search-btn.search-btn-active svg {
     stroke: rgb(67, 99, 245) !important;
 }
 

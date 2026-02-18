@@ -37,8 +37,7 @@ class EventBinder:
             current_dialog_id,
             components["chatbot"],
             components["chat_list_data"],
-            components["generation_js_trigger"],
-            components["search_btn"]
+            components["generation_js_trigger"]
         )
         self.generation_events.bind_generation_js_events(
             components["generation_js_trigger"]

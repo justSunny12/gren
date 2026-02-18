@@ -44,7 +44,7 @@ class UIMediator:
         try:
             return self._handlers[event_type](*args, **kwargs)
         except Exception as e:
-            self.logger.exception("Ошибка при выполнении события %s: %s", event_type, e)
+            self.logger.error("Ошибка при выполнении события %s: %s", event_type, e)
             raise
 
     def _handle_chat_selection(self, chat_id: str):
@@ -58,6 +58,13 @@ class UIMediator:
             return self._command_handler.handle_chat_pinning(chat_id)
         elif chat_id.startswith('thinking:'):
             history, new_id, chat_list_data = self._command_handler.handle_thinking_toggle(chat_id)
+            if history is None:
+                current_dialog = self._command_handler.dialog_service.get_current_dialog()
+                history = current_dialog.to_ui_format() if current_dialog else []
+                new_id = current_dialog.id if current_dialog else ""
+            return history, new_id, chat_list_data
+        elif chat_id.startswith('search:toggle'):
+            history, new_id, chat_list_data = self._command_handler.handle_search_toggle(chat_id)
             if history is None:
                 current_dialog = self._command_handler.dialog_service.get_current_dialog()
                 history = current_dialog.to_ui_format() if current_dialog else []

@@ -58,7 +58,7 @@ class MessageHandler(BaseHandler):
         chat_id: Optional[str],
         max_tokens: Optional[int],
         temperature: Optional[float],
-        search_enabled: bool = False,           # ← новый параметр
+        search_enabled: Optional[bool] = None
     ) -> AsyncGenerator[Tuple[List[dict], str, str, str, str], None]:
         if not self._stream_lock.acquire(blocking=False):
             error_history = [{"role": MessageRole.ASSISTANT.value,
@@ -74,6 +74,7 @@ class MessageHandler(BaseHandler):
 
             user_config = user_config_service.get_user_config(force_reload=True)
             enable_thinking = user_config.generation.enable_thinking
+            search_enabled = user_config.search_enabled or False
             if enable_thinking is None:
                 enable_thinking = False
 
