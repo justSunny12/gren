@@ -15,7 +15,8 @@ class Container:
             "dialog_service": self._create_dialog_service,
             "chat_service": self._create_chat_service,
             "ui_mediator": self._create_ui_mediator,
-            "logger": self._create_logger,          # новая фабрика
+            "logger": self._create_logger,
+            "search_service": self._create_search_service,
         })
     
     def _create_config_service(self):
@@ -42,6 +43,11 @@ class Container:
         # Импортируем здесь, чтобы избежать циклических импортов
         from handlers import ui_handlers
         return ui_handlers
+    
+    def _create_search_service(self):
+        from services.search.manager import SearchManager
+        config = self.get_config()
+        return SearchManager(config)
     
     def _create_logger(self):
         from services.logger import create_logger_from_config
@@ -77,6 +83,9 @@ class Container:
     
     def get_logger(self):
         return self.get("logger")
+    
+    def get_search_service(self):
+        return self.get("search_service")
 
 # Глобальный контейнер
 container = Container()

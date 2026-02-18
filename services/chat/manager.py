@@ -1,7 +1,6 @@
 # services/chat/manager.py
 """
 Главный менеджер для координации всех компонентов чата.
-После рефакторинга делегирует обработку потока MessageStreamProcessor.
 """
 import threading
 from typing import AsyncGenerator, List, Dict, Optional, Tuple
@@ -32,7 +31,8 @@ class ChatManager:
         max_tokens: Optional[int] = None,
         temperature: Optional[float] = None,
         enable_thinking: Optional[bool] = None,
-        stop_event: Optional[threading.Event] = None
+        stop_event: Optional[threading.Event] = None,
+        search_enabled: bool = False,          # ← новый параметр
     ) -> AsyncGenerator[Tuple[List[Dict], str, str, str, str], None]:
         """
         Асинхронно обрабатывает сообщение и возвращает поток обновлений.
@@ -43,6 +43,7 @@ class ChatManager:
             max_tokens=max_tokens,
             temperature=temperature,
             enable_thinking=enable_thinking,
-            stop_event=stop_event
+            stop_event=stop_event,
+            search_enabled=search_enabled,     # ← передаём дальше
         ):
             yield result

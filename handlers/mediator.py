@@ -110,8 +110,8 @@ class UIMediator:
     def create_chat_with_js_handler(self):
         return self.dispatch("create_chat")
 
-    async def send_message_stream_handler(self, prompt, chat_id, max_tokens, temperature):
-        async for result in self.dispatch("send_message_stream", prompt, chat_id, max_tokens, temperature):
+    async def send_message_stream_handler(self, prompt, chat_id, max_tokens, temperature, search_enabled=False):
+        async for result in self.dispatch("send_message_stream", prompt, chat_id, max_tokens, temperature, search_enabled):
             yield result
 
     def init_app_handler(self):

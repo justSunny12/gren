@@ -8,6 +8,7 @@ from services.user_config_service import user_config_service
 from models.enums import MessageRole
 from services.model.thinking_handler import ThinkingHandler
 
+
 class MessageHandler(BaseHandler):
     def __init__(self):
         super().__init__()
@@ -56,7 +57,8 @@ class MessageHandler(BaseHandler):
         prompt: str,
         chat_id: Optional[str],
         max_tokens: Optional[int],
-        temperature: Optional[float]
+        temperature: Optional[float],
+        search_enabled: bool = False,           # ← новый параметр
     ) -> AsyncGenerator[Tuple[List[dict], str, str, str, str], None]:
         if not self._stream_lock.acquire(blocking=False):
             error_history = [{"role": MessageRole.ASSISTANT.value,
@@ -85,7 +87,8 @@ class MessageHandler(BaseHandler):
                 max_tokens=max_tokens,
                 temperature=temperature,
                 enable_thinking=enable_thinking,
-                stop_event=stop_event
+                stop_event=stop_event,
+                search_enabled=search_enabled,  # ← передаём
             ):
                 # Преобразование тегов think в HTML
                 if acc_text and history and history[-1].get('role') == MessageRole.ASSISTANT.value:

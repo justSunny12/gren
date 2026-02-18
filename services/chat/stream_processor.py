@@ -3,7 +3,6 @@
 Обработчик потока генерации ответа модели.
 """
 import threading
-import traceback
 from typing import AsyncGenerator, List, Dict, Optional, Tuple
 
 from models.enums import MessageRole
@@ -14,7 +13,7 @@ from services.chat.core import validate_message, sanitize_user_input
 from services.chat.formatter import format_history_for_model
 from services.chat.naming import is_default_name
 from container import container
-
+from datetime import datetime
 
 class MessageStreamProcessor:
     """Координирует потоковую обработку одного сообщения."""
@@ -32,6 +31,18 @@ class MessageStreamProcessor:
             self._logger = container.get_logger()
         return self._logger
 
+    def _inject_current_datetime(self, messages: List[Dict]) -> List[Dict]:
+        """Добавляет информацию о текущей дате в системное сообщение (или создаёт его)."""
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        date_info = f"Текущая дата и время: {now}."
+
+        # Если первое сообщение системное – дополняем его
+        if messages and messages[0].get("role") == "system":
+            messages[0]["content"] = date_info + " " + messages[0]["content"]
+        else:
+            messages.insert(0, {"role": "system", "content": date_info})
+        return messages
+
     async def process(
         self,
         prompt: str,
@@ -39,10 +50,13 @@ class MessageStreamProcessor:
         max_tokens: Optional[int],
         temperature: Optional[float],
         enable_thinking: Optional[bool],
-        stop_event: Optional[threading.Event]
+        stop_event: Optional[threading.Event],
+        search_enabled: bool = False,
     ) -> AsyncGenerator[Tuple[List[Dict], str, str, str, str], None]:
-        """Основной метод обработки потока."""
-        # Валидация
+        """Основной метод обработки потока с поддержкой поиска и актуальной даты."""
+        self.logger.info(f"🚦 stream_processor.process called with search_enabled={search_enabled}")
+
+        # Валидация сообщения
         is_valid, error = validate_message(prompt)
         if not is_valid:
             yield [], error, dialog_id or "", self._get_chat_list_data('today'), ""
@@ -59,6 +73,7 @@ class MessageStreamProcessor:
         base_history = dialog.to_ui_format()
         cache_key = f"{dialog_id}_{len(base_history)}"
 
+        # Стартовый JS (блокировка кнопок)
         js_start = "if (window.toggleGenerationButtons) { window.toggleGenerationButtons(true); }"
         yield base_history, "", dialog_id, self._get_chat_list_data('today'), js_start
 
@@ -66,9 +81,55 @@ class MessageStreamProcessor:
         suffix_on_stop = "...<генерация прервана пользователем>"
 
         try:
-            # Стриминг ответа
+            messages_to_use = formatted_history
+            search_cfg = self.config.get("search", {})
+            status_cfg = search_cfg.get("status_messages", {})
+            searched = False
+            query = ""
+
+            # Этап 1: анализ необходимости поиска (Pass 1)
+            if search_enabled and search_cfg.get("enabled", False):
+                self.logger.info("➡️ Pass 1: запуск анализа необходимости поиска")
+
+                deciding_text = status_cfg.get("deciding", "🔍 Анализирую запрос...")
+                if deciding_text:
+                    yield (
+                        self._make_status_history(base_history, deciding_text),
+                        deciding_text, dialog_id,
+                        self._get_chat_list_data('today'), ""
+                    )
+
+                augmented, searched, query = await self._run_search(
+                    prompt=prompt,
+                    formatted_history=formatted_history,
+                )
+                self.logger.info(f"➡️ Pass 1 результат: searched={searched}, query='{query}'")
+
+                if searched:
+                    # Статус 2: найден результат, обрабатываем
+                    searching_tpl = status_cfg.get("searching", "🌐 Ищу в сети: {query}")
+                    reading_text = status_cfg.get("reading", "📄 Читаю результаты...")
+                    final_status = f"{searching_tpl.format(query=query)}\n{reading_text}"
+
+                    yield (
+                        self._make_status_history(base_history, final_status),
+                        final_status, dialog_id,
+                        self._get_chat_list_data('today'), ""
+                    )
+                    messages_to_use = augmented
+                else:
+                    self.logger.info("➡️ Pass 1 решил не искать, продолжаем без поиска")
+            else:
+                self.logger.info("➡️ Поиск отключён (search_enabled={} или search.enabled={})".format(
+                    search_enabled, search_cfg.get("enabled")))
+
+            # --- Добавление текущей даты и времени в сообщения для модели ---
+            messages_to_use = self._inject_current_datetime(messages_to_use)
+            # ---------------------------------------------------------------
+
+            # Этап 2: стриминг ответа модели
             async for batch in self.operations.stream_response(
-                messages=formatted_history,
+                messages=messages_to_use,
                 max_tokens=max_tokens,
                 temperature=temperature,
                 enable_thinking=enable_thinking,
@@ -81,19 +142,19 @@ class MessageStreamProcessor:
                     "content": accumulated_response
                 })
                 yield (history_for_ui, accumulated_response, dialog_id,
-                       self._get_chat_list_data('today'), "")
+                    self._get_chat_list_data('today'), "")
 
             was_stopped = stop_event and stop_event.is_set()
             final_text = accumulated_response + (suffix_on_stop if was_stopped else "")
 
-            # Сохранение в диалог
+            # Сохранение ответа в диалог
             self.operations.dialog_service.add_message(
                 dialog_id,
                 MessageRole.ASSISTANT,
                 final_text
             )
 
-            # Обновление контекста
+            # Обновление контекста (оригинальный prompt, не augmented)
             try:
                 dialog.add_interaction_to_context(prompt, final_text)
                 dialog.save_context_state()
@@ -105,9 +166,10 @@ class MessageStreamProcessor:
             final_history = updated_dialog.to_ui_format()
             js_stop = "if (window.toggleGenerationButtons) { window.toggleGenerationButtons(false); }"
             yield (final_history, final_text, dialog_id,
-                   self._get_chat_list_data('today'), js_stop)
+                self._get_chat_list_data('today'), js_stop)
 
-            # Генерация названия (если нужно)
+            # Генерация названия чата (если нужно)
+            from services.chat.naming import is_default_name
             if is_default_name(updated_dialog.name, self.config) and len(updated_dialog.history) == 2:
                 new_name = await self.naming_service.generate_name(prompt, final_text)
                 if new_name:
@@ -126,15 +188,59 @@ class MessageStreamProcessor:
             self.cache.clear(cache_key)
 
         except Exception as e:
-            self.logger.exception("Ошибка в process_message_stream: %s", e)
+            self.logger.error("❌ Ошибка в process_message_stream: %s", e)
             self.cache.clear(cache_key)
-            base_history = dialog.to_ui_format()
+            # Пытаемся получить актуальную историю диалога
+            try:
+                dialog = self.operations.dialog_service.get_dialog(dialog_id)
+                base_history = dialog.to_ui_format() if dialog else []
+            except:
+                base_history = []
             error_history = list(base_history)
             error_history.append({
                 "role": MessageRole.ASSISTANT.value,
                 "content": f"⚠️ Ошибка: {str(e)[:100]}"
             })
             yield (error_history, "", dialog_id, self._get_chat_list_data('today'), "")
+
+    async def _run_search(
+        self,
+        prompt: str,
+        formatted_history: List[Dict],
+    ) -> Tuple[List[Dict], bool, str]:
+        """
+        Pass 1 + Tavily. Обычная async функция — никаких yield.
+
+        Возвращает:
+            augmented_messages  — история с инжектированным контекстом поиска
+            searched            — был ли выполнен поиск
+            query               — поисковый запрос (для отображения статуса)
+        """
+        try:
+            search_manager = container.get("search_service")
+        except Exception as e:
+            self.logger.error("SearchManager недоступен: %s", e)
+            return formatted_history, False, ""
+
+        from services.search.manager import SearchOutcome
+        outcome: SearchOutcome = await search_manager.process(
+            user_prompt=prompt,
+            original_messages=formatted_history,
+        )
+
+        if not outcome.searched:
+            return formatted_history, False, ""
+
+        return outcome.augmented_messages, True, outcome.query
+
+    def _make_status_history(self, base_history: List[Dict], text: str) -> List[Dict]:
+        """Добавляет временное сообщение-статус ассистента в историю для UI."""
+        history = list(base_history)
+        history.append({
+            "role": MessageRole.ASSISTANT.value,
+            "content": text,
+        })
+        return history
 
     def _get_chat_list_data(self, scroll_target: str = 'none') -> str:
         from handlers.chat_list import ChatListHandler

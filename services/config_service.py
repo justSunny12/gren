@@ -19,7 +19,8 @@ class ConfigService:
                 "app_config.yaml",
                 "model_config.yaml",
                 "user_config.yaml",
-                "context_config.yaml"
+                "context_config.yaml",
+                "search_config.yaml"
             ]
             for yaml_file in yaml_files:
                 file_path = os.path.join(self.config_dir, yaml_file)

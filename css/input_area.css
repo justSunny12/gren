@@ -285,7 +285,7 @@
     color: #111827 !important;
     flex: 0 0 auto !important;
     padding: 0 12px !important;
-    display: none !important; /* до внедрения функционала*/
+    /* display: none !important; */
 }
 
 /* ============================ КНОПКА "ПРИКРЕПИТЬ" ============================ */

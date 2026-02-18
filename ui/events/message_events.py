@@ -49,7 +49,7 @@ class MessageEvents:
         return ""
 
     @staticmethod
-    async def stream_response_only(saved_prompt, chat_id):
+    async def stream_response_only(saved_prompt, chat_id, search_enabled):
         if not saved_prompt or saved_prompt.strip() == "":
             yield [], chat_id or "", "[]", ""
             return
@@ -68,7 +68,7 @@ class MessageEvents:
 
         try:
             async for history, _, dialog_id, chat_list_data, js_code in ui_handlers.send_message_stream_handler(
-                saved_prompt, chat_id, max_tokens, temperature
+                saved_prompt, chat_id, max_tokens, temperature, search_enabled
             ):
                 yield history, dialog_id, chat_list_data, js_code
         except asyncio.CancelledError:
@@ -90,7 +90,7 @@ class MessageEvents:
 
     @staticmethod
     def _setup_send_chain(event_trigger, saved_prompt, user_input, current_dialog_id,
-                          chatbot, chat_list_data, generation_js_trigger):
+                          chatbot, chat_list_data, generation_js_trigger, search_state):
         """Прикрепляет цепочку обработки отправки сообщения к заданному триггеру."""
         event_trigger(
             fn=MessageEvents.clear_input_and_save_prompt,
@@ -102,23 +102,31 @@ class MessageEvents:
             outputs=[chatbot, current_dialog_id, chat_list_data, saved_prompt]
         ).then(
             fn=MessageEvents.stream_response_only,
-            inputs=[saved_prompt, current_dialog_id],
+            inputs=[saved_prompt, current_dialog_id, search_state],
             outputs=[chatbot, current_dialog_id, chat_list_data, generation_js_trigger]
         )
 
     @staticmethod
     def bind_message_events(submit_btn, stop_btn, user_input, current_dialog_id,
-                            chatbot, chat_list_data, generation_js_trigger):
+                            chatbot, chat_list_data, generation_js_trigger, search_btn):
         saved_prompt = gr.State()
+        search_state = gr.State(False)
+        
+        # Кнопка поиска переключает состояние True/False
+        search_btn.click(
+            fn=lambda s: not s,
+            inputs=[search_state],
+            outputs=[search_state]
+        )
 
         # Используем общий метод для обоих триггеров
         MessageEvents._setup_send_chain(
             submit_btn.click, saved_prompt, user_input, current_dialog_id,
-            chatbot, chat_list_data, generation_js_trigger
+            chatbot, chat_list_data, generation_js_trigger, search_state
         )
         MessageEvents._setup_send_chain(
             user_input.submit, saved_prompt, user_input, current_dialog_id,
-            chatbot, chat_list_data, generation_js_trigger
+            chatbot, chat_list_data, generation_js_trigger, search_state
         )
 
         # Остановка генерации
