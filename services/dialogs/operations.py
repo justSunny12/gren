@@ -1,3 +1,4 @@
+# services/dialogs/operations.py
 """
 CRUD операции с диалогами
 """
@@ -6,6 +7,7 @@ from datetime import datetime
 from models.dialog import Dialog
 from models.enums import MessageRole
 from .storage import DialogStorage
+from services.context.factory import ContextManagerFactory
 
 
 class DialogOperations:
@@ -46,6 +48,9 @@ class DialogOperations:
         # Удаляем папку с файлами диалога
         storage.delete_dialog_folder(dialog)
         
+        # Удаляем менеджер контекста из фабрики
+        ContextManagerFactory.remove_for_dialog(dialog_id)
+        
         # Удаляем из памяти
         del dialogs[dialog_id]
         
@@ -58,39 +63,29 @@ class DialogOperations:
         if dialog_id not in dialogs:
             return False
         
-        # Получаем конфигурацию
         from container import container
         config = container.get_config()
-        
-        # Безопасно извлекаем настройки именования
         chat_naming_config = config.get("chat_naming", {})
         
-        # Значения по умолчанию, если секция отсутствует
         max_length = chat_naming_config.get("max_name_length", 50)
         min_length = chat_naming_config.get("min_name_length", 1)
         name_validation = chat_naming_config.get("name_validation", {})
         allow_whitespace_only = name_validation.get("allow_whitespace_only", True)
         
-        # Очищаем и валидируем новое название
         new_name = new_name.strip()
         
-        # Проверка минимальной длины
         if len(new_name) < min_length:
             return False
         
-        # Проверка на пустое название (после strip)
         if not new_name:
             return False
         
-        # Проверка на только пробелы (если запрещено)
         if not allow_whitespace_only and new_name.isspace():
             return False
         
-        # Ограничение максимальной длины
         if len(new_name) > max_length:
             new_name = new_name[:max_length]
         
-        # Сохраняем старое название на случай ошибки
         old_name = dialogs[dialog_id].name
         
         try:
@@ -98,7 +93,6 @@ class DialogOperations:
             storage.save_dialog(dialogs[dialog_id])
             return True
         except Exception:
-            # В случае ошибки восстанавливаем старое название
             try:
                 dialogs[dialog_id].rename(old_name)
             except:
