@@ -1,3 +1,4 @@
+# services/model/lifecycle.py
 """
 Управление жизненным циклом модели
 """
@@ -24,7 +25,14 @@ class ModelLifecycleManager(IModelLifecycleManager):
         # Компоненты
         self._loader = None
         self._memory_manager = None
-        
+        self._logger = None
+
+    @property
+    def logger(self):
+        if self._logger is None:
+            self._logger = container.get_logger()
+        return self._logger
+
     @property
     def config(self):
         """Ленивая загрузка конфигурации"""
@@ -76,9 +84,9 @@ class ModelLifecycleManager(IModelLifecycleManager):
                 return None, None, self._generate_lock
                 
         except Exception as e:
-            from container import container
-            logger = container.get_logger()
-            logger.error("Ошибка загрузки модели: %s", e)
+            self.logger.error("Ошибка загрузки модели: %s", e)
+            import traceback
+            traceback.print_exc()
             return None, None, self._generate_lock
     
     def is_initialized(self) -> bool:
@@ -104,5 +112,5 @@ class ModelLifecycleManager(IModelLifecycleManager):
         }
 
 
-# Глобальный экземпляр (можно инжектировать через Container)
+# Глобальный экземпляр
 model_lifecycle_manager = ModelLifecycleManager()

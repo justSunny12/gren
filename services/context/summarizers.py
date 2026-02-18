@@ -14,6 +14,7 @@ from dataclasses import dataclass
 import mlx.core as mx
 from mlx_lm import generate
 from mlx_lm.sample_utils import make_sampler, make_logits_processors
+from container import container
 
 
 @dataclass
@@ -42,6 +43,7 @@ class BaseSummarizer:
         self.model_name = model_config.get("name", "unknown")
         self.local_path = model_config.get("local_path")
         self.config = config
+        self._logger = None
 
         if model is not None and tokenizer is not None:
             self._model = model
@@ -71,6 +73,12 @@ class BaseSummarizer:
         self._successful_requests = 0
         self._total_processing_time = 0.0
         self._last_used: Optional[float] = None
+
+    @property
+    def logger(self):
+        if self._logger is None:
+            self._logger = container.get_logger()
+        return self._logger
 
     @property
     def is_loaded(self) -> bool:
@@ -135,9 +143,7 @@ class BaseSummarizer:
                     self._tokenizer.pad_token = self._tokenizer.eos_token
                 self._tokenizer.padding_side = "left"
 
-                from container import container
-                logger = container.get_logger()
-                logger.info("   ✅ Модель %s загружена за %.2f сек", self.model_name, time.time() - start_time)
+                self.logger.info("   ✅ Модель %s загружена за %.2f сек", self.model_name, time.time() - start_time)
                 return True
             except Exception as e:
                 self._load_error = str(e)
@@ -328,7 +334,7 @@ class L2Summarizer(BaseSummarizer):
 Создай сжатую сводную запись, следуя требованиям выше:"""
 
     def _clean_response(self, response: str, prompt: str) -> str:
-        cleaned = super()._clean_response(response, prompt)
+        cleaned = super()._cleanResponse(response, prompt)
         if cleaned.startswith("[L1 Summary]"):
             cleaned = cleaned.replace("[L1 Summary]", "[L2 Summary]")
         elif cleaned and not cleaned.startswith("[L2 Summary]"):

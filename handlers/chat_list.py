@@ -33,7 +33,8 @@ class ChatListHandler(BaseHandler):
                     js_data["flat"].append(js_dialog)
                 js_data["groups"][group_name] = group_dialogs
             return json.dumps(js_data, ensure_ascii=False)
-        except Exception:
+        except Exception as e:
+            self.logger.error("Ошибка получения списка чатов: %s", e)
             return json.dumps({
                 "groups": {},
                 "flat": [],

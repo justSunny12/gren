@@ -7,6 +7,15 @@ from container import container
 class MLXMemoryManager:
     """Менеджер памяти для MLX"""
     
+    def __init__(self):
+        self._logger = None
+
+    @property
+    def logger(self):
+        if self._logger is None:
+            self._logger = container.get_logger()
+        return self._logger
+    
     def setup_memory_limit(self, model_config: dict) -> bool:
         """Устанавливает лимит памяти для MLX"""
         memory_limit = model_config.get("unified_memory_limit")
@@ -21,12 +30,10 @@ class MLXMemoryManager:
                 
                 limit_bytes = int(total_memory * (memory_limit / 100))
                 mx.set_cache_limit(limit_bytes)
-                logger = container.get_logger()
-                logger.info("🛠️  Установлен лимит памяти MLX: %.2f GB", limit_bytes/1024**3)
+                self.logger.info("🛠️  Установлен лимит памяти MLX: %.2f GB", limit_bytes/1024**3)
                 return True
             except Exception as e:
-                logger = container.get_logger()
-                logger.warning("Не удалось установить лимит памяти: %s", e)
+                self.logger.warning("Не удалось установить лимит памяти: %s", e)
                 return False
         
         return False

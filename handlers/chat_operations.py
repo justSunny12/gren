@@ -51,5 +51,6 @@ class ChatOperationsHandler(BaseHandler):
             history = dialog.to_ui_format()
             return history, "", dialog_id, js_code, chat_list_data
             
-        except Exception:
+        except Exception as e:
+            self.logger.error("Ошибка при создании чата: %s", e)
             return [], "", None, "", "[]"

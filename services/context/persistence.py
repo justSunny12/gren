@@ -8,6 +8,7 @@ from typing import Optional
 
 from models.dialog import Dialog
 from models.context import DialogContextState
+from container import container
 
 
 class ContextStatePersistence:
@@ -16,10 +17,16 @@ class ContextStatePersistence:
     def __init__(self, dialog: Dialog, config: dict):
         self.dialog = dialog
         self.config = config
+        self._logger = None
+
+    @property
+    def logger(self):
+        if self._logger is None:
+            self._logger = container.get_logger()
+        return self._logger
 
     def get_state_file_path(self) -> str:
         """Генерирует путь к файлу состояния контекста."""
-        from container import container
         config_service = container.get("config_service")
         app_config = config_service.get_config()
         save_dir = app_config.get("dialogs", {}).get("save_dir", "saved_dialogs")
@@ -35,8 +42,6 @@ class ContextStatePersistence:
 
     def save(self, state: DialogContextState, file_path: Optional[str] = None) -> bool:
         """Сохраняет состояние в файл."""
-        from container import container
-        logger = container.get_logger()
         if file_path is None:
             file_path = self.get_state_file_path()
         try:
@@ -45,13 +50,11 @@ class ContextStatePersistence:
                 json.dump(state_dict, f, ensure_ascii=False, indent=2)
             return True
         except Exception as e:
-            logger.error("Ошибка сохранения состояния контекста: %s", e)
+            self.logger.error("Ошибка сохранения состояния контекста: %s", e)
             return False
 
     def load(self, file_path: Optional[str] = None) -> Optional[DialogContextState]:
         """Загружает состояние из файла."""
-        from container import container
-        logger = container.get_logger()
         if file_path is None:
             file_path = self.get_state_file_path()
         try:
@@ -61,5 +64,5 @@ class ContextStatePersistence:
                 state_dict = json.load(f)
             return DialogContextState.model_validate(state_dict)
         except Exception as e:
-            logger.error("Ошибка загрузки состояния контекста: %s", e)
+            self.logger.error("Ошибка загрузки состояния контекста: %s", e)
             return None

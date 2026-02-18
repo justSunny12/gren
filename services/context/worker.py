@@ -10,6 +10,7 @@ from typing import Dict, Any
 from models.summary_task import SummaryTask
 from services.context.summarizers import SummaryResult
 from services.context.summarizer_factory import SummarizerFactory
+from container import container
 
 
 class SummaryWorker:
@@ -22,6 +23,13 @@ class SummaryWorker:
         self.stop_event = threading.Event()
         self.thread = None
         self._summarizers = None
+        self._logger = None
+
+    @property
+    def logger(self):
+        if self._logger is None:
+            self._logger = container.get_logger()
+        return self._logger
 
     def _get_summarizers(self):
         if self._summarizers is None:
@@ -78,7 +86,5 @@ class SummaryWorker:
 
                 self.scheduler.task_done()
             except Exception as e:
-                from container import container
-                logger = container.get_logger()
-                logger.error("Ошибка в воркере: %s", e)
+                self.logger.error("Ошибка в воркере: %s", e)
                 self.scheduler.task_done()

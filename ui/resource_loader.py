@@ -1,22 +1,28 @@
 # ui/resource_loader.py
 import os
+from container import container
+
 
 class ResourceLoader:
     """Загрузчик ресурсов (CSS, JS)."""
 
-    @staticmethod
-    def load_css():
+    def __init__(self):
+        self._logger = None
+
+    @property
+    def logger(self):
+        if self._logger is None:
+            self._logger = container.get_logger()
+        return self._logger
+
+    def load_css(self):
         """Загружает все CSS файлы из css/."""
-        
-        from container import container
-        logger = container.get_logger()
-        
         css_files = [
             'css/base.css',
             'css/sidebar.css',
             'css/chat_window.css',
             'css/input_area.css',
-            'css/modals.css'          # <-- добавлено
+            'css/modals.css'
         ]
 
         css_content = ""
@@ -26,29 +32,24 @@ class ResourceLoader:
                     with open(css_file, 'r', encoding='utf-8') as f:
                         css_content += f.read() + "\n"
                 else:
-                    logger.warning("CSS файл не найден: %s", css_file)
+                    self.logger.warning("CSS файл не найден: %s", css_file)
             except Exception as e:
-                logger.error("Ошибка загрузки CSS файла %s: %s", css_file, e)
+                self.logger.error("Ошибка загрузки CSS файла %s: %s", css_file, e)
 
         return css_content
 
-    @staticmethod
-    def load_js():
+    def load_js(self):
         """Загружает все JavaScript файлы."""
-        
-        from container import container
-        logger = container.get_logger()
-        
         js_files = [
-            'static/js/config/selectors.js',      # 1. Селекторы
-            'static/js/modules/utils.js',         # 2. Утилиты
-            'static/js/modules/delete-modal.js',  # 3. Модальное окно удаления
-            'static/js/modules/rename-modal.js',  # 4. Модальное окно переименования
-            'static/js/modules/settings-modal.js',# 5. Модальное окно настроек (НОВОЕ)
-            'static/js/modules/chat-list.js',     # 6. Список чатов
-            'static/js/modules/context-menu.js',  # 7. Контекстное меню
-            'static/js/modules/generation-control.js', # 8. Управление генерацией
-            'static/js/main.js'                  # 9. Основной код
+            'static/js/config/selectors.js',
+            'static/js/modules/utils.js',
+            'static/js/modules/delete-modal.js',
+            'static/js/modules/rename-modal.js',
+            'static/js/modules/settings-modal.js',
+            'static/js/modules/chat-list.js',
+            'static/js/modules/context-menu.js',
+            'static/js/modules/generation-control.js',
+            'static/js/main.js'
         ]
 
         js_content = ""
@@ -58,9 +59,9 @@ class ResourceLoader:
                     with open(js_file, 'r', encoding='utf-8') as f:
                         js_content += f.read() + "\n\n"
                 else:
-                    logger.warning("JS файл не найден: %s", js_file)
+                    self.logger.warning("JS файл не найден: %s", js_file)
             except Exception as e:
-                logger.error("Ошибка загрузки JS файла %s: %s", js_file, e)
+                self.logger.error("Ошибка загрузки JS файла %s: %s", js_file, e)
 
         js_code = f"""
         <script type="text/javascript">
