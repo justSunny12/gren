@@ -26,12 +26,12 @@ class EventBinder:
             components["js_trigger"],
             components["chat_list_data"]
         )
-        # 👇 Кнопка настроек – без вызова Python, использует кэш из settings_data
         self.chat_events.bind_settings_button_events(
             components["settings_btn"],
-            components["settings_data"]   # передаём компонент с настройками
+            components["settings_data"]
         )
         self.message_events.bind_message_events(
+            demo,  # ← передаём demo первым аргументом
             components["submit_btn"],
             components["stop_btn"],
             components["user_input"],
@@ -52,6 +52,6 @@ class EventBinder:
                 components["chatbot"],
                 current_dialog_id,
                 components["chat_list_data"],
-                components["settings_data"]   # ← добавляем выход для настроек
+                components["settings_data"]
             ]
         )

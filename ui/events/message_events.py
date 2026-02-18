@@ -86,37 +86,25 @@ class MessageEvents:
             except Exception:
                 yield [], "", "[]", ""
         except Exception as e:
+            # Здесь используем print, так как логгер может быть недоступен в этом контексте
             print(f"❌ Ошибка в stream_response_only: {e}")
             import traceback
             traceback.print_exc()
             yield [], chat_id or "", "[]", ""
 
     @staticmethod
-    def bind_message_events(submit_btn, stop_btn, user_input, current_dialog_id, chatbot,
-                            chat_list_data, generation_js_trigger):
+    def bind_message_events(demo, submit_btn, stop_btn, user_input, current_dialog_id,
+                            chatbot, chat_list_data, generation_js_trigger):
         saved_prompt = gr.State()
 
-        # Цепочка при клике на кнопку отправки
-        submit_btn.click(
+        # Единая цепочка для обоих триггеров (клик по кнопке и отправка по Enter)
+        send_chain = demo.on(
+            triggers=[submit_btn.click, user_input.submit],
             fn=MessageEvents.clear_input_and_save_prompt,
             inputs=[user_input],
             outputs=[user_input, saved_prompt]
-        ).then(
-            fn=MessageEvents.add_user_message,
-            inputs=[saved_prompt, current_dialog_id],
-            outputs=[chatbot, current_dialog_id, chat_list_data, saved_prompt]
-        ).then(
-            fn=MessageEvents.stream_response_only,
-            inputs=[saved_prompt, current_dialog_id],
-            outputs=[chatbot, current_dialog_id, chat_list_data, generation_js_trigger]
         )
-
-        # Цепочка при отправке по Enter
-        user_input.submit(
-            fn=MessageEvents.clear_input_and_save_prompt,
-            inputs=[user_input],
-            outputs=[user_input, saved_prompt]
-        ).then(
+        send_chain.then(
             fn=MessageEvents.add_user_message,
             inputs=[saved_prompt, current_dialog_id],
             outputs=[chatbot, current_dialog_id, chat_list_data, saved_prompt]
