@@ -4,6 +4,7 @@
 После рефакторинга использует выделенные компоненты.
 """
 import asyncio
+from datetime import datetime
 from typing import List, Dict, Any
 
 from models.dialog import Dialog
@@ -133,7 +134,8 @@ class ContextManager:
 
         self.state.l1_chunks.append(chunk)
         self.state.total_summarizations_l1 += 1
-        self.state.last_summarization_time = self.state.last_summarization_time or asyncio.get_event_loop().time()
+        # Исправлено: используем datetime.now() вместо asyncio.get_event_loop().time()
+        self.state.last_summarization_time = self.state.last_summarization_time or datetime.now()
 
         self.persistence.save(self.state)
 
@@ -182,7 +184,8 @@ class ContextManager:
         self.state.l1_chunks = [c for c in self.state.l1_chunks if c.id not in l1_chunk_ids]
         self.state.l2_blocks.append(l2_block)
         self.state.total_summarizations_l2 += 1
-        self.state.last_summarization_time = self.state.last_summarization_time or asyncio.get_event_loop().time()
+        # Исправлено: datetime.now() вместо asyncio.get_event_loop().time()
+        self.state.last_summarization_time = self.state.last_summarization_time or datetime.now()
 
         self.persistence.save(self.state)
 
