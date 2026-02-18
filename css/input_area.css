@@ -8,7 +8,6 @@
     height: 150px !important;
     min-height: 150px !important;
     max-height: 150px !important;
-    min-width: 300px !important;
     width: 80% !important;
     align-self: center !important;
     box-sizing: border-box !important;
@@ -23,6 +22,7 @@
     overflow: hidden !important;
     position: relative !important;
     box-shadow: 0px 2px 8px rgba(0, 0, 0, 0.08) !important;
+    min-width: 400px !important;
 }
 
 /* родительский контейнер области ввода и кнопок*/
@@ -385,17 +385,5 @@ div[class*="chat-input-wrapper"] {
 @media (max-width: 800px) {
     .generation-buttons-wrapper .left-buttons button.settings-btn {
         display: none !important;
-    }
-}
-
-/* При ширине <= 500px скрываем кнопки мышления и поиска (они уже без текста) */
-@media (max-width: 760px) {
-    .generation-buttons-wrapper .left-buttons
-     {
-        display: none !important;
-    }
-    .generation-buttons-wrapper .left-buttons{
-        gap: 0 !important;
-        padding-right: 0 !important;
     }
 }

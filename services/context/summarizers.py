@@ -169,10 +169,7 @@ class BaseSummarizer:
         start_time = time.time()
         self._total_requests += 1
 
-        self.logger.info(f"🔍 summarize: начало, text length={len(text)}")
-
         try:
-            self.logger.info("🔍 summarize: вызов ensure_loaded")
             if not await self.ensure_loaded():
                 self.logger.error("🔍 summarize: модель не загружена")
                 return SummaryResult(
@@ -192,8 +189,6 @@ class BaseSummarizer:
             repetition_penalty = kwargs.get("repetition_penalty", self.repetition_penalty)
             enable_thinking = False
 
-            self.logger.info(f"🔍 summarize: параметры: max_tokens={max_tokens}, temp={temperature}")
-
             system = system_prompt if system_prompt is not None else self._get_system_prompt(**kwargs)
             user = user_prompt if user_prompt is not None else self._get_user_prompt(text, **kwargs)
 
@@ -201,7 +196,6 @@ class BaseSummarizer:
                 {"role": "system", "content": system},
                 {"role": "user", "content": user}
             ]
-            self.logger.info(f"🔍 summarize: system length={len(system)}, user length={len(user)}")
 
             try:
                 prompt = self._tokenizer.apply_chat_template(
@@ -210,18 +204,15 @@ class BaseSummarizer:
                     add_generation_prompt=True,
                     enable_thinking=enable_thinking
                 )
-                self.logger.info(f"🔍 summarize: prompt сгенерирован, длина={len(prompt)}")
             except Exception as e:
-                self.logger.exception("🔍 summarize: ошибка apply_chat_template")
+                self.logger.error("🔍 summarize: ошибка apply_chat_template")
                 prompt = f"<|im_start|>system\n{system}<|im_end|>\n"
                 prompt += f"<|im_start|>user\n{user}<|im_end|>\n"
                 prompt += f"<|im_start|>assistant\n"
-                self.logger.info("🔍 summarize: использован fallback prompt")
 
             sampler = make_sampler(temp=temperature, top_p=top_p, top_k=top_k)
             logits_processors = make_logits_processors(repetition_penalty=repetition_penalty)
 
-            self.logger.info("🔍 summarize: перед generate")
             with self._model_lock:
                 response = generate(
                     model=self._model,
@@ -232,7 +223,6 @@ class BaseSummarizer:
                     max_tokens=max_tokens,
                     verbose=False
                 )
-            self.logger.info(f"🔍 summarize: generate завершён, длина ответа={len(response)}")
 
             summary_text = self._clean_response(response, prompt)
             processing_time = time.time() - start_time
@@ -242,8 +232,6 @@ class BaseSummarizer:
             self._total_processing_time += processing_time
             self._last_used = time.time()
 
-            self.logger.info(f"🔍 summarize: успешно, summary length={len(summary_text)}")
-            self.logger.info(f"🔍 summarize: возвращаю SummaryResult: success={True}, summary={summary_text[:50]}...")
             return SummaryResult(
                 summary=summary_text,
                 original_length=len(text),

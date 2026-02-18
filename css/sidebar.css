@@ -12,6 +12,7 @@
     box-sizing: border-box !important;
     overflow-x: hidden !important;
     overflow-y: auto !important;  /* скролл всего сайдбара при крайней необходимости */
+    z-index: 1000 !important;
 }
 
 /* Контейнер списка чатов – точная высота */
