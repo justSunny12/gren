@@ -38,8 +38,10 @@ class Container:
         return ChatManager()
     
     def _create_ui_mediator(self):
-        from handlers.mediator import UIMediator
-        return UIMediator()
+        """Возвращает глобальный экземпляр UIMediator из handlers."""
+        # Импортируем здесь, чтобы избежать циклических импортов
+        from handlers import ui_handlers
+        return ui_handlers
     
     def _create_logger(self):
         from services.logger import create_logger_from_config
