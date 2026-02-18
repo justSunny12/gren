@@ -55,7 +55,7 @@ class DialogStorage:
             os.makedirs(folder_path, exist_ok=True)
             
             history_file = self._get_history_file_path(dialog)
-            dialog_data = dialog.json_serialize()
+            dialog_data = dialog.to_dict()  # ранее было dialog.json_serialize()
             
             with open(history_file, 'w', encoding='utf-8') as f:
                 json.dump(dialog_data, f, ensure_ascii=False, indent=2)

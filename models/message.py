@@ -17,7 +17,7 @@ class Message(BaseModel):
     content: str
     timestamp: datetime = Field(default_factory=datetime.now)
     
-    def json_serialize(self) -> dict:
+    def to_dict(self) -> dict:
         """Конвертирует сообщение в JSON-совместимый словарь"""
         return {
             "role": self.role.value,
@@ -25,6 +25,5 @@ class Message(BaseModel):
             "timestamp": self.timestamp.isoformat()
         }
     
-    def dict(self, *args, **kwargs) -> Dict[str, Any]:
-        """Переопределяем dict для правильной сериализации"""
-        return self.json_serialize()
+    # Для обратной совместимости с кодом, который использовал json_serialize
+    json_serialize = to_dict
