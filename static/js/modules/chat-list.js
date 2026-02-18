@@ -44,9 +44,6 @@ window.renderChatList = function(chats, scrollTarget = 'none') {
         }
     }
 
-    // ДИАГНОСТИКА
-    console.log('📋 renderChatList: _thinking_state =', chats._thinking_state, '_search_state =', chats._search_state);
-
     chatListData = chats.flat || [];
     chatGroups = chats.groups || {};
 
