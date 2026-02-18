@@ -6,9 +6,7 @@ from typing import AsyncGenerator, List, Optional, Tuple
 from .base import BaseHandler
 from services.user_config_service import user_config_service
 from models.enums import MessageRole
-from services.model.thinking_handler import ThinkingHandler  # ← новый импорт
-
-# Удалены локальные функции format_think_markdown и clean_think_block
+from services.model.thinking_handler import ThinkingHandler
 
 class MessageHandler(BaseHandler):
     def __init__(self):
@@ -34,7 +32,7 @@ class MessageHandler(BaseHandler):
                 model_service = container.get_model_service()
                 self._tokenizer = model_service.get_tokenizer()
             except Exception as e:
-                print(f"⚠️ Не удалось получить токенизатор: {e}")
+                self.logger.warning("⚠️ Не удалось получить токенизатор: %s", e)
                 self._tokenizer = None
         return self._tokenizer
 
@@ -50,7 +48,7 @@ class MessageHandler(BaseHandler):
             tokens = self.tokenizer.encode(prompt)
             return len(tokens)
         except Exception as e:
-            print(f"⚠️ Ошибка подсчёта токенов: {e}")
+            self.logger.warning("⚠️ Ошибка подсчёта токенов: %s", e)
             return None
 
     async def send_message_stream_handler(
@@ -89,11 +87,10 @@ class MessageHandler(BaseHandler):
                 enable_thinking=enable_thinking,
                 stop_event=stop_event
             ):
-                # ===== ПРЕОБРАЗОВАНИЕ ТЕГОВ THINK В HTML-БЛОК =====
+                # Преобразование тегов think в HTML
                 if acc_text and history and history[-1].get('role') == MessageRole.ASSISTANT.value:
                     formatted = ThinkingHandler.format_think_markdown(acc_text)
                     history[-1]['content'] = formatted
-                # ===================================================
 
                 if not first_token_received and history:
                     last_msg = history[-1]
@@ -101,29 +98,26 @@ class MessageHandler(BaseHandler):
                         if last_msg['content'].strip():
                             ttft = time.time() - start_time
                             token_info = f", контекст: {prompt_tokens} токенов" if prompt_tokens else ""
-                            # print(f"⚡ TTFT: {ttft:.3f} сек{token_info}")
+                            self.logger.stats("⚡ TTFT: %.3f сек%s", ttft, token_info)
                             first_token_received = True
 
                 yield history, "", dialog_id_out, chat_list_data, js_code
 
-            # ===== СОХРАНЕНИЕ ПОСЛЕ ЗАВЕРШЕНИЯ СТРИМА =====
+            # Сохранение после завершения стрима
             if dialog_id_out:
                 final_dialog = self.dialog_service.get_dialog(dialog_id_out)
                 if final_dialog and final_dialog.history and final_dialog.history[-1].role == MessageRole.ASSISTANT:
                     original = final_dialog.history[-1].content
-                    # Применяем основное форматирование (на случай, если что-то не применилось)
                     formatted = ThinkingHandler.format_think_markdown(original)
-                    # Удаляем конечный перенос перед закрывающим тегом
                     cleaned = ThinkingHandler.clean_think_block(formatted)
                     if cleaned != original:
                         final_dialog.history[-1].content = cleaned
                         self.dialog_service.save_dialog(dialog_id_out)
-                        # Отправляем обновлённую историю клиенту
                         updated_history = final_dialog.to_ui_format()
                         yield updated_history, "", dialog_id_out, chat_list_data, ""
 
         except Exception as e:
-            print(f"❌ Ошибка в генерации: {e}")
+            self.logger.error("❌ Ошибка в генерации: %s", e)
             try:
                 dialog = self.dialog_service.get_dialog(chat_id) if chat_id else None
                 if dialog and dialog.history and dialog.history[-1].role == MessageRole.ASSISTANT:

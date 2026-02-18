@@ -1,4 +1,4 @@
-# services/model/manager.py (фрагмент с удалением generate_response)
+# services/model/manager.py
 import threading
 from typing import Dict, Any, List, Optional, AsyncGenerator, Tuple
 
@@ -19,15 +19,22 @@ class ModelService:
 
     def __init__(self):
         self._config = None
-        
+        self._logger = None
+
         # Внедренные зависимости
         self.lifecycle_manager: IModelLifecycleManager = model_lifecycle_manager
         self.stream_manager: IStreamManager = stream_manager
-        
+
         # Компоненты (ленивая инициализация)
         self._loader = None
         self._parameters = None
         self._memory_manager = None
+
+    @property
+    def logger(self):
+        if self._logger is None:
+            self._logger = container.get_logger()
+        return self._logger
 
     @property
     def config(self) -> Dict[str, Any]:
@@ -37,7 +44,7 @@ class ModelService:
             # Настраиваем батчинг при первой загрузке конфига
             self._setup_batching()
         return self._config
-    
+
     def _setup_batching(self):
         """Настраивает параметры батчинга"""
         stream_batching_config = self._config.get("stream_batching")
@@ -93,20 +100,20 @@ class ModelService:
         stop_event: Optional[threading.Event] = None
     ) -> AsyncGenerator[str, None]:
         """Асинхронно стримит ответ модели с умным батчингом (только чанки)"""
-        
+
         # Убеждаемся, что модель инициализирована
         model, tokenizer = self.lifecycle_manager.get_model_and_tokenizer()
         if not model or not tokenizer:
             self.lifecycle_manager.initialize()
             model, tokenizer = self.lifecycle_manager.get_model_and_tokenizer()
-        
+
         # Определяем параметры генерации
         params = self.parameters.get_generation_parameters(
             max_tokens=max_tokens,
             temperature=temperature,
             enable_thinking=enable_thinking
         )
-        
+
         # Делегируем стриминг StreamManager с батчингом
         async for batch in self.stream_manager.stream_response(
             messages=messages,

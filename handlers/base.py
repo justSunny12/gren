@@ -10,6 +10,7 @@ class BaseHandler:
         self._config_service = None
         self._last_chat_switch = 0
         self._switch_debounce_ms = 300
+        self._logger = None
     
     @property
     def dialog_service(self):
@@ -29,6 +30,13 @@ class BaseHandler:
     def config(self):
         """Быстрый доступ к конфигурации"""
         return self.config_service.get_config()
+    
+    @property
+    def logger(self):
+        """Ленивая загрузка логгера"""
+        if self._logger is None:
+            self._logger = container.get_logger()
+        return self._logger
     
     def check_debounce(self) -> bool:
         """Проверяет, не слишком ли быстро происходит переключение"""

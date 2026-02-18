@@ -1,4 +1,4 @@
-# container.py (обновленная версия)
+# container.py (обновлённая версия)
 from typing import Dict, Any, Callable, Optional
 
 class Container:
@@ -15,6 +15,7 @@ class Container:
             "dialog_service": self._create_dialog_service,
             "chat_service": self._create_chat_service,
             "ui_mediator": self._create_ui_mediator,
+            "logger": self._create_logger,          # новая фабрика
         })
     
     def _create_config_service(self):
@@ -39,6 +40,11 @@ class Container:
     def _create_ui_mediator(self):
         from handlers.mediator import UIMediator
         return UIMediator()
+    
+    def _create_logger(self):
+        from services.logger import create_logger_from_config
+        config_service = self.get("config_service")
+        return create_logger_from_config(config_service)
     
     def register(self, name: str, factory: Callable):
         """Регистрация фабрики для создания сервиса"""
@@ -66,6 +72,9 @@ class Container:
     
     def get_model_service(self):
         return self.get("model_service")
+    
+    def get_logger(self):
+        return self.get("logger")
 
 # Глобальный контейнер
 container = Container()
@@ -82,3 +91,6 @@ def get_dialog_service():
 
 def get_model_service():
     return container.get_model_service()
+
+def get_logger():
+    return container.get_logger()

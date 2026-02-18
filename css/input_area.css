@@ -285,12 +285,14 @@
     color: #111827 !important;
     flex: 0 0 auto !important;
     padding: 0 12px !important;
+    display: none !important; /* до внедрения функционала*/
 }
 
 /* ============================ КНОПКА "ПРИКРЕПИТЬ" ============================ */
 
 .chat-input-wrapper .generation-buttons-wrapper button.attach-btn {
     border: none !important;
+    display: none !important; /* до внедрения функционала*/
 }
 
 .chat-input-wrapper .generation-buttons-wrapper button.attach-btn svg {

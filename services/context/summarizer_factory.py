@@ -12,6 +12,7 @@ import mlx.core as mx
 from mlx_lm import load
 
 from services.context.summarizers import L1Summarizer, L2Summarizer, BaseSummarizer
+from container import container
 
 
 class SummarizerFactory:
@@ -31,8 +32,10 @@ class SummarizerFactory:
             if "l1" in cls._instances and "l2" in cls._instances:
                 return cls._instances.copy()
 
+            logger = container.get_logger()
             model_config = config.get("model", {})
             if not model_config.get("local_path"):
+                logger.error("В context_config.yaml отсутствует секция model.local_path")
                 raise ValueError("В context_config.yaml отсутствует секция model.local_path")
 
             if cls._shared_model is None or cls._shared_tokenizer is None:
@@ -55,30 +58,32 @@ class SummarizerFactory:
 
     @classmethod
     def _load_shared_model(cls, model_config: Dict[str, Any]):
+        logger = container.get_logger()
         local_path = model_config.get("local_path")
         model_name = model_config.get("name", "Qwen/Qwen3-4B-MLX-4bit")
 
         if not local_path or not os.path.exists(local_path):
             raise FileNotFoundError(f"Модель суммаризации не найдена по пути: {local_path}")
 
-        print(f"📂 Загрузка модели суммаризации {model_name}...")
+        logger.info("📂 Загрузка модели суммаризации %s...", model_name)
         start = time.time()
         cls._shared_model, cls._shared_tokenizer = load(local_path)
         if cls._shared_tokenizer.pad_token is None:
             cls._shared_tokenizer.pad_token = cls._shared_tokenizer.eos_token
         cls._shared_tokenizer.padding_side = "left"
         cls._shared_lock = threading.RLock()
-        print(f"   ✅ Модель загружена за {time.time() - start:.2f} сек")
+        logger.info("   ✅ Модель загружена за %.2f сек", time.time() - start)
 
     @classmethod
     def preload_summarizers(cls, config: Dict[str, Any]) -> bool:
         with cls._lock:
+            logger = container.get_logger()
             if cls._preloaded:
                 return True
 
             loading_config = config.get("loading", {})
             if not loading_config.get("preload", True):
-                print("ℹ️ Предзагрузка суммаризаторов отключена в конфиге")
+                logger.info("ℹ️ Предзагрузка суммаризаторов отключена в конфиге")
                 return False
 
             try:
@@ -96,20 +101,21 @@ class SummarizerFactory:
                 cls._preloaded = True
                 return True
             except Exception as e:
-                print(f"❌ Ошибка предзагрузки суммаризаторов: {e}")
+                logger.error("❌ Ошибка предзагрузки суммаризаторов: %s", e)
                 import traceback
                 traceback.print_exc()
                 return False
 
     @classmethod
     async def _warmup(cls, warmup_text: str):
+        logger = container.get_logger()
         summarizers = cls.get_all_summarizers({})
         l1 = summarizers["l1"]
         try:
             await l1.summarize(warmup_text[:100], max_tokens=10, temperature=0.1)
-            print("   ✅ Прогрев модели суммаризации завершён успешно")
+            logger.info("   ✅ Прогрев модели суммаризации завершён успешно")
         except Exception as e:
-            print(f"⚠️ Ошибка прогрева: {e}")
+            logger.warning("⚠️ Ошибка прогрева: %s", e)
 
     @classmethod
     def is_preloaded(cls) -> bool:
@@ -118,6 +124,7 @@ class SummarizerFactory:
     @classmethod
     def unload_all(cls):
         with cls._lock:
+            logger = container.get_logger()
             cls._instances.clear()
             if cls._shared_model is not None:
                 cls._shared_model = None
@@ -125,7 +132,7 @@ class SummarizerFactory:
                 cls._shared_lock = None
                 if hasattr(mx, 'clear_cache'):
                     mx.clear_cache()
-                print("✅ Единая модель суммаризации выгружена")
+                logger.info("✅ Единая модель суммаризации выгружена")
             cls._preloaded = False
 
     @classmethod
