@@ -96,7 +96,8 @@ class SummarizerFactory:
                         loop = asyncio.new_event_loop()
                         asyncio.set_event_loop(loop)
                     warmup_text = loading_config.get("warmup_text", "Тестовый текст для прогрева.")
-                    loop.run_until_complete(cls._warmup(warmup_text))
+                    # Передаём config в _warmup
+                    loop.run_until_complete(cls._warmup(warmup_text, config))
 
                 cls._preloaded = True
                 return True
@@ -107,9 +108,10 @@ class SummarizerFactory:
                 return False
 
     @classmethod
-    async def _warmup(cls, warmup_text: str):
+    async def _warmup(cls, warmup_text: str, config: Dict[str, Any]):
+        """Прогрев модели суммаризации с использованием переданного конфига."""
         logger = container.get_logger()
-        summarizers = cls.get_all_summarizers({})
+        summarizers = cls.get_all_summarizers(config)  # используем переданный конфиг
         l1 = summarizers["l1"]
         try:
             await l1.summarize(warmup_text[:100], max_tokens=10, temperature=0.1)
