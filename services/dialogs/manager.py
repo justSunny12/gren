@@ -85,9 +85,11 @@ class DialogManager:
         )
         
         if result and self.current_dialog_id == dialog_id:
-            # Если удалили текущий, выбираем новый
+            # Если удалили текущий, выбираем самый недавно обновлённый диалог
             if self.dialogs:
-                self.current_dialog_id = list(self.dialogs.keys())[0]
+                # Находим диалог с максимальной датой updated
+                newest_dialog = max(self.dialogs.values(), key=lambda d: d.updated)
+                self.current_dialog_id = newest_dialog.id
             else:
                 self.current_dialog_id = None
         
