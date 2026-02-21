@@ -54,7 +54,7 @@ class MessageStreamProcessor:
         search_enabled: bool = False,
     ) -> AsyncGenerator[Tuple[List[Dict], str, str, str, str], None]:
         """Основной метод обработки потока с поддержкой поиска и актуальной даты."""
-        self.logger.info(f"🚦 stream_processor.process called with search_enabled={search_enabled}")
+        # self.logger.info(f"🚦 stream_processor.process called with search_enabled={search_enabled}")
 
         # Валидация сообщения
         is_valid, error = validate_message(prompt)
@@ -89,7 +89,7 @@ class MessageStreamProcessor:
 
             # Этап 1: анализ необходимости поиска (Pass 1)
             if search_enabled and search_cfg.get("enabled", False):
-                self.logger.info("➡️ Pass 1: запуск анализа необходимости поиска")
+                # self.logger.info("➡️ Pass 1: запуск анализа необходимости поиска")
 
                 deciding_text = status_cfg.get("deciding", "🔍 Анализирую запрос...")
                 if deciding_text:
@@ -103,7 +103,7 @@ class MessageStreamProcessor:
                     prompt=prompt,
                     formatted_history=formatted_history,
                 )
-                self.logger.info(f"➡️ Pass 1 результат: searched={searched}, query='{query}'")
+                # self.logger.info(f"➡️ Pass 1 результат: searched={searched}, query='{query}'")
 
                 if searched:
                     # Статус 2: найден результат, обрабатываем
@@ -117,11 +117,11 @@ class MessageStreamProcessor:
                         self._get_chat_list_data('today'), ""
                     )
                     messages_to_use = augmented
-                else:
-                    self.logger.info("➡️ Pass 1 решил не искать, продолжаем без поиска")
-            else:
-                self.logger.info("➡️ Поиск отключён (search_enabled={} или search.enabled={})".format(
-                    search_enabled, search_cfg.get("enabled")))
+            #     else:
+            #         self.logger.info("➡️ Pass 1 решил не искать, продолжаем без поиска")
+            # else:
+            #     self.logger.info("➡️ Поиск отключён (search_enabled={} или search.enabled={})".format(
+            #         search_enabled, search_cfg.get("enabled")))
 
             # --- Добавление текущей даты и времени в сообщения для модели ---
             messages_to_use = self._inject_current_datetime(messages_to_use)
