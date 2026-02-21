@@ -18,8 +18,7 @@ def create_main_layout():
                         show_label=False,
                         height=None,
                         avatar_images=(None, None),
-                        elem_classes="chatbot",
-                        container=True,
+                        elem_classes="chatbot"
                     )
 
                 # Область ввода
@@ -30,7 +29,8 @@ def create_main_layout():
                                 placeholder="Введите сообщение...",
                                 show_label=False,
                                 elem_classes="chat-input",
-                                max_lines=4,
+                                max_lines=20,
+                                autofocus=True,
                                 scale=9
                             )
                             # Контейнер для кнопок

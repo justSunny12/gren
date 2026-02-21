@@ -155,13 +155,13 @@
 }
 
 /* Просто скрываем ВСЕ кнопки с классом icon-button */
-.chatbot .icon-button,
+/* .chatbot .icon-button,
 .chatbot button.icon-button {
     color: #6b7280 !important;
     stroke: #6b7280 !important;
     fill: none !important;
     transition: color 0.2s ease, stroke 0.2s ease !important;
-}
+} */
 
 .chatbot .icon-button:hover,
 .chatbot button.icon-button:hover {
@@ -169,13 +169,6 @@
     stroke: #374151 !important;
     background-color: rgba(0, 0, 0, 0.05) !important;
 }
-
-/* .thinking {
-    font-style: italic;
-    color: #666;
-    padding: 2px 4px;
-    font-weight: 300;
-} */
 
 .chatbot .prose .thinking {
     display: block !important;
@@ -205,7 +198,7 @@
     width: 6px !important;
 }
 
-.icon-button-wrapper {
+.icon-button-wrapper.top-panel {
     display: none !important;
 }
 

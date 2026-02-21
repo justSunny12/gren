@@ -1,4 +1,4 @@
-/* static/js/modules/generation-control.js - Управление кнопками отправки, остановки, глубокого мышления и поиска */
+/* static/js/modules/generation-control.js - Управление кнопками отправки, остановки, глубокого мышления и поиска + авто-уменьшение textarea */
 
 // Глобальный флаг генерации (доступен из других модулей)
 window.isGenerating = false;
@@ -7,6 +7,8 @@ let isGenerating = false;
 let generationCheckInterval = null;
 let currentThinkingButtonHandler = null;
 let currentSearchButtonHandler = null;
+// Глобальная ссылка на функцию ресайза (будет установлена в setupAutoResize)
+window.forceResizeTextarea = null;
 
 function findGenerationButtons(maxAttempts = 10, interval = 100) {
     return new Promise((resolve) => {
@@ -54,6 +56,8 @@ window.toggleGenerationButtons = function(generating) {
         stopBtn.classList.remove('active');
         sendBtn.disabled = false;
         window.updateSendButtonState();
+        // После остановки генерации принудительно обновляем размер поля
+        if (window.forceResizeTextarea) window.forceResizeTextarea();
         if (generationCheckInterval) {
             clearInterval(generationCheckInterval);
             generationCheckInterval = null;
@@ -280,6 +284,8 @@ window.updateSendButtonState = function() {
     const text = chatInput.value.trim();
     sendBtn.disabled = text === '';
     sendBtn.style.cursor = text === '' ? 'not-allowed' : 'pointer';
+    // При изменении состояния кнопки (в т.ч. после очистки поля) принудительно корректируем размер
+    if (window.forceResizeTextarea) window.forceResizeTextarea();
 };
 
 function setupInputTracking() {
@@ -322,6 +328,46 @@ function setupGenerationStartTracking() {
     }
 }
 
+// ==================== АВТО-УМЕНЬШЕНИЕ TEXTAREA ====================
+function setupAutoResize() {
+    const textarea = document.querySelector('.chat-input-wrapper textarea');
+    if (!textarea) return;
+
+    const resize = () => {
+        // Сбрасываем inline-высоту, установленную Gradio
+        textarea.style.height = '';
+        
+        // Получаем максимальную высоту из CSS (40vh)
+        const maxHeight = parseInt(getComputedStyle(textarea).maxHeight) || 400;
+        
+        // Вычисляем естественную высоту содержимого
+        const newHeight = Math.min(textarea.scrollHeight, maxHeight);
+        
+        // Устанавливаем новую высоту
+        textarea.style.height = newHeight + 'px';
+        
+        // Если содержимое превышает максимум, включаем скролл
+        textarea.style.overflowY = textarea.scrollHeight > maxHeight ? 'auto' : 'hidden';
+    };
+
+    // Сохраняем функцию глобально, чтобы можно было вызывать принудительно
+    window.forceResizeTextarea = resize;
+
+    // Вызываем при каждом вводе
+    textarea.addEventListener('input', resize);
+    // Вызываем при программном изменении (change)
+    textarea.addEventListener('change', resize);
+    
+    // Наблюдаем за изменением атрибута value (на случай, если Gradio меняет его напрямую)
+    const observer = new MutationObserver(resize);
+    observer.observe(textarea, { attributes: true, attributeFilter: ['value'] });
+    
+    // Вызываем после инициализации
+    setTimeout(resize, 0);
+}
+
+// Интегрируем с существующей инициализацией
+const originalInit = window.initGenerationButtons;
 window.initGenerationButtons = async function() {
     const { sendBtn, stopBtn } = await findGenerationButtons();
     if (sendBtn) setupSendButtonIcon(sendBtn);
@@ -341,8 +387,10 @@ window.initGenerationButtons = async function() {
         }, { capture: true });
     }
     window.toggleGenerationButtons(false);
+    setupAutoResize(); // инициализируем авто-ресайз
 };
 
+// Дополнительный вызов после загрузки DOM
 document.addEventListener('DOMContentLoaded', function() {
     window.initGenerationButtons();
     [100, 300, 500, 1000, 2000, 5000].forEach(timeout => {
@@ -377,3 +425,32 @@ if (!window.getChatInputField) {
         return field ? field.querySelector('textarea') : null;
     };
 }
+
+// Дополнительные вызовы для авто-уменьшения после отправки
+(function() {
+    // Ждём появления элементов
+    const checkInterval = setInterval(() => {
+        const submitBtn = document.querySelector('.generation-buttons-wrapper .send-btn');
+        const textarea = document.querySelector('.chat-input-wrapper textarea');
+        if (submitBtn && textarea) {
+            clearInterval(checkInterval);
+
+            // При клике на кнопку отправки
+            submitBtn.addEventListener('click', function() {
+                // Даём время на очистку поля (оно происходит асинхронно)
+                setTimeout(() => {
+                    if (window.forceResizeTextarea) window.forceResizeTextarea();
+                }, 50);
+            });
+
+            // При отправке через Enter
+            textarea.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && !e.shiftKey && !window.isGenerating) {
+                    setTimeout(() => {
+                        if (window.forceResizeTextarea) window.forceResizeTextarea();
+                    }, 50);
+                }
+            });
+        }
+    }, 200);
+})();
