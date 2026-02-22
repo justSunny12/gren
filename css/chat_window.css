@@ -207,3 +207,7 @@
     white-space: pre-wrap;
     word-wrap: break-word;
 }
+
+.progress-text { 
+    display: none !important; 
+}
