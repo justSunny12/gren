@@ -57,7 +57,7 @@ class DialogOperations:
         return True
     
     @staticmethod
-    def rename_dialog(dialog_id: str, new_name: str, 
+    def rename_dialog(dialog_id: str, new_name: str,
                      dialogs: Dict[str, Dialog], storage: DialogStorage) -> bool:
         """Переименовывает диалог с валидацией"""
         if dialog_id not in dialogs:
@@ -90,13 +90,9 @@ class DialogOperations:
         
         try:
             dialogs[dialog_id].rename(new_name)
-            storage.save_dialog(dialogs[dialog_id])
+            storage.save_dialog(dialogs[dialog_id])   # ← сохраняем метаданные
             return True
         except Exception:
-            try:
-                dialogs[dialog_id].rename(old_name)
-            except:
-                pass
             return False
     
     @staticmethod

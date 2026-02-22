@@ -110,12 +110,13 @@ class DialogManager:
         )
     
     def rename_dialog(self, dialog_id: str, new_name: str) -> bool:
-        return self.operations.rename_dialog(
+        result = self.operations.rename_dialog(
             dialog_id=dialog_id,
             new_name=new_name,
             dialogs=self.dialogs,
-            storage=self.storage
+            storage=self.storage   # ← передаём storage для сохранения
         )
+        return result
     
     def get_current_dialog(self) -> Optional[Dialog]:
         return self.operations.get_current_dialog(
@@ -139,10 +140,10 @@ class DialogManager:
         )
     
     def add_message(self, dialog_id: str, role: MessageRole, content: str) -> bool:
-        return self.operations.add_message(
-            dialog_id=dialog_id,
-            role=role,
-            content=content,
-            dialogs=self.dialogs,
-            storage=self.storage
-        )
+        """Добавляет сообщение в диалог с инкрементальным сохранением"""
+        if dialog_id in self.dialogs:
+            dialog = self.dialogs[dialog_id]
+            message = dialog.add_message(role, content)  # уже обновляет dialog.updated
+            # Сохраняем только что добавленное сообщение (append)
+            return self.storage.append_message(dialog, message)
+        return False
