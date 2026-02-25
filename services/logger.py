@@ -37,6 +37,13 @@ class LoggerWrapper:
             self._logger.log("STATS", msg % args)
         else:
             self._logger.log("STATS", msg)
+            
+    def debug(self, msg: str, *args):
+        """Логирует отладочное сообщение с поддержкой %-форматирования."""
+        if args:
+            self._logger.debug(msg % args)
+        else:
+            self._logger.debug(msg)
 
     def configure(self, level_string: str):
         """Перенастраивает логгер под новый уровень (регистронезависимо)."""
@@ -53,7 +60,8 @@ class LoggerWrapper:
             'e': 'ERROR',
             'w': 'WARNING',
             'i': 'INFO',
-            's': 'STATS'
+            's': 'STATS',
+            'd': 'DEBUG'
         }
         allowed_names = {level_map[ch] for ch in allowed if ch in level_map}
 
