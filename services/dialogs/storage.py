@@ -76,7 +76,6 @@ class DialogStorage:
                 "status": dialog.status,
                 "pinned": dialog.pinned,
                 "pinned_position": dialog.pinned_position,
-                # version и cache не сохраняются – они восстанавливаются при загрузке
             }
 
             with open(meta_file, 'w', encoding='utf-8') as f:
@@ -94,17 +93,17 @@ class DialogStorage:
             self.logger.error("Ошибка сохранения метаданных диалога %s: %s", dialog.id, e)
             return False
 
-    # ========== Добавление сообщения (append) ==========
+    # ========== Добавление сообщения (append) с обновлением только updated ==========
 
     def append_message(self, dialog: Dialog, message: Message) -> bool:
         """
-        Добавляет одно сообщение в history_*.jsonl (append) и обновляет updated в метаданных.
+        Добавляет одно сообщение в history_*.jsonl (append) и обновляет поле updated в meta.json.
         Предполагается, что message уже добавлено в dialog.history.
         """
         try:
             history_file = self._get_history_file_path(dialog)
             if not os.path.exists(history_file):
-                # Если файла нет – вероятно, диалог ещё не сохранялся; сначала сохраним мета
+                # Если файла нет – создаём папку и файлы через save_dialog
                 self.save_dialog(dialog)
 
             # Дописываем строку с сообщением
@@ -112,9 +111,20 @@ class DialogStorage:
                 line = json.dumps(message.to_dict(), ensure_ascii=False) + '\n'
                 f.write(line)
 
-            # Обновляем поле updated в метаданных (dialog.updated уже изменён)
-            # Пересохраняем meta.json
-            return self.save_dialog(dialog)
+            # Обновляем только поле updated в meta.json (без полной перезаписи)
+            meta_file = self._get_meta_file_path(dialog)
+            if os.path.exists(meta_file):
+                with open(meta_file, 'r+', encoding='utf-8') as f:
+                    meta = json.load(f)
+                    meta['updated'] = dialog.updated.isoformat()
+                    f.seek(0)
+                    json.dump(meta, f, ensure_ascii=False, indent=2)
+                    f.truncate()
+            else:
+                # Если по какой-то причине meta отсутствует (например, удалён вручную), пересоздаём
+                self.save_dialog(dialog)
+
+            return True
 
         except Exception as e:
             self.logger.error("Ошибка добавления сообщения в диалог %s: %s", dialog.id, e)
