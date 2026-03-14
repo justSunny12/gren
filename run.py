@@ -7,6 +7,7 @@ import os
 
 from container import container
 from ui import create_main_ui
+from services.context.global_manager import global_summary_manager
 
 
 def cleanup_on_exit():
@@ -14,6 +15,8 @@ def cleanup_on_exit():
     try:
         logger = container.get("logger")
         logger.info("👋 Завершение работы")
+        # Останавливаем глобальный воркер суммаризации
+        global_summary_manager.stop()
         if hasattr(sys, '_gradio_server'):
             sys._gradio_server.close()
             time.sleep(0.05)
@@ -150,6 +153,14 @@ def main():
         logger.warning("⚠️  ВНИМАНИЕ: Модель не была загружена!")
         logger.warning("Приложение будет работать в режиме ожидания.")
         logger.warning("Модель попытается загрузиться при первом запросе.")
+
+    # Запуск глобального воркера суммаризации
+    logger.info("🔄 ЗАПУСК ГЛОБАЛЬНОГО ВОРКЕРА СУММАРИЗАЦИИ...")
+    try:
+        global_summary_manager.start()
+        logger.info("   ✅ Глобальный воркер запущен")
+    except Exception as e:
+        logger.error("   ❌ Ошибка запуска глобального воркера: %s", e)
 
     logger.info("=" * 60)
     logger.info("🌐 ЗАПУСК СЕРВЕРА...")

@@ -7,6 +7,7 @@ import asyncio
 import threading
 from datetime import datetime
 from typing import List, Dict, Any, Optional
+from services.context.global_manager import global_summary_manager
 
 from models.dialog import Dialog
 from models.context import DialogContextState, InteractionChunk, ChunkType
@@ -37,8 +38,8 @@ class ContextManager:
         self.trigger = SummarizationTrigger(config)
         self.persistence = ContextStatePersistence(dialog, config)
         self.builder = ContextBuilder()
-        self.summary_manager = SummaryManager(config)
-        self.summary_manager.start()
+        
+        self.global_summary_manager = global_summary_manager
 
         # Загрузка или создание состояния
         self.state = self._load_or_initialize()
@@ -110,7 +111,6 @@ class ContextManager:
         return sorted(set(indices)) or [len(self.dialog.history)-1]
 
     async def _trigger_l1_summarization_for_full_tail(self, raw_tail_text: str):
-        """Запускает L1 суммаризацию для всего raw_tail (выполняется в основном event loop)."""
         interactions = parse_text_to_interactions(raw_tail_text)
         if not interactions:
             return
@@ -127,10 +127,12 @@ class ContextManager:
             chunk_text = "\n\n".join(format_interaction_for_summary(i) for i in chunk_interactions)
             message_indices = extract_message_indices_from_interactions(chunk_interactions)
 
-            self.summary_manager.schedule_l1_summary(
-                chunk_text,
-                callback=lambda summary, original: self._on_l1_summary_complete(
-                    summary, original, message_indices
+            # Используем глобальный менеджер
+            self.global_summary_manager.schedule_l1_summary(
+                dialog_id=self.dialog.id,
+                text=chunk_text,
+                callback=lambda summary, data: self._on_l1_summary_complete(
+                    summary, data["text"], message_indices
                 ),
                 **summarization_params
             )
@@ -162,7 +164,6 @@ class ContextManager:
                 )
 
     async def _trigger_l2_summarization(self):
-        """Запускает L2 суммаризацию (выполняется в основном event loop)."""
         with self._state_lock:
             if not self.state.l1_chunks:
                 return
@@ -178,11 +179,15 @@ class ContextManager:
 
             summarization_params = self.config.get("summarization_params", {}).get("l2", {})
 
-            self.summary_manager.schedule_l2_summary(
-                l1_summaries_text,
+            # Используем глобальный менеджер
+            self.global_summary_manager.schedule_l2_summary(
+                dialog_id=self.dialog.id,
+                text=l1_summaries_text,
                 original_char_count=total_original_chars,
                 l1_chunk_ids=l1_chunk_ids,
-                callback=self._on_l2_summary_complete,
+                callback=lambda summary, original, chunk_ids, orig_count: self._on_l2_summary_complete(
+                    summary, original, chunk_ids, orig_count
+                ),
                 **summarization_params
             )
 
@@ -239,4 +244,4 @@ class ContextManager:
 
     def cleanup(self):
         """Освобождает ресурсы."""
-        self.summary_manager.stop()
+        pass

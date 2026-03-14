@@ -52,7 +52,6 @@ class SummaryWorker:
             self.thread.join(timeout=5.0)
 
     def _run(self):
-        # Создаём и устанавливаем event loop для этого потока
         self._loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self._loop)
 
@@ -62,46 +61,38 @@ class SummaryWorker:
                 if task is None:
                     continue
 
-                # Задержка для накопления
                 if time.time() - task.created_at < self.delay:
                     time.sleep(self.delay)
 
-                # Выполнение задачи
                 try:
                     summarizers = self._get_summarizers()
                     if task.task_type == "l1":
                         summarizer = summarizers["l1"]
                         result = self._loop.run_until_complete(
-                            summarizer.summarize(task.data, **task.extra_params)
+                            summarizer.summarize(task.data["text"], **task.extra_params)
                         )
+                        if task.callback and result.success:
+                            task.callback(result.summary, task.data)  # data содержит dialog_id
                     elif task.task_type == "l2":
                         summarizer = summarizers["l2"]
                         result = self._loop.run_until_complete(
-                            summarizer.summarize(
-                                task.data["text"],
-                                **task.extra_params
-                            )
+                            summarizer.summarize(task.data["text"], **task.extra_params)
                         )
-                    else:
-                        raise ValueError(f"Unknown task type: {task.task_type}")
-
-                    if task.callback and result.success:
-                        if task.task_type == "l1":
-                            task.callback(result.summary, task.data)
-                        elif task.task_type == "l2":
+                        if task.callback and result.success:
                             task.callback(
                                 result.summary,
                                 task.data["text"],
-                                task.data.get("l1_chunk_ids", []),
-                                task.data.get("original_char_count", 0)
+                                task.data["l1_chunk_ids"],
+                                task.data["original_char_count"]
                             )
+                    else:
+                        raise ValueError(f"Unknown task type: {task.task_type}")
 
                     self.scheduler.task_done()
                 except Exception as e:
                     self.logger.error("Ошибка в воркере: %s", e)
                     self.scheduler.task_done()
         finally:
-            # Закрываем loop при завершении потока
             if self._loop is not None:
                 self._loop.close()
                 self._loop = None

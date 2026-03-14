@@ -72,7 +72,8 @@ class MessageHandler(BaseHandler):
             self._active_stop_event = stop_event
             self._active_dialog_id = chat_id
 
-            user_config = user_config_service.get_user_config(force_reload=True)
+            # УБИРАЕМ force_reload=True
+            user_config = user_config_service.get_user_config()
             enable_thinking = user_config.generation.enable_thinking
             search_enabled = user_config.search_enabled or False
             if enable_thinking is None:
@@ -89,7 +90,7 @@ class MessageHandler(BaseHandler):
                 temperature=temperature,
                 enable_thinking=enable_thinking,
                 stop_event=stop_event,
-                search_enabled=search_enabled,  # ← передаём
+                search_enabled=search_enabled,
             ):
                 # Преобразование тегов think в HTML
                 if acc_text and history and history[-1].get('role') == MessageRole.ASSISTANT.value:

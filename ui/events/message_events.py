@@ -55,7 +55,8 @@ class MessageEvents:
             return
 
         config_service = container.get("config_service")
-        user_config = user_config_service.get_user_config(force_reload=True)
+        # УБИРАЕМ force_reload=True
+        user_config = user_config_service.get_user_config()
         gen_config = config_service.get_config().get("generation", {})
         max_tokens = user_config.generation.max_tokens or gen_config.get("default_max_tokens", 2048)
         temperature = user_config.generation.temperature or gen_config.get("default_temperature", 0.7)
@@ -105,7 +106,6 @@ class MessageEvents:
                             chatbot, chat_list_data, generation_js_trigger):
         saved_prompt = gr.State()
 
-        # Используем общий метод для обоих триггеров
         MessageEvents._setup_send_chain(
             submit_btn.click, saved_prompt, user_input, current_dialog_id,
             chatbot, chat_list_data, generation_js_trigger
@@ -115,7 +115,6 @@ class MessageEvents:
             chatbot, chat_list_data, generation_js_trigger
         )
 
-        # Остановка генерации
         stop_btn.click(
             fn=MessageEvents.stop_generation,
             inputs=[],
