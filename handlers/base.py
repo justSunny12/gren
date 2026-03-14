@@ -11,6 +11,7 @@ class BaseHandler:
         self._last_chat_switch = 0
         self._switch_debounce_ms = 300
         self._logger = None
+        self._chat_list_handler = None  # для кэширования экземпляра ChatListHandler
     
     @property
     def dialog_service(self):
@@ -47,7 +48,8 @@ class BaseHandler:
         return True
 
     def get_chat_list_data(self, scroll_target: str = 'none') -> str:
-        """Получает данные списка чатов в JSON."""
-        from .chat_list import ChatListHandler
-        handler = ChatListHandler()
-        return handler.get_chat_list_data(scroll_target=scroll_target)
+        """Получает данные списка чатов в JSON, используя кэшированный экземпляр ChatListHandler."""
+        if self._chat_list_handler is None:
+            from .chat_list import ChatListHandler
+            self._chat_list_handler = ChatListHandler()
+        return self._chat_list_handler.get_chat_list_data(scroll_target=scroll_target)
