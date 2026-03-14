@@ -50,7 +50,7 @@ class GlobalSummaryManager:
     def start(self):
         """Запускает глобальный воркер."""
         self.worker.start()
-        self.logger.info("🚀 Глобальный менеджер суммаризаций запущен")
+        self.logger.info("   ✅ Глобальный менеджер суммаризаций запущен")
 
     def stop(self):
         """Останавливает глобальный воркер."""

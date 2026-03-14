@@ -5,6 +5,7 @@ from typing import List, Optional, Dict, Any
 
 from .enums import MessageRole
 from .message import Message
+from services.model.thinking_handler import ThinkingHandler  # добавлен импорт
 
 
 class Dialog(BaseModel):
@@ -68,14 +69,22 @@ class Dialog(BaseModel):
     # ========== МЕТОДЫ ДЛЯ ПОЛУЧЕНИЯ ФОРМАТОВ С КЭШИРОВАНИЕМ ==========
 
     def to_ui_format(self) -> List[Dict[str, str]]:
-        """Возвращает историю в формате для UI с использованием кэша."""
+        """
+        Возвращает историю в формате для UI с использованием кэша.
+        Для сообщений ассистента применяется форматирование тегов размышлений.
+        """
         if self._ui_cache is not None and self._ui_cache_version == self._history_version:
             return self._ui_cache
 
-        formatted = [
-            {"role": msg.role.value, "content": msg.content}
-            for msg in self.history
-        ]
+        formatted = []
+        for msg in self.history:
+            content = msg.content
+            if msg.role == MessageRole.ASSISTANT:
+                # Форматируем теги размышлений для отображения
+                content = ThinkingHandler.format_think_markdown(content)
+                content = ThinkingHandler.clean_think_block(content)
+            formatted.append({"role": msg.role.value, "content": content})
+
         self._ui_cache = formatted
         self._ui_cache_version = self._history_version
         return formatted
@@ -104,8 +113,6 @@ class Dialog(BaseModel):
         self.history.append(message)
         self.updated = datetime.now()
         self._history_version += 1
-        # Кэши инвалидируются автоматически при следующем вызове,
-        # так как их версии перестанут совпадать с _history_version.
         return message
 
     def clear_history(self):
