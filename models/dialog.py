@@ -1,5 +1,5 @@
 # models/dialog.py
-from pydantic import BaseModel, Field, ConfigDict, PrivateAttr
+from pydantic import BaseModel, Field, ConfigDict, PrivateAttr, model_serializer
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 
@@ -8,7 +8,7 @@ from .message import Message
 
 
 class Dialog(BaseModel):
-    """Модель диалога с кэшированием формата для UI (инкрементальное обновление)"""
+    """Модель диалога с кэшированием формата для UI и для модели (инкрементальное обновление)"""
 
     model_config = ConfigDict(
         json_encoders={
@@ -28,8 +28,26 @@ class Dialog(BaseModel):
 
     # Приватные поля для кэширования UI-формата
     _ui_cache: Optional[List[Dict[str, str]]] = PrivateAttr(default=None)
-    _history_version: int = PrivateAttr(default=0)      # версия истории (увеличивается при любых изменениях)
-    _cache_version: int = PrivateAttr(default=0)        # версия, соответствующая текущему кэшу
+    _ui_cache_version: int = PrivateAttr(default=-1)
+
+    # Приватные поля для кэширования формата модели
+    _model_cache: Optional[List[Dict[str, str]]] = PrivateAttr(default=None)
+    _model_cache_version: int = PrivateAttr(default=-1)
+
+    # Счётчик версий истории (увеличивается при любом изменении)
+    _history_version: int = PrivateAttr(default=0)
+
+    def model_post_init(self, __context):
+        """Инициализация после создания модели (в т.ч. при загрузке из json)."""
+        # Устанавливаем начальную версию равной длине истории
+        self._history_version = len(self.history)
+        # Сбрасываем кэши (хотя они и так None)
+        self._invalidate_caches()
+
+    def _invalidate_caches(self):
+        """Сбрасывает все кэши."""
+        self._ui_cache = None
+        self._model_cache = None
 
     # ========== КОНТЕКСТНЫЕ МЕТОДЫ ==========
 
@@ -47,59 +65,66 @@ class Dialog(BaseModel):
     def save_context_state(self):
         return self.context_manager.save_state()
 
-    # ========== ОСНОВНЫЕ МЕТОДЫ С КЭШИРОВАНИЕМ ==========
+    # ========== МЕТОДЫ ДЛЯ ПОЛУЧЕНИЯ ФОРМАТОВ С КЭШИРОВАНИЕМ ==========
 
     def to_ui_format(self) -> List[Dict[str, str]]:
         """Возвращает историю в формате для UI с использованием кэша."""
-        # Если кэш актуален — возвращаем его
-        if self._ui_cache is not None and self._cache_version == self._history_version:
+        if self._ui_cache is not None and self._ui_cache_version == self._history_version:
             return self._ui_cache
 
-        # Иначе строим заново
         formatted = [
             {"role": msg.role.value, "content": msg.content}
             for msg in self.history
         ]
         self._ui_cache = formatted
-        self._cache_version = self._history_version
+        self._ui_cache_version = self._history_version
+        return formatted
+
+    def to_model_format(self) -> List[Dict[str, str]]:
+        """
+        Возвращает историю в формате для передачи модели (только role/content).
+        Использует отдельный кэш, синхронизированный с версией истории.
+        """
+        if self._model_cache is not None and self._model_cache_version == self._history_version:
+            return self._model_cache
+
+        formatted = [
+            {"role": msg.role.value, "content": msg.content}
+            for msg in self.history
+        ]
+        self._model_cache = formatted
+        self._model_cache_version = self._history_version
         return formatted
 
     # ========== МЕТОДЫ, ИЗМЕНЯЮЩИЕ ИСТОРИЮ ==========
 
     def add_message(self, role: MessageRole, content: str) -> Message:
-        """Добавляет сообщение с инкрементальным обновлением кэша."""
+        """Добавляет сообщение и увеличивает версию истории."""
         message = Message(role=role, content=content)
         self.history.append(message)
         self.updated = datetime.now()
         self._history_version += 1
-
-        # Если кэш уже существует, просто дополняем его
-        if self._ui_cache is not None:
-            self._ui_cache.append({"role": role.value, "content": content})
-            self._cache_version = self._history_version
-        # Иначе кэш остаётся None, будет построен при первом запросе
-
+        # Кэши инвалидируются автоматически при следующем вызове,
+        # так как их версии перестанут совпадать с _history_version.
         return message
 
     def clear_history(self):
-        """Очищает историю, сбрасывая кэш."""
+        """Очищает историю, сбрасывая кэши и увеличивая версию."""
         self.history.clear()
         self.updated = datetime.now()
         self._history_version += 1
-        self._ui_cache = None        # кэш больше не актуален
-        # _cache_version можно не менять, так как при следующем to_ui_format он перестроится
+        self._invalidate_caches()
 
     # ========== МЕТОДЫ, НЕ ИЗМЕНЯЮЩИЕ ИСТОРИЮ ==========
 
     def rename(self, new_name: str):
         self.name = new_name
         self.updated = datetime.now()
-        # история не меняется — версию и кэш не трогаем
+        # история не меняется — версию не трогаем, кэши остаются валидными
 
     def pin(self, position: int):
         self.pinned = True
         self.pinned_position = position
-        # аналогично
 
     def unpin(self):
         self.pinned = False

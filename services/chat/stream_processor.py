@@ -10,8 +10,6 @@ from services.chat.operations import ChatOperations
 from services.chat.naming_service import ChatNamingService
 from services.chat.partial_cache import PartialUpdateCache
 from services.chat.core import validate_message, sanitize_user_input
-from services.chat.formatter import format_history_for_model
-from services.chat.naming import is_default_name
 from container import container
 from datetime import datetime
 
@@ -69,7 +67,7 @@ class MessageStreamProcessor:
             return
 
         # Подготовка истории
-        formatted_history = format_history_for_model(dialog.history)
+        formatted_history = dialog.to_model_format()
         base_history = dialog.to_ui_format()
         cache_key = f"{dialog_id}_{len(base_history)}"
 
