@@ -31,17 +31,17 @@ class MessageStreamProcessor:
             self._logger = container.get_logger()
         return self._logger
 
-    def _inject_current_datetime(self, messages: List[Dict]) -> List[Dict]:
-        """Добавляет информацию о текущей дате в системное сообщение (или создаёт его)."""
-        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        date_info = f"Текущая дата и время: {now}."
+    # def _inject_current_datetime(self, messages: List[Dict]) -> List[Dict]:
+    #     """Добавляет информацию о текущей дате в системное сообщение (или создаёт его)."""
+    #     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    #     date_info = f"Текущая дата и время: {now}."
 
         # Если первое сообщение системное – дополняем его
-        if messages and messages[0].get("role") == "system":
-            messages[0]["content"] = date_info + " " + messages[0]["content"]
-        else:
-            messages.insert(0, {"role": "system", "content": date_info})
-        return messages
+        # if messages and messages[0].get("role") == "system":
+        #     messages[0]["content"] = date_info + " " + messages[0]["content"]
+        # else:
+        #     messages.insert(0, {"role": "system", "content": date_info})
+        # return messages
 
     async def process(
         self,
@@ -117,14 +117,14 @@ class MessageStreamProcessor:
                         self._get_chat_list_data('today'), ""
                     )
                     messages_to_use = augmented
-            #     else:
-            #         self.logger.info("➡️ Pass 1 решил не искать, продолжаем без поиска")
-            # else:
-            #     self.logger.info("➡️ Поиск отключён (search_enabled={} или search.enabled={})".format(
-            #         search_enabled, search_cfg.get("enabled")))
+                else:
+                    self.logger.debug("➡️ Pass 1 решил не искать, продолжаем без поиска")
+            else:
+                self.logger.debug("➡️ Поиск отключён (search_enabled={} или search.enabled={})".format(
+                    search_enabled, search_cfg.get("enabled")))
 
-            # --- Добавление текущей даты и времени в сообщения для модели ---
-            messages_to_use = self._inject_current_datetime(messages_to_use)
+            # --- Добавление текущей даты и времени в сообщения для модели --- ИНВАЛИДИРУЕТ КЭШИ!!!
+            # messages_to_use = self._inject_current_datetime(messages_to_use)
             # ---------------------------------------------------------------
 
             # Этап 2: стриминг ответа модели
