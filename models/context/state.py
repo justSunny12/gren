@@ -1,7 +1,9 @@
 # models/context/state.py
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, PrivateAttr
 from datetime import datetime
 from typing import List, Dict, Any, Optional
+import hashlib
+import json
 
 from .enums import ChunkType
 from .chunk import InteractionChunk, L2SummaryBlock
@@ -39,6 +41,9 @@ class DialogContextState(BaseModel):
     total_summarizations_l2: int = Field(default=0, description="Всего L2 суммаризаций")
     last_summarization_time: Optional[datetime] = Field(default=None, description="Время последней суммаризации")
     
+    # Приватное поле для кэширования хэша состояния
+    _hash: Optional[str] = PrivateAttr(default=None)
+    
     def get_stats(self) -> Dict[str, Any]:
         """Возвращает статистику контекста"""
         return {
@@ -56,6 +61,20 @@ class DialogContextState(BaseModel):
                 self.cumulative_context.total_chars, 1
             )
         }
+    
+    def get_hash(self) -> str:
+        """Возвращает хэш текущего состояния (вычисляет при необходимости)."""
+        if self._hash is None:
+            # Получаем словарь в JSON-совместимых типах (применяются json_encoders)
+            data = self.model_dump(mode='json')
+            # Сериализуем с сортировкой ключей для детерминизма
+            json_str = json.dumps(data, sort_keys=True)
+            self._hash = hashlib.sha256(json_str.encode('utf-8')).hexdigest()
+        return self._hash
+    
+    def invalidate_hash(self):
+        """Сбрасывает кэшированный хэш (вызывать после любых изменений состояния)."""
+        self._hash = None
     
     def model_dump_jsonable(self) -> dict:
         """Возвращает словарь, пригодный для JSON сериализации"""

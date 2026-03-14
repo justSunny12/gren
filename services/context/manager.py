@@ -6,7 +6,7 @@
 import asyncio
 import threading
 from datetime import datetime
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 from models.dialog import Dialog
 from models.context import DialogContextState, InteractionChunk, ChunkType
@@ -45,6 +45,10 @@ class ContextManager:
 
         # Блокировка для защиты состояния
         self._state_lock = threading.RLock()
+
+        # Кэш для сформированного контекста
+        self._cached_context: Optional[str] = None
+        self._cached_state_hash: Optional[str] = None
 
     def _load_or_initialize(self) -> DialogContextState:
         """Загружает сохранённое состояние или создаёт новое."""
@@ -90,6 +94,9 @@ class ContextManager:
             # Статистика
             self.state.total_interactions += 1
             self.state.total_characters_processed += interaction_chars
+
+            # Инвалидируем хэш после изменения состояния
+            self.state.invalidate_hash()
 
             # Сохранение
             self.persistence.save(self.state)
@@ -142,6 +149,9 @@ class ContextManager:
             self.state.total_summarizations_l1 += 1
             self.state.last_summarization_time = self.state.last_summarization_time or datetime.now()
 
+            # Инвалидируем хэш
+            self.state.invalidate_hash()
+
             self.persistence.save(self.state)
 
             # Проверка на L2
@@ -193,12 +203,22 @@ class ContextManager:
             self.state.total_summarizations_l2 += 1
             self.state.last_summarization_time = self.state.last_summarization_time or datetime.now()
 
+            # Инвалидируем хэш
+            self.state.invalidate_hash()
+
             self.persistence.save(self.state)
 
     def get_context_for_generation(self) -> str:
         """Возвращает контекст для передачи модели (только чтение, но для согласованности используем блокировку)."""
         with self._state_lock:
-            return self.builder.build(self.state, len(self.dialog.history))
+            current_hash = self.state.get_hash()
+            if current_hash == self._cached_state_hash and self._cached_context is not None:
+                return self._cached_context
+
+            context = self.builder.build(self.state, len(self.dialog.history))
+            self._cached_context = context
+            self._cached_state_hash = current_hash
+            return context
 
     def save_state(self, file_path: str = None) -> bool:
         """Сохраняет текущее состояние."""
@@ -211,6 +231,9 @@ class ContextManager:
             loaded = self.persistence.load(file_path)
             if loaded:
                 self.state = loaded
+                # Сбрасываем кэш, так как состояние новое
+                self._cached_context = None
+                self._cached_state_hash = None
                 return True
             return False
 
