@@ -1,11 +1,11 @@
 # services/model/streamer.py
 """
-Менеджер стриминга ответов модели с поддержкой батчинга
+Менеджер стриминга ответов модели с поддержкой батчинга и кэшированием sampler/logits_processors.
 """
 import threading
 import asyncio
 import time
-from typing import List, Dict, Any, Optional, AsyncGenerator, Iterator
+from typing import List, Dict, Any, Optional, AsyncGenerator, Iterator, Tuple
 
 from mlx_lm import stream_generate
 from mlx_lm.sample_utils import make_sampler, make_logits_processors
@@ -16,14 +16,19 @@ from container import container
 
 
 class StreamManager(IStreamManager):
-    """Менеджер стриминга ответов модели с умным батчингом"""
-    
+    """Менеджер стриминга ответов модели с умным батчингом и кэшированием sampler/logits_processors."""
+
     def __init__(self):
         self._active_stop_event = None
         self._stream_lock = threading.Lock()
         self._streaming_active = False
         self._batch_config = None
         self._logger = None
+
+        # Кэши для sampler и logits_processors
+        self._sampler_cache: Dict[Tuple[float, float, int], Any] = {}
+        self._logits_processors_cache: Dict[Tuple[float], Any] = {}
+        self._cache_lock = threading.RLock()
 
     @property
     def logger(self):
@@ -42,7 +47,29 @@ class StreamManager(IStreamManager):
                 max_batch_wait_ms=config.get('max_batch_wait_ms', 60.0),
                 adaptive_mode=config.get('adaptive_mode', True),
             )
-    
+
+    def _get_sampler(self, temperature: float, top_p: float, top_k: int):
+        """Возвращает sampler из кэша или создаёт новый."""
+        key = (temperature, top_p, top_k)
+        with self._cache_lock:
+            if key not in self._sampler_cache:
+                self._sampler_cache[key] = make_sampler(
+                    temp=temperature,
+                    top_p=top_p,
+                    top_k=top_k
+                )
+            return self._sampler_cache[key]
+
+    def _get_logits_processors(self, repetition_penalty: float):
+        """Возвращает logits_processors из кэша или создаёт новый."""
+        key = (repetition_penalty,)
+        with self._cache_lock:
+            if key not in self._logits_processors_cache:
+                self._logits_processors_cache[key] = make_logits_processors(
+                    repetition_penalty=repetition_penalty
+                )
+            return self._logits_processors_cache[key]
+
     async def stream_response(
         self,
         messages: List[Dict[str, str]],
@@ -51,35 +78,35 @@ class StreamManager(IStreamManager):
         params: Dict[str, Any],
         stop_event: Optional[threading.Event] = None
     ) -> AsyncGenerator[str, None]:
-        """Асинхронно стримит ответ модели с умным батчингом"""
-        
+        """Асинхронно стримит ответ модели с умным батчингом и кэшированными sampler/logits_processors."""
+
         if not self._stream_lock.acquire(blocking=False):
             raise RuntimeError("Генерация уже выполняется. Дождитесь завершения.")
-        
+
         if stop_event is None:
             stop_event = threading.Event()
-        
+
         self._active_stop_event = stop_event
         self._streaming_active = True
-        
+
         batcher = FastBatcher(self._batch_config)
         batcher.start()
-        
+
         try:
             prompt = self._format_prompt_for_streaming(
                 messages, tokenizer, params["enable_thinking"]
             )
-            
-            sampler = make_sampler(
-                temp=params["temperature"],
+
+            # Получаем кэшированные или создаём новые sampler и logits_processors
+            sampler = self._get_sampler(
+                temperature=params["temperature"],
                 top_p=params["top_p"],
                 top_k=params["top_k"]
             )
-            
-            logits_processors = make_logits_processors(
+            logits_processors = self._get_logits_processors(
                 repetition_penalty=params["repetition_penalty"]
             )
-            
+
             def _sync_generator() -> Iterator[str]:
                 """Синхронный генератор токенов"""
                 try:
@@ -93,67 +120,67 @@ class StreamManager(IStreamManager):
                     ):
                         if stop_event.is_set():
                             break
-                        
+
                         chunk = response.text if hasattr(response, 'text') else str(response)
                         if chunk:
                             yield chunk
                 except Exception as e:
                     self.logger.exception("Ошибка в синхронном генераторе: %s", e)
-            
+
             sync_gen = _sync_generator()
             last_yield_time = time.time()
-            
+
             try:
                 while not stop_event.is_set():
                     try:
                         chunk = next(sync_gen)
-                        
+
                         if chunk:
                             should_yield = batcher.put(chunk)
-                            
+
                             current_time = time.time()
                             time_since_yield = (current_time - last_yield_time) * 1000
-                            
-                            if (should_yield or 
+
+                            if (should_yield or
                                 time_since_yield > batcher.config.max_batch_wait_ms or
                                 len(batcher.get_current_batch()) >= batcher.config.max_chars_per_batch):
-                                
+
                                 batch = batcher.take_batch()
                                 if batch:
                                     yield batch
                                     last_yield_time = current_time
-                        
+
                         await asyncio.sleep(0)
-                        
+
                     except StopIteration:
                         break
                     except Exception as e:
                         self.logger.exception("Ошибка при получении чанка: %s", e)
                         break
-                
+
                 final_batch = batcher.take_batch()
                 if final_batch:
                     yield final_batch
-            
+
             finally:
                 try:
                     sync_gen.close()
                 except:
                     pass
-        
+
         except Exception as e:
             self.logger.exception("Критическая ошибка в stream_response: %s", e)
             raise
-        
+
         finally:
             batcher.stop()
             self._streaming_active = False
             self._active_stop_event = None
             self._stream_lock.release()
-    
+
     def _format_prompt_for_streaming(
-        self, 
-        messages: List[Dict[str, str]], 
+        self,
+        messages: List[Dict[str, str]],
         tokenizer,
         enable_thinking: bool
     ) -> str:
@@ -171,12 +198,14 @@ class StreamManager(IStreamManager):
             if enable_thinking:
                 prompt += "<think>"
             return prompt
-    
+
     def get_status(self) -> Dict[str, Any]:
         return {
             'streaming_active': self._streaming_active,
             'has_stop_event': self._active_stop_event is not None,
-            'batch_config': self._batch_config.__dict__ if self._batch_config else None
+            'batch_config': self._batch_config.__dict__ if self._batch_config else None,
+            'sampler_cache_size': len(self._sampler_cache),
+            'logits_processors_cache_size': len(self._logits_processors_cache)
         }
 
 
