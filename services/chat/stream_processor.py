@@ -1,6 +1,6 @@
 # services/chat/stream_processor.py
 """
-Обработчик потока генерации ответа модели.
+Обработчик потока генерации ответа модели с кэшированием списка диалогов.
 """
 import threading
 from typing import AsyncGenerator, List, Dict, Optional, Tuple
@@ -10,6 +10,8 @@ from services.chat.operations import ChatOperations
 from services.chat.naming_service import ChatNamingService
 from services.chat.partial_cache import PartialUpdateCache
 from services.chat.core import validate_message, sanitize_user_input
+from services.chat.formatter import format_history_for_model
+from services.chat.naming import is_default_name
 from container import container
 from datetime import datetime
 
@@ -29,18 +31,6 @@ class MessageStreamProcessor:
             self._logger = container.get_logger()
         return self._logger
 
-    # def _inject_current_datetime(self, messages: List[Dict]) -> List[Dict]:
-    #     """Добавляет информацию о текущей дате в системное сообщение (или создаёт его)."""
-    #     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    #     date_info = f"Текущая дата и время: {now}."
-
-        # Если первое сообщение системное – дополняем его
-        # if messages and messages[0].get("role") == "system":
-        #     messages[0]["content"] = date_info + " " + messages[0]["content"]
-        # else:
-        #     messages.insert(0, {"role": "system", "content": date_info})
-        # return messages
-
     async def process(
         self,
         prompt: str,
@@ -52,7 +42,6 @@ class MessageStreamProcessor:
         search_enabled: bool = False,
     ) -> AsyncGenerator[Tuple[List[Dict], str, str, str, str], None]:
         """Основной метод обработки потока с поддержкой поиска и актуальной даты."""
-        # self.logger.info(f"🚦 stream_processor.process called with search_enabled={search_enabled}")
 
         # Валидация сообщения
         is_valid, error = validate_message(prompt)
@@ -67,13 +56,16 @@ class MessageStreamProcessor:
             return
 
         # Подготовка истории
-        formatted_history = dialog.to_model_format()
+        formatted_history = format_history_for_model(dialog.history)
         base_history = dialog.to_ui_format()
         cache_key = f"{dialog_id}_{len(base_history)}"
 
+        # ЗАХВАТЫВАЕМ СНЭПШОТ СПИСКА ЧАТОВ ДО НАЧАЛА ГЕНЕРАЦИИ
+        initial_chat_list = self._get_chat_list_data('today')
+
         # Стартовый JS (блокировка кнопок)
         js_start = "if (window.toggleGenerationButtons) { window.toggleGenerationButtons(true); }"
-        yield base_history, "", dialog_id, self._get_chat_list_data('today'), js_start
+        yield base_history, "", dialog_id, initial_chat_list, js_start
 
         accumulated_response = ""
         suffix_on_stop = "...<генерация прервана пользователем>"
@@ -87,24 +79,21 @@ class MessageStreamProcessor:
 
             # Этап 1: анализ необходимости поиска (Pass 1)
             if search_enabled and search_cfg.get("enabled", False):
-                # self.logger.info("➡️ Pass 1: запуск анализа необходимости поиска")
-
                 deciding_text = status_cfg.get("deciding", "🔍 Анализирую запрос...")
                 if deciding_text:
                     yield (
                         self._make_status_history(base_history, deciding_text),
                         deciding_text, dialog_id,
-                        self._get_chat_list_data('today'), ""
+                        initial_chat_list,  # ← используем снэпшот
+                        ""
                     )
 
                 augmented, searched, query = await self._run_search(
                     prompt=prompt,
                     formatted_history=formatted_history,
                 )
-                # self.logger.info(f"➡️ Pass 1 результат: searched={searched}, query='{query}'")
 
                 if searched:
-                    # Статус 2: найден результат, обрабатываем
                     searching_tpl = status_cfg.get("searching", "🌐 Ищу в сети: {query}")
                     reading_text = status_cfg.get("reading", "📄 Читаю результаты...")
                     final_status = f"{searching_tpl.format(query=query)}\n{reading_text}"
@@ -112,7 +101,8 @@ class MessageStreamProcessor:
                     yield (
                         self._make_status_history(base_history, final_status),
                         final_status, dialog_id,
-                        self._get_chat_list_data('today'), ""
+                        initial_chat_list,  # ← снэпшот
+                        ""
                     )
                     messages_to_use = augmented
                 else:
@@ -120,10 +110,6 @@ class MessageStreamProcessor:
             else:
                 self.logger.debug("➡️ Поиск отключён (search_enabled={} или search.enabled={})".format(
                     search_enabled, search_cfg.get("enabled")))
-
-            # --- Добавление текущей даты и времени в сообщения для модели --- ИНВАЛИДИРУЕТ КЭШИ!!!
-            # messages_to_use = self._inject_current_datetime(messages_to_use)
-            # ---------------------------------------------------------------
 
             # Этап 2: стриминг ответа модели
             async for batch in self.operations.stream_response(
@@ -140,7 +126,8 @@ class MessageStreamProcessor:
                     "content": accumulated_response
                 })
                 yield (history_for_ui, accumulated_response, dialog_id,
-                    self._get_chat_list_data('today'), "")
+                       initial_chat_list,  # ← снэпшот
+                       "")
 
             was_stopped = stop_event and stop_event.is_set()
             final_text = accumulated_response + (suffix_on_stop if was_stopped else "")
@@ -162,9 +149,13 @@ class MessageStreamProcessor:
             # Финальная история
             updated_dialog = self.operations.dialog_service.get_dialog(dialog_id)
             final_history = updated_dialog.to_ui_format()
+
+            # ФИНАЛЬНОЕ ОБНОВЛЕНИЕ СПИСКА ЧАТОВ
+            final_chat_list = self._get_chat_list_data('today')
             js_stop = "if (window.toggleGenerationButtons) { window.toggleGenerationButtons(false); }"
             yield (final_history, final_text, dialog_id,
-                self._get_chat_list_data('today'), js_stop)
+                   final_chat_list,  # ← свежий список
+                   js_stop)
 
             # Генерация названия чата (если нужно)
             from services.chat.naming import is_default_name
@@ -173,15 +164,16 @@ class MessageStreamProcessor:
                 if new_name:
                     updated_dialog.rename(new_name)
                     self.operations.dialog_service.storage.save_dialog(updated_dialog)
-                    updated_chat_list = self._get_chat_list_data('today')
+                    # ЕЩЁ ОДНО ФИНАЛЬНОЕ ОБНОВЛЕНИЕ ПОСЛЕ ПЕРЕИМЕНОВАНИЯ
+                    renamed_chat_list = self._get_chat_list_data('today')
                     update_js = f"""
                     <script>
                     if (window.renderChatList) {{
-                        window.renderChatList({updated_chat_list}, 'today');
+                        window.renderChatList({renamed_chat_list}, 'today');
                     }}
                     </script>
                     """
-                    yield (final_history, "", dialog_id, updated_chat_list, update_js)
+                    yield (final_history, "", dialog_id, renamed_chat_list, update_js)
 
             self.cache.clear(cache_key)
 
@@ -199,7 +191,9 @@ class MessageStreamProcessor:
                 "role": MessageRole.ASSISTANT.value,
                 "content": f"⚠️ Ошибка: {str(e)[:100]}"
             })
-            yield (error_history, "", dialog_id, self._get_chat_list_data('today'), "")
+            # В случае ошибки отдаём свежий список (на всякий случай)
+            error_chat_list = self._get_chat_list_data('today')
+            yield (error_history, "", dialog_id, error_chat_list, "")
 
     async def _run_search(
         self,
