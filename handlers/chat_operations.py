@@ -30,18 +30,36 @@ class ChatOperationsHandler(BaseHandler):
             return [], chat_id, self.get_chat_list_data(scroll_target='none')
     
     def create_chat_with_js_handler(self):
-        """Создание нового чата — скролл к группе 'Сегодня'"""
+        """
+        Создание нового чата с прокруткой списка к группе "Сегодня".
+        Новый чат НЕ создаётся, если текущий диалог пуст и его имя совпадает
+        с автоматически сгенерированным шаблоном (т.е. пользователь его не переименовывал).
+        """
         try:
+            current = self.dialog_service.get_current_dialog()
+
+            # Если текущий диалог существует, пуст и имеет автосгенерированное имя – не создаём новый
+            if current and len(current.history) == 0:
+                dialogs_config = self.config.get("dialogs", {})
+                default_name = dialogs_config.get("default_name", "Новый чат")
+                auto_name = f"{default_name} {current.id}"
+
+                if current.name == auto_name:
+                    # Остаёмся в текущем пустом диалоге, обновляем список без прокрутки
+                    history = current.to_ui_format()
+                    chat_list_data = self.get_chat_list_data(scroll_target='none')
+                    return history, "", current.id, "", chat_list_data
+
+            # Во всех остальных случаях создаём новый диалог
             dialog_id = self.dialog_service.create_dialog()
             dialog = self.dialog_service.get_dialog(dialog_id)
-            
-            # Получаем обновлённые данные списка с флагом скролла к today
+
+            # Обновляем список чатов с прокруткой к группе "Сегодня"
             chat_list_data = self.get_chat_list_data(scroll_target='today')
-            
             history = dialog.to_ui_format()
-            # Возвращаем пустой js_code, так как рендер произойдёт через chat_list_data.change
+
             return history, "", dialog_id, "", chat_list_data
-            
+
         except Exception as e:
             self.logger.error("Ошибка при создании чата: %s", e)
             return [], "", None, "", "[]"
