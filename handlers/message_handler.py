@@ -66,7 +66,6 @@ class MessageHandler(BaseHandler):
             # Получаем диалог для подсчёта размера контекста
             dialog = self.dialog_service.get_dialog(chat_id) if chat_id else None
             if dialog:
-                # Строка, которая реально будет передана модели (суммаризированный контекст + последние сообщения)
                 context_str = dialog.get_context_for_generation()
                 total_context_chars = len(context_str)
             else:
@@ -74,6 +73,8 @@ class MessageHandler(BaseHandler):
 
             start_time = time.time()
             first_token_received = False
+            final_dialog_id = None
+            final_chat_list_data = None
 
             async for history, acc_text, dialog_id_out, chat_list_data, js_code in self.chat_service.process_message_stream(
                 prompt=prompt,
@@ -97,20 +98,47 @@ class MessageHandler(BaseHandler):
                             self.logger.stats("⚡ TTFT: %.3f сек, контекст: %d символов", ttft, total_context_chars)
                             first_token_received = True
 
+                # Сохраняем последний dialog_id и chat_list_data для использования после цикла
+                final_dialog_id = dialog_id_out
+                final_chat_list_data = chat_list_data
                 yield history, "", dialog_id_out, chat_list_data, js_code
 
-            # Сохранение после завершения стрима
-            if dialog_id_out:
-                final_dialog = self.dialog_service.get_dialog(dialog_id_out)
+            # После завершения стрима логируем скорость генерации
+            if final_dialog_id:
+                final_dialog = self.dialog_service.get_dialog(final_dialog_id)
+                if final_dialog and final_dialog.history and final_dialog.history[-1].role == MessageRole.ASSISTANT:
+                    final_text = final_dialog.history[-1].content
+                    # Подсчёт токенов
+                    try:
+                        if self.tokenizer:
+                            tokens = self.tokenizer.encode(final_text)
+                            num_tokens = len(tokens)
+                            elapsed = time.time() - start_time
+                            speed = num_tokens / elapsed if elapsed > 0 else 0
+                            self.logger.stats("⚡ Скорость генерации: %.2f токенов/сек (%d токенов за %.2f сек)", 
+                                            speed, num_tokens, elapsed)
+                        else:
+                            # Приблизительная оценка по символам (в среднем 4 символа на токен)
+                            elapsed = time.time() - start_time
+                            est_tokens = len(final_text) // 4
+                            speed = est_tokens / elapsed if elapsed > 0 else 0
+                            self.logger.stats("⚡ Скорость генерации (оценочно): %.2f токенов/сек (~%d токенов за %.2f сек)", 
+                                            speed, est_tokens, elapsed)
+                    except Exception as e:
+                        self.logger.warning("Не удалось подсчитать токены для скорости: %s", e)
+
+            # Сохранение после завершения стрима (оставляем как есть)
+            if final_dialog_id:
+                final_dialog = self.dialog_service.get_dialog(final_dialog_id)
                 if final_dialog and final_dialog.history and final_dialog.history[-1].role == MessageRole.ASSISTANT:
                     original = final_dialog.history[-1].content
                     formatted = ThinkingHandler.format_think_markdown(original)
                     cleaned = ThinkingHandler.clean_think_block(formatted)
                     if cleaned != original:
                         final_dialog.history[-1].content = cleaned
-                        self.dialog_service.save_dialog(dialog_id_out)
+                        self.dialog_service.save_dialog(final_dialog_id)
                         updated_history = final_dialog.to_ui_format()
-                        yield updated_history, "", dialog_id_out, chat_list_data, ""
+                        yield updated_history, "", final_dialog_id, final_chat_list_data, ""
 
         except Exception as e:
             self.logger.error("❌ Ошибка в генерации: %s", e)
