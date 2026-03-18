@@ -10,7 +10,6 @@ from services.chat.operations import ChatOperations
 from services.chat.naming_service import ChatNamingService
 from services.chat.partial_cache import PartialUpdateCache
 from services.chat.core import validate_message, sanitize_user_input
-from services.chat.formatter import format_history_for_model
 from services.chat.naming import is_default_name
 from container import container
 from datetime import datetime
@@ -55,8 +54,18 @@ class MessageStreamProcessor:
             yield [], "Диалог не найден", dialog_id, self._get_chat_list_data('today'), ""
             return
 
-        # Подготовка истории
-        formatted_history = format_history_for_model(dialog.history)
+        # Получаем суммаризованный контекст (raw_tail + L1 + L2)
+        context_str = dialog.get_context_for_generation()
+        self.logger.debug(f"📚 Контекст для генерации: {len(context_str)} символов")
+
+        # Формируем сообщения для модели:
+        # - системное сообщение с суммаризованным контекстом
+        # - текущий запрос пользователя
+        messages = []
+        if context_str:
+            messages.append({"role": "system", "content": context_str})
+        messages.append({"role": "user", "content": prompt})
+
         base_history = dialog.to_ui_format()
         cache_key = f"{dialog_id}_{len(base_history)}"
 
@@ -71,7 +80,7 @@ class MessageStreamProcessor:
         suffix_on_stop = "...<генерация прервана пользователем>"
 
         try:
-            messages_to_use = formatted_history
+            messages_to_use = messages
             search_cfg = self.config.get("search", {})
             status_cfg = search_cfg.get("status_messages", {})
             searched = False
@@ -88,9 +97,10 @@ class MessageStreamProcessor:
                         ""
                     )
 
+                # Для поиска передаём сформированные сообщения (с контекстом)
                 augmented, searched, query = await self._run_search(
                     prompt=prompt,
-                    formatted_history=formatted_history,
+                    formatted_history=messages,  # используем сообщения с контекстом
                 )
 
                 if searched:
