@@ -1,49 +1,43 @@
 # services/logger.py
 import sys
 from loguru import logger
-from typing import Optional
+from typing import Optional, Any
 
 
 class LoggerWrapper:
-    """Обёртка для loguru с поддержкой %-форматирования."""
+    """Обёртка для loguru с поддержкой %-форматирования и kwargs."""
 
     def __init__(self, logger_instance):
         self._logger = logger_instance
 
-    def error(self, msg: str, *args):
-        """Логирует ошибку с поддержкой %-форматирования."""
+    def _log(self, level: str, msg: str, *args, **kwargs):
+        """Общий метод логирования с поддержкой exc_info."""
         if args:
-            self._logger.error(msg % args)
+            formatted = msg % args
         else:
-            self._logger.error(msg)
+            formatted = msg
 
-    def warning(self, msg: str, *args):
-        """Логирует предупреждение с поддержкой %-форматирования."""
-        if args:
-            self._logger.warning(msg % args)
+        # Извлекаем exc_info из kwargs, если есть
+        exc_info = kwargs.pop('exc_info', None)
+        if exc_info:
+            self._logger.opt(exception=exc_info).log(level, formatted)
         else:
-            self._logger.warning(msg)
+            self._logger.log(level, formatted)
 
-    def info(self, msg: str, *args):
-        """Логирует информацию с поддержкой %-форматирования."""
-        if args:
-            self._logger.info(msg % args)
-        else:
-            self._logger.info(msg)
+    def error(self, msg: str, *args, **kwargs):
+        self._log("ERROR", msg, *args, **kwargs)
 
-    def stats(self, msg: str, *args):
-        """Логирует статистику (кастомный уровень STATS) с поддержкой %-форматирования."""
-        if args:
-            self._logger.log("STATS", msg % args)
-        else:
-            self._logger.log("STATS", msg)
-            
-    def debug(self, msg: str, *args):
-        """Логирует отладочное сообщение с поддержкой %-форматирования."""
-        if args:
-            self._logger.debug(msg % args)
-        else:
-            self._logger.debug(msg)
+    def warning(self, msg: str, *args, **kwargs):
+        self._log("WARNING", msg, *args, **kwargs)
+
+    def info(self, msg: str, *args, **kwargs):
+        self._log("INFO", msg, *args, **kwargs)
+
+    def stats(self, msg: str, *args, **kwargs):
+        self._log("STATS", msg, *args, **kwargs)
+
+    def debug(self, msg: str, *args, **kwargs):
+        self._log("DEBUG", msg, *args, **kwargs)
 
     def configure(self, level_string: str):
         """Перенастраивает логгер под новый уровень (регистронезависимо)."""

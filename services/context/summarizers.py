@@ -1,8 +1,4 @@
 # services/context/summarizers.py
-"""
-Базовые классы суммаризаторов (L1 и L2).
-Фабрика вынесена в summarizer_factory.py.
-"""
 import re
 import time
 import os
@@ -14,7 +10,7 @@ from dataclasses import dataclass
 import mlx.core as mx
 from mlx_lm import generate
 from mlx_lm.sample_utils import make_sampler, make_logits_processors
-from container import container
+from container import container, gpu_lock  # импортируем блокировку
 
 
 @dataclass
@@ -168,10 +164,11 @@ class BaseSummarizer:
                         user_prompt: Optional[str] = None, **kwargs) -> SummaryResult:
         start_time = time.time()
         self._total_requests += 1
+        self.logger.debug(f"📝 [Summarizer] Начало суммаризации, длина текста {len(text)} символов")
 
         try:
             if not await self.ensure_loaded():
-                self.logger.error("🔍 summarize: модель не загружена")
+                self.logger.error("🔍 [Summarizer] Модель не загружена")
                 return SummaryResult(
                     summary="",
                     original_length=len(text),
@@ -189,6 +186,8 @@ class BaseSummarizer:
             repetition_penalty = kwargs.get("repetition_penalty", self.repetition_penalty)
             enable_thinking = False
 
+            self.logger.debug(f"⚙️ [Summarizer] Параметры: max_tokens={max_tokens}, temperature={temperature}, top_p={top_p}")
+
             system = system_prompt if system_prompt is not None else self._get_system_prompt(**kwargs)
             user = user_prompt if user_prompt is not None else self._get_user_prompt(text, **kwargs)
 
@@ -204,8 +203,9 @@ class BaseSummarizer:
                     add_generation_prompt=True,
                     enable_thinking=enable_thinking
                 )
+                self.logger.debug(f"📜 [Summarizer] Промпт сформирован, длина {len(prompt)} символов")
             except Exception as e:
-                self.logger.error("🔍 summarize: ошибка apply_chat_template")
+                self.logger.error("🔍 [Summarizer] Ошибка apply_chat_template: %s", e)
                 prompt = f"<|im_start|>system\n{system}<|im_end|>\n"
                 prompt += f"<|im_start|>user\n{user}<|im_end|>\n"
                 prompt += f"<|im_start|>assistant\n"
@@ -213,7 +213,8 @@ class BaseSummarizer:
             sampler = make_sampler(temp=temperature, top_p=top_p, top_k=top_k)
             logits_processors = make_logits_processors(repetition_penalty=repetition_penalty)
 
-            with self._model_lock:
+            # Захватываем глобальную блокировку на время генерации
+            with gpu_lock:
                 response = generate(
                     model=self._model,
                     tokenizer=self._tokenizer,
@@ -232,6 +233,8 @@ class BaseSummarizer:
             self._total_processing_time += processing_time
             self._last_used = time.time()
 
+            self.logger.debug(f"✅ [Summarizer] Суммаризация завершена за {processing_time:.3f} сек, длина суммаризации {len(summary_text)} символов, сжатие {compression_ratio:.2f}")
+
             return SummaryResult(
                 summary=summary_text,
                 original_length=len(text),
@@ -244,7 +247,7 @@ class BaseSummarizer:
             import traceback
             tb_str = traceback.format_exc()
             error_msg = f"Ошибка суммаризации: {str(e)}\n{tb_str}"
-            self.logger.error("❌ Исключение в summarize: %s", error_msg)
+            self.logger.error("❌ [Summarizer] Исключение в summarize: %s", error_msg)
             return SummaryResult(
                 summary="",
                 original_length=len(text),
@@ -296,9 +299,6 @@ class L1Summarizer(BaseSummarizer):
 Формат: сплошной связный текст, 5-7 предложений с сохранением существенных деталей."""
 
     def _get_user_prompt(self, text: str, **kwargs) -> str:
-        max_input = self.config.get("l1_chunks", {}).get("max_char_limit", 2000)
-        if len(text) > max_input:
-            text = text[:max_input] + "...[текст обрезан]"
         return f"""Диалог для конспектирования:
 
 {text}
@@ -329,9 +329,6 @@ class L2Summarizer(BaseSummarizer):
 Формат: краткий связный текст, 2-3 предложения."""
 
     def _get_user_prompt(self, text: str, **kwargs) -> str:
-        max_input = self.config.get("l2_summary", {}).get("max_char_limit", 4000)
-        if len(text) > max_input:
-            text = text[:max_input] + "...[текст обрезан]"
         return f"""Конспекты частей диалога (в хронологическом порядке):
 
 {text}

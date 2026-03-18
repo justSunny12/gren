@@ -1,5 +1,6 @@
 # container.py (обновлённая версия)
-from typing import Dict, Any, Callable, Optional
+from typing import Dict, Any, Callable
+import threading
 
 class Container:
     def __init__(self):
@@ -105,3 +106,5 @@ def get_model_service():
 
 def get_logger():
     return container.get_logger()
+
+gpu_lock = threading.RLock()

@@ -1,11 +1,11 @@
 # services/context/worker.py
 """
-Воркер, выполняющий задачи суммаризации в фоновом потоке с переиспользованием event loop.
+Воркер, выполняющий задачи суммаризации в фоновом потоке с постоянным event loop.
 """
 import time
 import asyncio
 import threading
-from typing import Dict, Any
+from typing import Dict, Any, Coroutine
 
 from models.summary_task import SummaryTask
 from services.context.summarizers import SummaryResult
@@ -43,6 +43,7 @@ class SummaryWorker:
         self.stop_event.clear()
         self.thread = threading.Thread(target=self._run, daemon=True)
         self.thread.start()
+        self.logger.debug("🧵 [Worker] Поток воркера запущен")
 
     def stop(self):
         self.stop_event.set()
@@ -50,10 +51,22 @@ class SummaryWorker:
             self._loop.call_soon_threadsafe(self._loop.stop)
         if self.thread:
             self.thread.join(timeout=5.0)
+        self.logger.debug("🛑 [Worker] Поток воркера остановлен")
+
+    def submit(self, coro: Coroutine):
+        """
+        Запускает корутину в event loop воркера.
+        Возвращает concurrent.futures.Future.
+        """
+        if self._loop is None:
+            raise RuntimeError("Worker event loop not running")
+        self.logger.debug("📨 [Worker] Получена корутина для выполнения в фоновом event loop")
+        return asyncio.run_coroutine_threadsafe(coro, self._loop)
 
     def _run(self):
         self._loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self._loop)
+        self.logger.debug("🧵 [Worker] Event loop создан и запущен")
 
         try:
             while not self.stop_event.is_set():
@@ -61,20 +74,27 @@ class SummaryWorker:
                 if task is None:
                     continue
 
+                self.logger.debug(f"📥 [Worker] Получена задача {task.task_id} типа {task.task_type}")
+
                 if time.time() - task.created_at < self.delay:
+                    wait = self.delay - (time.time() - task.created_at)
+                    self.logger.debug(f"⏳ [Worker] Задача {task.task_id} ожидает {wait:.3f} сек (задержка {self.delay} сек)")
                     time.sleep(self.delay)
 
                 try:
                     summarizers = self._get_summarizers()
                     if task.task_type == "l1":
                         summarizer = summarizers["l1"]
+                        self.logger.debug(f"▶️ [Worker] Запуск L1 суммаризации для задачи {task.task_id}")
                         result = self._loop.run_until_complete(
                             summarizer.summarize(task.data["text"], **task.extra_params)
                         )
                         if task.callback and result.success:
-                            task.callback(result.summary, task.data)  # data содержит dialog_id
+                            task.callback(result.summary, task.data)
+                        self.logger.debug(f"✅ [Worker] Задача {task.task_id} выполнена успешно, время обработки {result.processing_time:.3f} сек")
                     elif task.task_type == "l2":
                         summarizer = summarizers["l2"]
+                        self.logger.debug(f"▶️ [Worker] Запуск L2 суммаризации для задачи {task.task_id}")
                         result = self._loop.run_until_complete(
                             summarizer.summarize(task.data["text"], **task.extra_params)
                         )
@@ -85,14 +105,16 @@ class SummaryWorker:
                                 task.data["l1_chunk_ids"],
                                 task.data["original_char_count"]
                             )
+                        self.logger.debug(f"✅ [Worker] Задача {task.task_id} выполнена успешно, время обработки {result.processing_time:.3f} сек")
                     else:
                         raise ValueError(f"Unknown task type: {task.task_type}")
 
                     self.scheduler.task_done()
                 except Exception as e:
-                    self.logger.error("Ошибка в воркере: %s", e)
+                    self.logger.error(f"❌ [Worker] Ошибка при выполнении задачи {task.task_id}: {e}")
                     self.scheduler.task_done()
         finally:
             if self._loop is not None:
                 self._loop.close()
                 self._loop = None
+            self.logger.debug("🧵 [Worker] Event loop закрыт")

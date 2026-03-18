@@ -37,21 +37,6 @@ class MessageHandler(BaseHandler):
                 self._tokenizer = None
         return self._tokenizer
 
-    def _get_prompt_token_count(self, messages: List[dict]) -> Optional[int]:
-        try:
-            if not self.tokenizer:
-                return None
-            prompt = self.tokenizer.apply_chat_template(
-                messages,
-                tokenize=False,
-                add_generation_prompt=True
-            )
-            tokens = self.tokenizer.encode(prompt)
-            return len(tokens)
-        except Exception as e:
-            self.logger.warning("⚠️ Ошибка подсчёта токенов: %s", e)
-            return None
-
     async def send_message_stream_handler(
         self,
         prompt: str,
@@ -72,14 +57,21 @@ class MessageHandler(BaseHandler):
             self._active_stop_event = stop_event
             self._active_dialog_id = chat_id
 
-            # УБИРАЕМ force_reload=True
             user_config = user_config_service.get_user_config()
             enable_thinking = user_config.generation.enable_thinking
             search_enabled = user_config.search_enabled or False
             if enable_thinking is None:
                 enable_thinking = False
 
-            prompt_tokens = self._get_prompt_token_count([{"role": "user", "content": prompt}])
+            # Получаем диалог для подсчёта размера контекста
+            dialog = self.dialog_service.get_dialog(chat_id) if chat_id else None
+            if dialog:
+                # Строка, которая реально будет передана модели (суммаризированный контекст + последние сообщения)
+                context_str = dialog.get_context_for_generation()
+                total_context_chars = len(context_str)
+            else:
+                total_context_chars = 0
+
             start_time = time.time()
             first_token_received = False
 
@@ -102,8 +94,7 @@ class MessageHandler(BaseHandler):
                     if last_msg.get('role') == MessageRole.ASSISTANT.value and last_msg.get('content'):
                         if last_msg['content'].strip():
                             ttft = time.time() - start_time
-                            token_info = f", контекст: {prompt_tokens} токенов" if prompt_tokens else ""
-                            self.logger.stats("⚡ TTFT: %.3f сек%s", ttft, token_info)
+                            self.logger.stats("⚡ TTFT: %.3f сек, контекст: %d символов", ttft, total_context_chars)
                             first_token_received = True
 
                 yield history, "", dialog_id_out, chat_list_data, js_code

@@ -1,15 +1,15 @@
 # services/context/global_manager.py
 """
 Глобальный менеджер суммаризации для всех диалогов.
+Использует AsyncSummaryWorker для асинхронной обработки.
 """
 import threading
+import asyncio
 from typing import Dict, Any, Optional, Callable, List
 
-from models.summary_task import SummaryTask
-from services.context.scheduler import TaskScheduler
-from services.context.worker import SummaryWorker
+from services.context.worker_async import AsyncSummaryWorker
 from container import container
-from time import time
+
 
 class GlobalSummaryManager:
     """Единый менеджер суммаризации для всех диалогов."""
@@ -29,55 +29,35 @@ class GlobalSummaryManager:
         self._initialized = True
 
         self.config = container.get_config().get("context", {})
-        perf_config = self.config.get("performance", {})
-        self.delay_ms = perf_config.get("summary_delay_ms", 1000)
-        self.max_workers = perf_config.get("max_background_tasks", 1)
-
-        self.scheduler = TaskScheduler()
-        self.worker = SummaryWorker(self.config, self.scheduler, self.delay_ms)
-
-        self._total_tasks = 0
-        self._successful_tasks = 0
-        self._failed_tasks = 0
-        self._logger = None
-
-    @property
-    def logger(self):
-        if self._logger is None:
-            self._logger = container.get_logger()
-        return self._logger
+        self.worker = AsyncSummaryWorker(self.config)
+        self._logger = container.get_logger()
 
     def start(self):
-        """Запускает глобальный воркер."""
+        """Запускает асинхронный воркер."""
         self.worker.start()
-        self.logger.info("   ✅ Глобальный менеджер суммаризаций запущен")
+        self._logger.info("   ✅ Глобальный менеджер суммаризаций запущен")
 
     def stop(self):
-        """Останавливает глобальный воркер."""
+        """Останавливает воркер."""
         self.worker.stop()
-        self.logger.info("🛑 Глобальный менеджер суммаризаций остановлен")
+        self._logger.info("🛑 Глобальный менеджер суммаризаций остановлен")
 
     def schedule_l1_summary(
         self,
         dialog_id: str,
         text: str,
         callback: Optional[Callable] = None,
-        priority: int = 1,
         **kwargs
     ) -> str:
         """Планирует L1 суммаризацию для конкретного диалога."""
-        task_id = f"l1_{dialog_id}_{int(time.time()*1000)}_{hash(text) % 10000:04d}"
-        task = SummaryTask(
-            task_id=task_id,
+        data = {"dialog_id": dialog_id, "text": text}
+        return self.worker.submit_task(
             task_type="l1",
-            data={"dialog_id": dialog_id, "text": text},
-            priority=priority,
+            text=text,
             callback=callback,
-            extra_params=kwargs
+            data=data,
+            params=kwargs
         )
-        self.scheduler.put(task)
-        self._total_tasks += 1
-        return task_id
 
     def schedule_l2_summary(
         self,
@@ -86,7 +66,6 @@ class GlobalSummaryManager:
         original_char_count: int,
         l1_chunk_ids: List[str],
         callback: Optional[Callable] = None,
-        priority: int = 5,
         **kwargs
     ) -> str:
         """Планирует L2 суммаризацию для конкретного диалога."""
@@ -96,26 +75,26 @@ class GlobalSummaryManager:
             "original_char_count": original_char_count,
             "l1_chunk_ids": l1_chunk_ids
         }
-        task_id = f"l2_{dialog_id}_{int(time.time()*1000)}_{hash(str(l1_chunk_ids)) % 10000:04d}"
-        task = SummaryTask(
-            task_id=task_id,
+        return self.worker.submit_task(
             task_type="l2",
-            data=data,
-            priority=priority,
+            text=text,
             callback=callback,
-            extra_params=kwargs
+            data=data,
+            params=kwargs
         )
-        self.scheduler.put(task)
-        self._total_tasks += 1
-        return task_id
+
+    def run_coro(self, coro):
+        """
+        Запускает корутину в event loop воркера.
+        Возвращает concurrent.futures.Future.
+        """
+        if self.worker._loop is None:
+            raise RuntimeError("Воркер не запущен")
+        return asyncio.run_coroutine_threadsafe(coro, self.worker._loop)
 
     def get_stats(self) -> Dict[str, Any]:
         return {
-            'total_tasks': self._total_tasks,
-            'successful': self._successful_tasks,
-            'failed': self._failed_tasks,
-            'queue_size': self.scheduler.qsize(),
-            'worker_alive': self.worker.thread and self.worker.thread.is_alive()
+            'worker_alive': self.worker._thread is not None and self.worker._thread.is_alive()
         }
 
 

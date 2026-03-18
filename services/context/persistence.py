@@ -46,11 +46,14 @@ class ContextStatePersistence:
             file_path = self.get_state_file_path()
         try:
             state_dict = state.model_dump_jsonable()
+            # Добавляем временную метку для отладки
+            self.logger.debug(f"💾 [Persistence] Сохранение состояния в {file_path}, l1_chunks={len(state.l1_chunks)}")
             with open(file_path, 'w', encoding='utf-8') as f:
                 json.dump(state_dict, f, ensure_ascii=False, indent=2)
+            self.logger.debug(f"✅ [Persistence] Состояние успешно сохранено")
             return True
         except Exception as e:
-            self.logger.error("Ошибка сохранения состояния контекста: %s", e)
+            self.logger.error(f"❌ [Persistence] Ошибка сохранения состояния контекста: {e}", exc_info=True)
             return False
 
     def load(self, file_path: Optional[str] = None) -> Optional[DialogContextState]:
@@ -59,10 +62,12 @@ class ContextStatePersistence:
             file_path = self.get_state_file_path()
         try:
             if not os.path.exists(file_path):
+                self.logger.debug(f"📂 [Persistence] Файл состояния не найден: {file_path}")
                 return None
             with open(file_path, 'r', encoding='utf-8') as f:
                 state_dict = json.load(f)
+            self.logger.debug(f"📂 [Persistence] Состояние загружено из {file_path}")
             return DialogContextState.model_validate(state_dict)
         except Exception as e:
-            self.logger.error("Ошибка загрузки состояния контекста: %s", e)
+            self.logger.error(f"❌ [Persistence] Ошибка загрузки состояния контекста: {e}", exc_info=True)
             return None

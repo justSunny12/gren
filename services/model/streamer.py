@@ -1,7 +1,4 @@
 # services/model/streamer.py
-"""
-Менеджер стриминга ответов модели с поддержкой батчинга и кэшированием sampler/logits_processors.
-"""
 import threading
 import asyncio
 import time
@@ -12,7 +9,7 @@ from mlx_lm.sample_utils import make_sampler, make_logits_processors
 
 from .protocol import IStreamManager
 from .fast_batcher import FastBatcher, BatchConfig
-from container import container
+from container import container, gpu_lock  # импортируем блокировку
 
 
 class StreamManager(IStreamManager):
@@ -108,24 +105,24 @@ class StreamManager(IStreamManager):
             )
 
             def _sync_generator() -> Iterator[str]:
-                """Синхронный генератор токенов"""
-                try:
-                    for response in stream_generate(
-                        model=model,
-                        tokenizer=tokenizer,
-                        prompt=prompt,
-                        max_tokens=params["max_tokens"],
-                        sampler=sampler,
-                        logits_processors=logits_processors
-                    ):
-                        if stop_event.is_set():
-                            break
-
-                        chunk = response.text if hasattr(response, 'text') else str(response)
-                        if chunk:
-                            yield chunk
-                except Exception as e:
-                    self.logger.exception("Ошибка в синхронном генераторе: %s", e)
+                """Синхронный генератор токенов с захватом глобальной блокировки на всё время генерации."""
+                with gpu_lock:  # блокировка удерживается на протяжении всей генерации
+                    try:
+                        for response in stream_generate(
+                            model=model,
+                            tokenizer=tokenizer,
+                            prompt=prompt,
+                            max_tokens=params["max_tokens"],
+                            sampler=sampler,
+                            logits_processors=logits_processors
+                        ):
+                            if stop_event.is_set():
+                                break
+                            chunk = response.text if hasattr(response, 'text') else str(response)
+                            if chunk:
+                                yield chunk
+                    except Exception as e:
+                        self.logger.exception("Ошибка в синхронном генераторе: %s", e)
 
             sync_gen = _sync_generator()
             last_yield_time = time.time()

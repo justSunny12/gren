@@ -1,4 +1,4 @@
-# services/context/factory.py (исправленная версия)
+# services/context/factory.py
 """
 Фабрика для создания менеджеров контекста
 """
@@ -6,7 +6,7 @@ import threading
 from typing import Dict, Optional, Any
 from container import container
 
-from services.context.manager import ContextManager
+from services.context.context_manager import ContextManager  # изменён импорт
 from models.dialog import Dialog
 
 

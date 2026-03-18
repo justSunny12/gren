@@ -42,7 +42,7 @@ context:
   performance:
     background_summary: true
     max_background_tasks: 1
-    summary_delay_ms: 1000
+    summary_delay_ms: 0
 
 chat_naming:
   enabled: true
