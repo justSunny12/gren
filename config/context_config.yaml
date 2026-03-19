@@ -15,8 +15,8 @@ context:
       l2_preserve_ratio: 0.5
 
   model:
-    name: "Qwen/Qwen3-4B-MLX-4bit"
-    local_path: "./llm_cache/models--Qwen--Qwen3-4B-MLX-4bit/snapshots/52a5ab34fa604bc8af6d3ce0cac0cab10b7eb495"
+    name: "Qwen/Qwen3.5-4B-mlx-4bit"
+    local_path: "./llm_cache/Qwen3.5-4B-mlx-4bit"
 
   loading:
       preload: true
