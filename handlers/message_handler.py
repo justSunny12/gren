@@ -1,8 +1,8 @@
 # handlers/message_handler.py
 import threading
 import time
-import re
 from typing import AsyncGenerator, List, Optional, Tuple
+
 from .base import BaseHandler
 from services.user_config_service import user_config_service
 from models.enums import MessageRole
@@ -30,12 +30,63 @@ class MessageHandler(BaseHandler):
         if self._tokenizer is None:
             try:
                 from container import container
-                model_service = container.get_model_service()
-                self._tokenizer = model_service.get_tokenizer()
+                self._tokenizer = container.get_model_service().get_tokenizer()
             except Exception as e:
                 self.logger.warning("⚠️ Не удалось получить токенизатор: %s", e)
-                self._tokenizer = None
         return self._tokenizer
+
+    # ──────────────────────────────────────────────
+    # Приватные хелперы
+    # ──────────────────────────────────────────────
+
+    def _normalize_and_save(self, dialog_id: str) -> Optional[List[dict]]:
+        """
+        Нормализует последнее сообщение ассистента для хранения.
+        Возвращает обновлённый UI-формат если контент изменился, иначе None.
+        """
+        dialog = self.dialog_service.get_dialog(dialog_id)
+        if not (dialog and dialog.history and dialog.history[-1].role == MessageRole.ASSISTANT):
+            return None
+
+        msg = dialog.history[-1]
+        normalized = ThinkingHandler.normalize_for_storage(msg.content)
+        if normalized == msg.content:
+            return None
+
+        msg.content = normalized
+        self.dialog_service.save_dialog(dialog_id)
+        return dialog.to_ui_format()
+
+    def _log_generation_speed(self, dialog_id: str, start_time: float) -> None:
+        """Логирует скорость генерации (токенов/сек) по завершении стрима."""
+        dialog = self.dialog_service.get_dialog(dialog_id)
+        if not (dialog and dialog.history and dialog.history[-1].role == MessageRole.ASSISTANT):
+            return
+
+        final_text = dialog.history[-1].content
+        elapsed = time.time() - start_time
+        if elapsed <= 0:
+            return
+
+        try:
+            if self.tokenizer:
+                num_tokens = len(self.tokenizer.encode(final_text))
+                self.logger.stats(
+                    "⚡ Скорость генерации: %.2f токенов/сек (%d токенов за %.2f сек)",
+                    num_tokens / elapsed, num_tokens, elapsed,
+                )
+            else:
+                est_tokens = len(final_text) // 4
+                self.logger.stats(
+                    "⚡ Скорость генерации (оценочно): %.2f токенов/сек (~%d токенов за %.2f сек)",
+                    est_tokens / elapsed, est_tokens, elapsed,
+                )
+        except Exception as e:
+            self.logger.warning("Не удалось подсчитать токены: %s", e)
+
+    # ──────────────────────────────────────────────
+    # Основной обработчик
+    # ──────────────────────────────────────────────
 
     async def send_message_stream_handler(
         self,
@@ -43,13 +94,16 @@ class MessageHandler(BaseHandler):
         chat_id: Optional[str],
         max_tokens: Optional[int],
         temperature: Optional[float],
-        search_enabled: Optional[bool] = None
+        search_enabled: Optional[bool] = None,
     ) -> AsyncGenerator[Tuple[List[dict], str, str, str, str], None]:
+
         if not self._stream_lock.acquire(blocking=False):
-            error_history = [{"role": MessageRole.ASSISTANT.value,
-                            "content": "⚠️ Уже выполняется другая генерация. Подождите."}]
-            js_code = "if (window.toggleGenerationButtons) { window.toggleGenerationButtons(false); }"
-            yield error_history, "", chat_id or "", self.get_chat_list_data(scroll_target='today'), js_code
+            js_stop = "if (window.toggleGenerationButtons) { window.toggleGenerationButtons(false); }"
+            yield (
+                [{"role": MessageRole.ASSISTANT.value,
+                  "content": "⚠️ Уже выполняется другая генерация. Подождите."}],
+                "", chat_id or "", self.get_chat_list_data(scroll_target='today'), js_stop,
+            )
             return
 
         try:
@@ -58,105 +112,66 @@ class MessageHandler(BaseHandler):
             self._active_dialog_id = chat_id
 
             user_config = user_config_service.get_user_config()
-            enable_thinking = user_config.generation.enable_thinking
+            enable_thinking = user_config.generation.enable_thinking or False
             search_enabled = user_config.search_enabled or False
-            if enable_thinking is None:
-                enable_thinking = False
 
-            # Получаем диалог для подсчёта размера контекста
             dialog = self.dialog_service.get_dialog(chat_id) if chat_id else None
-            if dialog:
-                context_str = dialog.get_context_for_generation()
-                total_context_chars = len(context_str)
-            else:
-                total_context_chars = 0
+            total_context_chars = len(dialog.get_context_for_generation()) if dialog else 0
 
             start_time = time.time()
             first_token_received = False
-            final_dialog_id = None
-            final_chat_list_data = None
+            final_dialog_id = final_chat_list_data = None
 
-            async for history, acc_text, dialog_id_out, chat_list_data, js_code in self.chat_service.process_message_stream(
-                prompt=prompt,
-                dialog_id=chat_id,
-                max_tokens=max_tokens,
-                temperature=temperature,
-                enable_thinking=enable_thinking,
-                stop_event=stop_event,
-                search_enabled=search_enabled,
+            async for history, acc_text, dialog_id_out, chat_list_data, js_code in (
+                self.chat_service.process_message_stream(
+                    prompt=prompt,
+                    dialog_id=chat_id,
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                    enable_thinking=enable_thinking,
+                    stop_event=stop_event,
+                    search_enabled=search_enabled,
+                )
             ):
-                # Преобразование тегов think в HTML
-                if acc_text and history and history[-1].get('role') == MessageRole.ASSISTANT.value:
-                    formatted = ThinkingHandler.format_think_markdown(acc_text)
-                    history[-1]['content'] = formatted
+                # Форматирование блока размышлений на лету
+                if enable_thinking and acc_text and history and \
+                        history[-1].get('role') == MessageRole.ASSISTANT.value:
+                    history[-1]['content'] = ThinkingHandler.format_stream_chunk(acc_text)
 
+                # Фиксируем время первого токена
                 if not first_token_received and history:
-                    last_msg = history[-1]
-                    if last_msg.get('role') == MessageRole.ASSISTANT.value and last_msg.get('content'):
-                        if last_msg['content'].strip():
-                            ttft = time.time() - start_time
-                            self.logger.stats("⚡ TTFT: %.3f сек, контекст: %d символов", ttft, total_context_chars)
-                            first_token_received = True
+                    last = history[-1]
+                    if last.get('role') == MessageRole.ASSISTANT.value \
+                            and last.get('content', '').strip():
+                        self.logger.stats(
+                            "⚡ TTFT: %.3f сек, контекст: %d символов",
+                            time.time() - start_time, total_context_chars,
+                        )
+                        first_token_received = True
 
-                # Сохраняем последний dialog_id и chat_list_data для использования после цикла
-                final_dialog_id = dialog_id_out
-                final_chat_list_data = chat_list_data
+                final_dialog_id, final_chat_list_data = dialog_id_out, chat_list_data
                 yield history, "", dialog_id_out, chat_list_data, js_code
 
-            # После завершения стрима логируем скорость генерации
+            # После завершения стрима
             if final_dialog_id:
-                final_dialog = self.dialog_service.get_dialog(final_dialog_id)
-                if final_dialog and final_dialog.history and final_dialog.history[-1].role == MessageRole.ASSISTANT:
-                    final_text = final_dialog.history[-1].content
-                    # Подсчёт токенов
-                    try:
-                        if self.tokenizer:
-                            tokens = self.tokenizer.encode(final_text)
-                            num_tokens = len(tokens)
-                            elapsed = time.time() - start_time
-                            speed = num_tokens / elapsed if elapsed > 0 else 0
-                            self.logger.stats("⚡ Скорость генерации: %.2f токенов/сек (%d токенов за %.2f сек)", 
-                                            speed, num_tokens, elapsed)
-                        else:
-                            # Приблизительная оценка по символам (в среднем 4 символа на токен)
-                            elapsed = time.time() - start_time
-                            est_tokens = len(final_text) // 4
-                            speed = est_tokens / elapsed if elapsed > 0 else 0
-                            self.logger.stats("⚡ Скорость генерации (оценочно): %.2f токенов/сек (~%d токенов за %.2f сек)", 
-                                            speed, est_tokens, elapsed)
-                    except Exception as e:
-                        self.logger.warning("Не удалось подсчитать токены для скорости: %s", e)
-
-            # Сохранение после завершения стрима (оставляем как есть)
-            if final_dialog_id:
-                final_dialog = self.dialog_service.get_dialog(final_dialog_id)
-                if final_dialog and final_dialog.history and final_dialog.history[-1].role == MessageRole.ASSISTANT:
-                    original = final_dialog.history[-1].content
-                    formatted = ThinkingHandler.format_think_markdown(original)
-                    cleaned = ThinkingHandler.clean_think_block(formatted)
-                    if cleaned != original:
-                        final_dialog.history[-1].content = cleaned
-                        self.dialog_service.save_dialog(final_dialog_id)
-                        updated_history = final_dialog.to_ui_format()
-                        yield updated_history, "", final_dialog_id, final_chat_list_data, ""
+                self._log_generation_speed(final_dialog_id, start_time)
+                updated = self._normalize_and_save(final_dialog_id)
+                if updated:
+                    yield updated, "", final_dialog_id, final_chat_list_data, ""
 
         except Exception as e:
             self.logger.error("❌ Ошибка в генерации: %s", e)
+            history = []
             try:
-                dialog = self.dialog_service.get_dialog(chat_id) if chat_id else None
-                if dialog and dialog.history and dialog.history[-1].role == MessageRole.ASSISTANT:
-                    original = dialog.history[-1].content
-                    formatted = ThinkingHandler.format_think_markdown(original)
-                    cleaned = ThinkingHandler.clean_think_block(formatted)
-                    if cleaned != original:
-                        dialog.history[-1].content = cleaned
-                        self.dialog_service.save_dialog(chat_id)
-                history = dialog.to_ui_format() if dialog else []
+                if chat_id:
+                    self._normalize_and_save(chat_id)
+                    dialog = self.dialog_service.get_dialog(chat_id)
+                    history = dialog.to_ui_format() if dialog else []
             except Exception as inner_e:
-                self.logger.error("Ошибка при восстановлении после сбоя генерации: %s", inner_e)
-                history = []
-            js_code = "if (window.toggleGenerationButtons) { window.toggleGenerationButtons(false); }"
-            yield history, "", chat_id or "", self.get_chat_list_data(scroll_target='today'), js_code
+                self.logger.error("Ошибка при восстановлении после сбоя: %s", inner_e)
+            js_stop = "if (window.toggleGenerationButtons) { window.toggleGenerationButtons(false); }"
+            yield history, "", chat_id or "", self.get_chat_list_data(scroll_target='today'), js_stop
+
         finally:
             self._active_stop_event = None
             self._active_dialog_id = None

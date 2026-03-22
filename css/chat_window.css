@@ -170,7 +170,8 @@
     background-color: rgba(0, 0, 0, 0.05) !important;
 }
 
-.chatbot .prose .thinking {
+.chatbot .prose .thinking,
+.chatbot .prose .thinking-in-progress {
     display: block !important;
     width: 100% !important;
     margin: 0.5em 0 !important;
@@ -183,13 +184,15 @@
 }
 
 /* Все дочерние элементы внутри .thinking тоже делаем блочными */
-.chatbot .prose .thinking > * {
+.chatbot .prose .thinking > *,
+.chatbot .prose .thinking-in-progress > * {
     display: block !important;
     margin: 0.2em 0 !important;
 }
 
 /* Если внутри есть <p>, убираем лишние отступы */
-.chatbot .prose .thinking p {
+.chatbot .prose .thinking *,
+.chatbot .prose .thinking-in-progress * {
     margin: 0.2em 0 !important;
     color: rgb(98, 102, 106) !important;
 }

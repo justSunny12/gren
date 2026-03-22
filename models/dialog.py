@@ -81,8 +81,7 @@ class Dialog(BaseModel):
             content = msg.content
             if msg.role == MessageRole.ASSISTANT:
                 # Форматируем теги размышлений для отображения
-                content = ThinkingHandler.format_think_markdown(content)
-                content = ThinkingHandler.clean_think_block(content)
+                content = ThinkingHandler.format_for_ui(content)
             formatted.append({"role": msg.role.value, "content": content})
 
         self._ui_cache = formatted
