@@ -33,25 +33,21 @@ class DialogStorage:
         return self._logger
 
     def _get_timestamp_suffix(self, dialog: Dialog) -> str:
-        """Возвращает суффикс для файлов: YYYYMMDDTHHMMSS-fff"""
         datetime_str = dialog.created.strftime("%Y%m%dT%H%M%S")
         microseconds = dialog.created.strftime("%f")[:3]
         return f"{datetime_str}-{microseconds}"
 
     def _get_chat_folder_name(self, dialog: Dialog) -> str:
-        """Имя папки: chat_<timestamp>-<micro>"""
         return f"chat_{self._get_timestamp_suffix(dialog)}"
 
     def _get_chat_folder_path(self, dialog: Dialog) -> str:
         return os.path.join(self.save_dir, self._get_chat_folder_name(dialog))
 
     def _get_meta_file_path(self, dialog: Dialog) -> str:
-        """Путь к meta_<timestamp>-<micro>.json"""
         folder = self._get_chat_folder_path(dialog)
         return os.path.join(folder, f"meta_{self._get_timestamp_suffix(dialog)}.json")
 
     def _get_history_file_path(self, dialog: Dialog) -> str:
-        """Путь к history_<timestamp>-<micro>.jsonl"""
         folder = self._get_chat_folder_path(dialog)
         return os.path.join(folder, f"history_{self._get_timestamp_suffix(dialog)}.jsonl")
 
@@ -66,7 +62,6 @@ class DialogStorage:
             folder_path = self._get_chat_folder_path(dialog)
             os.makedirs(folder_path, exist_ok=True)
 
-            # Сохраняем метаданные (без истории)
             meta_file = self._get_meta_file_path(dialog)
             meta_data = {
                 "id": dialog.id,
@@ -81,11 +76,9 @@ class DialogStorage:
             with open(meta_file, 'w', encoding='utf-8') as f:
                 json.dump(meta_data, f, ensure_ascii=False, indent=2)
 
-            # Если файл истории ещё не существует – создаём пустой
             history_file = self._get_history_file_path(dialog)
             if not os.path.exists(history_file):
-                with open(history_file, 'w', encoding='utf-8') as f:
-                    pass  # пустой файл
+                open(history_file, 'w', encoding='utf-8').close()
 
             return True
 
@@ -93,25 +86,20 @@ class DialogStorage:
             self.logger.error("Ошибка сохранения метаданных диалога %s: %s", dialog.id, e)
             return False
 
-    # ========== Добавление сообщения (append) с обновлением только updated ==========
+    # ========== Добавление сообщения (append) ==========
 
     def append_message(self, dialog: Dialog, message: Message) -> bool:
         """
-        Добавляет одно сообщение в history_*.jsonl (append) и обновляет поле updated в meta.json.
-        Предполагается, что message уже добавлено в dialog.history.
+        Добавляет одно сообщение в history_*.jsonl (append) и обновляет updated в meta.json.
         """
         try:
             history_file = self._get_history_file_path(dialog)
             if not os.path.exists(history_file):
-                # Если файла нет – создаём папку и файлы через save_dialog
                 self.save_dialog(dialog)
 
-            # Дописываем строку с сообщением
             with open(history_file, 'a', encoding='utf-8') as f:
-                line = json.dumps(message.to_dict(), ensure_ascii=False) + '\n'
-                f.write(line)
+                f.write(json.dumps(message.to_dict(), ensure_ascii=False) + '\n')
 
-            # Обновляем только поле updated в meta.json (без полной перезаписи)
             meta_file = self._get_meta_file_path(dialog)
             if os.path.exists(meta_file):
                 with open(meta_file, 'r+', encoding='utf-8') as f:
@@ -121,13 +109,71 @@ class DialogStorage:
                     json.dump(meta, f, ensure_ascii=False, indent=2)
                     f.truncate()
             else:
-                # Если по какой-то причине meta отсутствует (например, удалён вручную), пересоздаём
                 self.save_dialog(dialog)
 
             return True
 
         except Exception as e:
             self.logger.error("Ошибка добавления сообщения в диалог %s: %s", dialog.id, e)
+            return False
+
+    # ========== Перезапись последнего сообщения ==========
+
+    def rewrite_last_message(self, dialog: Dialog) -> bool:
+        """
+        Перезаписывает последнюю строку history_*.jsonl актуальным содержимым
+        последнего сообщения из dialog.history.
+
+        Используется когда контент последнего сообщения изменён в памяти
+        (например, нормализация блока размышлений) и нужно сохранить изменения.
+        """
+        if not dialog.history:
+            return False
+
+        try:
+            history_file = self._get_history_file_path(dialog)
+            if not os.path.exists(history_file):
+                return False
+
+            with open(history_file, 'rb') as f:
+                # Ищем начало последней непустой строки
+                f.seek(0, 2)
+                file_size = f.tell()
+                if file_size == 0:
+                    return False
+
+                # Шагаем назад побайтово, пропуская завершающий \n
+                pos = file_size - 1
+                f.seek(pos)
+                if f.read(1) == b'\n':
+                    pos -= 1
+
+                # Находим начало последней строки
+                while pos > 0:
+                    f.seek(pos - 1)
+                    if f.read(1) == b'\n':
+                        break
+                    pos -= 1
+                last_line_start = pos
+
+            # Перезаписываем файл: всё до последней строки + новая последняя строка
+            with open(history_file, 'r', encoding='utf-8') as f:
+                content = f.read()
+
+            lines = [l for l in content.splitlines() if l.strip()]
+            if not lines:
+                return False
+
+            new_last = json.dumps(dialog.history[-1].to_dict(), ensure_ascii=False)
+            lines[-1] = new_last
+
+            with open(history_file, 'w', encoding='utf-8') as f:
+                f.write('\n'.join(lines) + '\n')
+
+            return True
+
+        except Exception as e:
+            self.logger.error("Ошибка перезаписи последнего сообщения диалога %s: %s", dialog.id, e)
             return False
 
     # ========== Загрузка всех диалогов ==========
@@ -146,16 +192,14 @@ class DialogStorage:
                 if not os.path.isdir(folder_path) or not folder_name.startswith('chat_'):
                     continue
 
-                # Ищем файл meta_*.json (их может быть несколько, но должен быть один)
-                meta_files = [f for f in os.listdir(folder_path) if f.startswith('meta_') and f.endswith('.json')]
+                meta_files = [f for f in os.listdir(folder_path)
+                              if f.startswith('meta_') and f.endswith('.json')]
                 if not meta_files:
                     self.logger.warning("Пропуск папки %s: нет meta_*.json", folder_name)
                     continue
 
-                # Берём первый (предполагаем, что он один)
                 meta_file = os.path.join(folder_path, meta_files[0])
 
-                # Загружаем метаданные
                 try:
                     with open(meta_file, 'r', encoding='utf-8') as f:
                         meta = json.load(f)
@@ -163,7 +207,6 @@ class DialogStorage:
                     self.logger.error("Ошибка чтения %s в %s: %s", meta_files[0], folder_name, e)
                     continue
 
-                # Создаём объект Dialog (без истории)
                 dialog = Dialog(
                     id=meta["id"],
                     name=meta["name"],
@@ -174,8 +217,8 @@ class DialogStorage:
                     pinned_position=meta.get("pinned_position"),
                 )
 
-                # Загружаем историю из history_*.jsonl (если есть)
-                history_files = [f for f in os.listdir(folder_path) if f.startswith('history_') and f.endswith('.jsonl')]
+                history_files = [f for f in os.listdir(folder_path)
+                                 if f.startswith('history_') and f.endswith('.jsonl')]
                 if history_files:
                     history_file = os.path.join(folder_path, history_files[0])
                     if os.path.exists(history_file):
@@ -188,11 +231,10 @@ class DialogStorage:
                                     msg_data = json.loads(line)
                                     msg_data["role"] = MessageRole(msg_data["role"])
                                     msg_data["timestamp"] = datetime.fromisoformat(msg_data["timestamp"])
-                                    message = Message(**msg_data)
-                                    dialog.history.append(message)
+                                    dialog.history.append(Message(**msg_data))
                                 except Exception as e:
-                                    self.logger.error("Ошибка парсинга сообщения в %s: %s", history_file, e)
-                                    continue
+                                    self.logger.error("Ошибка парсинга сообщения в %s: %s",
+                                                      history_file, e)
 
                 dialogs[dialog.id] = dialog
 
@@ -204,7 +246,6 @@ class DialogStorage:
     # ========== Удаление папки диалога ==========
 
     def delete_dialog_folder(self, dialog: Dialog) -> bool:
-        """Удаляет папку диалога и всё её содержимое"""
         try:
             folder_path = self._get_chat_folder_path(dialog)
             if os.path.exists(folder_path):

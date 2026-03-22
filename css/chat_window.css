@@ -3,7 +3,6 @@
     flex: 1 !important;
     min-height: 0 !important;
     overflow-y: auto !important;
-    /* padding: 0 10% !important; */
     border: none !important;
     border-radius: 0 !important;
     background: white !important;
@@ -16,10 +15,8 @@
     flex-direction: column !important;
     gap: 12px !important;
     margin: 0 !important;
-    /* padding: 0 10% !important; */
     border: none !important;
-    /* width: 80% !important;
-    align-self: center; */
+
     background: transparent !important;
     height: 100%;
 }
@@ -190,11 +187,30 @@
     margin: 0.2em 0 !important;
 }
 
-/* Если внутри есть <p>, убираем лишние отступы */
 .chatbot .prose .thinking *,
 .chatbot .prose .thinking-in-progress * {
     margin: 0.2em 0 !important;
     color: rgb(98, 102, 106) !important;
+}
+
+
+.chatbot .prose .thinking-header,
+.chatbot .prose .thinking-header-processing,
+.chatbot .prose .thinking-header-stopped {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    font-size: 18px !important;
+    margin: 0 0 0.4em 0 !important;
+    color: rgb(98, 102, 106) !important;
+}
+
+.chatbot .prose .thinking-header svg,
+.chatbot .prose .thinking-header-processing svg,
+.chatbot .prose .thinking-header-stopped svg {
+    /* width: 20px !important; */
+    /* height: 20px !important; */
+    flex-shrink: 0 !important;
 }
 
 .chat-window-container::-webkit-scrollbar {

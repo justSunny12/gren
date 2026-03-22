@@ -39,9 +39,11 @@ class MessageHandler(BaseHandler):
     # Приватные хелперы
     # ──────────────────────────────────────────────
 
-    def _normalize_and_save(self, dialog_id: str) -> Optional[List[dict]]:
+    def _normalize_and_save(self, dialog_id: str, thinking_seconds: float = None,
+                            thinking_stopped: bool = False) -> Optional[List[dict]]:
         """
         Нормализует последнее сообщение ассистента для хранения.
+        Перезаписывает последнюю строку history_*.jsonl с обновлённым контентом.
         Возвращает обновлённый UI-формат если контент изменился, иначе None.
         """
         dialog = self.dialog_service.get_dialog(dialog_id)
@@ -49,12 +51,14 @@ class MessageHandler(BaseHandler):
             return None
 
         msg = dialog.history[-1]
-        normalized = ThinkingHandler.normalize_for_storage(msg.content)
+        normalized = ThinkingHandler.normalize_for_storage(
+            msg.content, thinking_seconds, stopped=thinking_stopped
+        )
         if normalized == msg.content:
             return None
 
         msg.content = normalized
-        self.dialog_service.save_dialog(dialog_id)
+        self.dialog_service.storage.rewrite_last_message(dialog)
         return dialog.to_ui_format()
 
     def _log_generation_speed(self, dialog_id: str, start_time: float) -> None:
@@ -120,6 +124,9 @@ class MessageHandler(BaseHandler):
 
             start_time = time.time()
             first_token_received = False
+            thinking_start_time: Optional[float] = None
+            thinking_seconds: Optional[float] = None
+            thinking_stopped: bool = False
             final_dialog_id = final_chat_list_data = None
 
             async for history, acc_text, dialog_id_out, chat_list_data, js_code in (
@@ -136,7 +143,25 @@ class MessageHandler(BaseHandler):
                 # Форматирование блока размышлений на лету
                 if enable_thinking and acc_text and history and \
                         history[-1].get('role') == MessageRole.ASSISTANT.value:
-                    history[-1]['content'] = ThinkingHandler.format_stream_chunk(acc_text)
+
+                    # Запускаем таймер при первом токене мышления
+                    if thinking_start_time is None:
+                        thinking_start_time = time.time()
+
+                    # Фиксируем время завершения блока при первом появлении </think>
+                    if thinking_seconds is None and '</think>' in acc_text:
+                        thinking_seconds = time.time() - thinking_start_time
+                        self.logger.stats(
+                            "💭 Блок размышлений завершен за %.2f секунд", thinking_seconds
+                        )
+
+                    # Остановка до </think> — детектируем прямо в цикле для мгновенного UI
+                    if not thinking_stopped and stop_event.is_set() and thinking_seconds is None:
+                        thinking_stopped = True
+
+                    history[-1]['content'] = ThinkingHandler.format_stream_chunk(
+                        acc_text, thinking_seconds, stopped=thinking_stopped
+                    )
 
                 # Фиксируем время первого токена
                 if not first_token_received and history:
@@ -155,7 +180,7 @@ class MessageHandler(BaseHandler):
             # После завершения стрима
             if final_dialog_id:
                 self._log_generation_speed(final_dialog_id, start_time)
-                updated = self._normalize_and_save(final_dialog_id)
+                updated = self._normalize_and_save(final_dialog_id, thinking_seconds, thinking_stopped)
                 if updated:
                     yield updated, "", final_dialog_id, final_chat_list_data, ""
 
