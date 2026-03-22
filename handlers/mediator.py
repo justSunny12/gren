@@ -1,7 +1,38 @@
 # handlers/mediator.py
-from typing import Dict, Callable, Any
 import json
+from typing import Dict, Callable, Any
 from container import container
+
+
+def _build_settings_json() -> str:
+    """
+    Собирает JSON с текущими настройками генерации.
+    Используется при инициализации и при запросе актуальных настроек.
+    Вынесен на уровень модуля, чтобы не дублировать код между
+    InitializationHandler и UIMediator.
+    """
+    from services.user_config_service import user_config_service
+    config_service = container.get("config_service")
+    gen_defaults = config_service.get_default_config().get("generation", {})
+    user_config = user_config_service.get_user_config(force_reload=True)
+
+    def resolve(user_val, default_key, fallback):
+        return user_val if user_val is not None else gen_defaults.get(default_key, fallback)
+
+    data = {
+        "current_max_tokens":  resolve(user_config.generation.max_tokens,  "default_max_tokens",  2048),
+        "current_temperature": resolve(user_config.generation.temperature, "default_temperature", 0.7),
+        "default_max_tokens":  gen_defaults.get("default_max_tokens",  2048),
+        "default_temperature": gen_defaults.get("default_temperature", 0.7),
+        "min_max_tokens":      gen_defaults.get("min_max_tokens",  64),
+        "max_max_tokens":      gen_defaults.get("max_max_tokens",  4096),
+        "step_max_tokens":     64,
+        "min_temperature":     gen_defaults.get("min_temperature", 0.1),
+        "max_temperature":     gen_defaults.get("max_temperature", 1.5),
+        "step_temperature":    0.05,
+    }
+    return json.dumps(data, ensure_ascii=False)
+
 
 class UIMediator:
     def __init__(self):
@@ -32,7 +63,7 @@ class UIMediator:
         self.register("send_message_stream", self._message_handler.send_message_stream_handler)
         self.register("init_app", self._init_handler.init_app_handler)
         self.register("stop_generation", self._message_handler.stop_active_generation)
-        self.register("get_current_settings", self._get_current_settings_handler)
+        self.register("get_current_settings", _build_settings_json)
 
     def register(self, event_type: str, handler: Callable):
         self._handlers[event_type] = handler
@@ -75,39 +106,6 @@ class UIMediator:
         else:
             return self._chat_ops_handler.handle_chat_switch(chat_id)
 
-    def _get_current_settings_handler(self):
-        from container import container
-        from services.user_config_service import user_config_service
-
-        config_service = container.get("config_service")
-        
-        default_config = config_service.get_default_config()
-        gen_defaults = default_config.get("generation", {})
-
-        user_config = user_config_service.get_user_config(force_reload=True)
-
-        current_max_tokens = user_config.generation.max_tokens
-        if current_max_tokens is None:
-            current_max_tokens = gen_defaults.get("default_max_tokens", 2048)
-
-        current_temperature = user_config.generation.temperature
-        if current_temperature is None:
-            current_temperature = gen_defaults.get("default_temperature", 0.7)
-
-        data = {
-            "current_max_tokens": current_max_tokens,
-            "current_temperature": current_temperature,
-            "default_max_tokens": gen_defaults.get("default_max_tokens", 2048),
-            "default_temperature": gen_defaults.get("default_temperature", 0.7),
-            "min_max_tokens": gen_defaults.get("min_max_tokens", 64),
-            "max_max_tokens": gen_defaults.get("max_max_tokens", 4096),
-            "step_max_tokens": 64,
-            "min_temperature": gen_defaults.get("min_temperature", 0.1),
-            "max_temperature": gen_defaults.get("max_temperature", 1.5),
-            "step_temperature": 0.05
-        }
-        return json.dumps(data, ensure_ascii=False)
-
     def get_chat_list_data(self, scroll_target: str = 'none'):
         return self.dispatch("get_chat_list_data", scroll_target)
 
@@ -129,5 +127,6 @@ class UIMediator:
 
     def get_current_settings(self):
         return self.dispatch("get_current_settings")
+
 
 ui_handlers = UIMediator()

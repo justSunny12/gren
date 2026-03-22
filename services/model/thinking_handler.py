@@ -91,14 +91,28 @@ class ThinkingHandler:
     @classmethod
     def format_for_ui(cls, text: str) -> str:
         """
-        Конвертирует хранимый формат в HTML для отображения (stored → ui).
+        Конвертирует текст с блоком размышлений в HTML для отображения.
 
-        «<think>...</think>\\n\\nОтвет»
-            → «<div class="thinking">...</div>\\n\\nОтвет»
+        Поддерживает два формата:
+          stored  — «<think>...</think>\\n\\nОтвет»  (новые записи)
+          legacy  — «Thinking process:\\n\\n...</think>\\n\\nОтвет»  (старые записи без <think>)
+
+        Оба → «<div class="thinking">...</div>\\n\\nОтвет»
         """
         if not text:
             return text
-        return _STORED_RE.sub(
-            lambda m: f'<div class="thinking">{m.group(1).strip(chr(10))}</div>',
-            text,
-        )
+
+        # stored-формат: есть полная пара <think>...</think>
+        if '<think>' in text:
+            return _STORED_RE.sub(
+                lambda m: f'<div class="thinking">{m.group(1).strip(chr(10))}</div>',
+                text,
+            )
+
+        # legacy raw-формат: есть </think>, но нет открывающего <think>
+        if '</think>' in text:
+            thinking_raw, final = text.split('</think>', 1)
+            thinking = cls._remove_header(thinking_raw).strip('\n')
+            return f'<div class="thinking">{thinking}</div>\n\n{final.lstrip(chr(10))}'
+
+        return text
