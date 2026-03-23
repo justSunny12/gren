@@ -49,6 +49,7 @@ class ResourceLoader:
             'static/js/modules/chat-list.js',
             'static/js/modules/context-menu.js',
             'static/js/modules/generation-control.js',
+            'static/js/modules/autoscroll.js',
             'static/js/main.js'
         ]
 

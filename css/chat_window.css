@@ -1,4 +1,6 @@
-/* chat_window.css - ЕДИНЫЕ СТИЛИ ДЛЯ ВСЕХ ПУЗЫРЕЙ */
+/* chat_window.css */
+
+/* ── Внешний контейнер — только flex, скролл отдан Gradio ── */
 .chat-window-container {
     flex: 1 !important;
     min-height: 0 !important;
@@ -9,23 +11,46 @@
     box-sizing: border-box !important;
 }
 
-/* Чатбот */
+/* Перебиваем Gradio-правило .gradio-container .contain .chat-window-container { overflow: hidden } */
+.gradio-container .contain .chat-window-container,
+.gradio-container .chat-window-container {
+    overflow-y: auto !important;
+}
+
+/* ── Скроллбар на .block.chatbot — реальном scroll-контейнере ── */
+.chat-window-container .block.chatbot::-webkit-scrollbar {
+    width: 8px !important;
+}
+
+.chat-window-container .block.chatbot::-webkit-scrollbar-track {
+    background: #f8f9fa !important;
+    border-radius: 4px !important;
+}
+
+.chat-window-container .block.chatbot::-webkit-scrollbar-thumb {
+    background: #ced4da !important;
+    border-radius: 4px !important;
+}
+
+.chat-window-container .block.chatbot::-webkit-scrollbar-thumb:hover {
+    background: #adb5bd !important;
+}
+
+/* ── Чатбот — растёт по контенту, переполняя #chat_window ── */
 .chat-window-container .chatbot {
     display: flex !important;
     flex-direction: column !important;
     gap: 12px !important;
     margin: 0 !important;
     border: none !important;
-
     background: transparent !important;
-    height: 100%;
 }
 
 #chat_window > div {
     padding: 0 10% !important;
 }
 
-/* Контейнеры сообщений */
+/* ── Строки сообщений ── */
 .chat-window-container .chatbot > div {
     border: none !important;
     display: flex !important;
@@ -36,7 +61,6 @@
     padding: 0 !important;
 }
 
-/* КОНТЕЙНЕРЫ для разных типов */
 .chat-window-container .chatbot > div[data-testid="user"] {
     justify-content: flex-end !important;
     align-items: flex-start !important;
@@ -47,7 +71,7 @@
     align-items: flex-start !important;
 }
 
-/* СООБЩЕНИЯ ПОЛЬЗОВАТЕЛЯ */
+/* ── Пузыри ── */
 .chat-window-container .message.user {
     background-color: rgb(238, 243, 253) !important;
     border: none !important;
@@ -59,12 +83,10 @@
     white-space: pre-wrap !important;
     line-height: 1.4 !important;
     margin-bottom: 0 !important;
-    padding-bottom: 10px !important;
     display: inline-block !important;
     position: relative !important;
 }
 
-/* СООБЩЕНИЯ АССИСТЕНТА */
 .chat-window-container .message.bot {
     background-color: transparent !important;
     border: none !important;
@@ -79,16 +101,15 @@
     padding-bottom: 10px !important;
     display: inline-block !important;
     position: relative !important;
-    box-shadow: none;
+    box-shadow: none !important;
 }
 
-/* ВНУТРЕННИЕ ЭЛЕМЕНТЫ сообщений */
 .chat-window-container .message {
     display: inline-block !important;
     position: relative !important;
 }
 
-/* Текст в сообщениях */
+/* ── Текст ── */
 .chat-window-container .message p {
     margin: 0 0 4px 0 !important;
     line-height: 1.4 !important;
@@ -99,12 +120,11 @@
     margin-bottom: 0 !important;
 }
 
-/* Убираем пустые элементы */
 .chat-window-container .message p:empty:not(:has(*)) {
     display: none !important;
 }
 
-/* Аватары */
+/* ── Аватары ── */
 .chat-window-container .avatar {
     width: 32px !important;
     height: 32px !important;
@@ -117,31 +137,7 @@
     align-self: flex-end !important;
 }
 
-/* Стили для скроллбара чата */
-.chat-window-container::-webkit-scrollbar {
-    width: 8px !important;
-}
-
-.chat-window-container::-webkit-scrollbar-track {
-    background: #f8f9fa !important;
-    border-radius: 4px !important;
-}
-
-.chat-window-container::-webkit-scrollbar-thumb {
-    background: #ced4da !important;
-    border-radius: 4px !important;
-}
-
-.chat-window-container::-webkit-scrollbar-thumb:hover {
-    background: #adb5bd !important;
-}
-
-/* ФИКС для Gradio контейнеров */
-.chatbot .wrap.s {
-    margin: 0 !important;
-    padding: 0 !important;
-}
-
+/* ── Gradio wrap-обёртки ── */
 .chat-window-container .chatbot > div .wrap,
 .chat-window-container .chatbot > div .wrap.s,
 .chat-window-container .chatbot > div .wrap.s.column {
@@ -151,22 +147,15 @@
     border: none !important;
 }
 
-/* Просто скрываем ВСЕ кнопки с классом icon-button */
-/* .chatbot .icon-button,
-.chatbot button.icon-button {
-    color: #6b7280 !important;
-    stroke: #6b7280 !important;
-    fill: none !important;
-    transition: color 0.2s ease, stroke 0.2s ease !important;
-} */
-
+/* ── Кнопки внутри чата ── */
 .chatbot .icon-button:hover,
 .chatbot button.icon-button:hover {
-    color: #374151 !important; /* Темнее при наведении */
+    color: #374151 !important;
     stroke: #374151 !important;
     background-color: rgba(0, 0, 0, 0.05) !important;
 }
 
+/* ── Блоки размышлений ── */
 .chatbot .prose .thinking,
 .chatbot .prose .thinking-in-progress {
     display: block !important;
@@ -180,7 +169,6 @@
     color: rgb(98, 102, 106) !important;
 }
 
-/* Все дочерние элементы внутри .thinking тоже делаем блочными */
 .chatbot .prose .thinking > *,
 .chatbot .prose .thinking-in-progress > * {
     display: block !important;
@@ -193,7 +181,7 @@
     color: rgb(98, 102, 106) !important;
 }
 
-
+/* ── Заголовки блоков размышлений ── */
 .chatbot .prose .thinking-header,
 .chatbot .prose .thinking-header-processing,
 .chatbot .prose .thinking-header-stopped {
@@ -201,32 +189,42 @@
     align-items: center !important;
     gap: 6px !important;
     font-size: 18px !important;
+    line-height: 1.4 !important;
     margin: 0 0 0.4em 0 !important;
+}
+
+.chatbot .prose .thinking-header {
     color: rgb(98, 102, 106) !important;
 }
 
-.chatbot .prose .thinking-header svg,
-.chatbot .prose .thinking-header-processing svg,
+.chatbot .prose .thinking-header-processing {
+    color: rgb(98, 102, 106) !important;
+}
+
+.chatbot .prose .thinking-header-stopped {
+    color: rgb(98, 102, 106) !important;
+}
+
 .chatbot .prose .thinking-header-stopped svg {
-    /* width: 20px !important; */
-    /* height: 20px !important; */
     flex-shrink: 0 !important;
 }
 
-.chat-window-container::-webkit-scrollbar {
-    width: 6px !important;
+.chatbot .prose .thinking-header svg,
+.chatbot .prose .thinking-header-processing svg {
+    flex-shrink: 0 !important;
+    stroke: rgb(67, 99, 245) !important;
 }
 
+/* ── Прочее ── */
 .icon-button-wrapper.top-panel {
     display: none !important;
 }
 
-/* Принудительный перенос строк в блоках кода */
 .chatbot .prose pre code {
     white-space: pre-wrap;
     word-wrap: break-word;
 }
 
-.progress-text { 
-    display: none !important; 
+.progress-text {
+    display: none !important;
 }
