@@ -205,13 +205,14 @@
     color: rgb(98, 102, 106) !important;
 }
 
-.chatbot .prose .thinking-header-stopped svg {
+.chatbot .prose .thinking-header-stopped svg,
+.chatbot .prose .thinking-header svg,
+.chatbot .prose .thinking-header-processing svg {
     flex-shrink: 0 !important;
 }
 
 .chatbot .prose .thinking-header svg,
 .chatbot .prose .thinking-header-processing svg {
-    flex-shrink: 0 !important;
     stroke: rgb(67, 99, 245) !important;
 }
 
