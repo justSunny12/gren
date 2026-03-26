@@ -7,20 +7,35 @@
     min-width: 300px !important;
     max-width: 300px !important;
     flex-shrink: 0 !important;
-    position: relative !important;
-    z-index: 10 !important;
     box-sizing: border-box !important;
-    overflow-x: hidden !important;
-    overflow-y: auto !important;  /* скролл всего сайдбара при крайней необходимости */
+    overflow: hidden !important;          /* горизонт. переполнение блокируем здесь */
     z-index: 1000 !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+#sidebar_container > div {
+    flex-shrink: 0;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+#sidebar_container > div:has(.chat-list-container) {
+    flex: 1 1 0 !important;
+    min-height: 0 !important;   /* без этого flex-item не сожмётся меньше своего контента */
+    overflow-x: hidden !important;
+}
+
+#sidebar_container > div:has(.chat-list-container) > div {
+    height: 100% !important;
 }
 
 /* Контейнер списка чатов – точная высота */
 .chat-list-container {
     width: 100% !important;
-    height: calc(100vh - 89px) !important; 
-    min-height: 200px !important;         
-    overflow-y: auto !important;          
+    height: 100% !important;    /* calc() больше не нужен */
+    min-height: 0 !important;
+    overflow-y: auto !important;
     overflow-x: hidden !important;
     margin: 0 !important;
     padding: 0 !important;
@@ -394,4 +409,14 @@
     width: 100px;
     height: 20px;
     pointer-events: auto !important;
+}
+
+.sidebar-logo {
+    text-align: center;
+    padding: 10px 0;
+}
+.sidebar-logo img {
+    width: 50%;           /* или конкретную ширину, например 100px */
+    height: auto;         /* сохраняет пропорции */
+    max-width: 100%;     /* ограничиваем максимальную ширину */
 }

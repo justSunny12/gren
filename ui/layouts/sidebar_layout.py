@@ -1,8 +1,19 @@
 # ui/layouts/sidebar_layout.py
 import gradio as gr
+import os
+import base64
 
 def create_sidebar_layout():
     with gr.Column(scale=1, min_width=380, elem_id="sidebar_container"):
+        logo_path = os.path.join(os.path.dirname(__file__), "../..", "static", "images", "logo.png")
+        if os.path.exists(logo_path):
+            with open(logo_path, "rb") as f:
+                logo_base64 = base64.b64encode(f.read()).decode()
+            logo_html = f'<div class="sidebar-logo"><img src="data:image/png;base64,{logo_base64}" alt="Logo"></div>'
+        else:
+            logo_html = '<div class="sidebar-logo">Логотип не найден</div>'
+        gr.HTML(logo_html)
+        
         create_dialog_btn = gr.Button(
             "➕ Новый чат",
             variant="primary",

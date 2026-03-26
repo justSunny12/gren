@@ -4,7 +4,7 @@ from ui.layouts.main_layout import create_main_layout
 from ui.events import EventBinder
 
 def create_app():
-    with gr.Blocks(title="Gren Chat", fill_width=True) as demo:
+    with gr.Blocks(title="DeepSpeak", fill_width=True) as demo:
         current_dialog_id = gr.State(value=None)
 
         (
