@@ -266,6 +266,11 @@
     color: rgb(67, 99, 245) !important;
 }
 
+.chat-input-wrapper .generation-buttons-wrapper button.thinking-btn.thinking-btn-active:hover,
+.chat-input-wrapper .generation-buttons-wrapper button.search-btn.search-btn-active:hover {
+    background: rgb(230, 237, 252) !important;
+}
+
 .chat-input-wrapper .generation-buttons-wrapper button.thinking-btn.thinking-btn-active svg,
 .chat-input-wrapper .generation-buttons-wrapper button.search-btn.search-btn-active svg {
     stroke: rgb(67, 99, 245) !important;
@@ -290,7 +295,6 @@
     color: #111827 !important;
     flex: 0 0 auto !important;
     padding: 0 12px !important;
-    /* display: none !important; */
 }
 
 /* ============================ КНОПКА "ПРИКРЕПИТЬ" ============================ */
