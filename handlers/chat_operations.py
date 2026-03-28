@@ -7,20 +7,30 @@ class ChatOperationsHandler(BaseHandler):
     
     def handle_chat_switch(self, chat_id: str):
         """Обрабатывает переключение на чат по ID (без команд) — скролл не нужен"""
-        if not self.check_debounce():
-            current_dialog = self.dialog_service.get_current_dialog()
-            if current_dialog:
-                history = current_dialog.to_ui_format()
-                current_id = current_dialog.id
-                chat_list_data = self.get_chat_list_data(scroll_target='none')
-                return history, current_id, chat_list_data
-            else:
-                return [], "", self.get_chat_list_data(scroll_target='none')
-        
-        chat_id = chat_id.strip()
+        current_dialog = self.dialog_service.get_current_dialog()
+        current_id = current_dialog.id if current_dialog else None
+
+        # Нормализуем chat_id
+        chat_id = chat_id.strip() if chat_id else ""
         if not chat_id or chat_id in ["null", "undefined"]:
-            return [], "", self.get_chat_list_data(scroll_target='none')
-        
+            history = current_dialog.to_ui_format() if current_dialog else []
+            return history, current_id or "", self.get_chat_list_data(scroll_target='none')
+
+        # Если переключаемся на тот же чат, что и текущий – ничего не делаем
+        if current_id == chat_id:
+            history = current_dialog.to_ui_format() if current_dialog else []
+            return history, current_id, self.get_chat_list_data(scroll_target='none')
+
+        # Переключаемся на другой чат – останавливаем генерацию
+        self.ui_mediator.stop_active_generation()
+
+        # Дебаунс после остановки (чтобы не блокировать остановку)
+        if not self.check_debounce():
+            # Если сработал дебаунс, но мы уже остановили генерацию – возвращаем текущее состояние
+            history = current_dialog.to_ui_format() if current_dialog else []
+            return history, current_id or "", self.get_chat_list_data(scroll_target='none')
+
+        # Выполняем переключение
         if self.dialog_service.switch_dialog(chat_id):
             dialog = self.dialog_service.get_dialog(chat_id)
             history = dialog.to_ui_format() if dialog else []
@@ -56,7 +66,7 @@ class ChatOperationsHandler(BaseHandler):
                 self.dialog_service.switch_dialog(empty_auto_chat.id)
                 dialog = self.dialog_service.get_dialog(empty_auto_chat.id)
                 history = dialog.to_ui_format() if dialog else []
-                chat_list_data = self.get_chat_list_data(scroll_target='today')
+                chat_list_data = self.get_chat_list_data(scroll_target='none')
                 # Обновляем скрытое поле chat_input
                 return history, "", empty_auto_chat.id, "", chat_list_data, empty_auto_chat.id
 
