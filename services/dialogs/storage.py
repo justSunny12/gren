@@ -215,8 +215,10 @@ class DialogStorage:
                     status=meta.get("status", "active"),
                     pinned=meta.get("pinned", False),
                     pinned_position=meta.get("pinned_position"),
+                    visible=meta.get("visible", False)   # <-- загружаем, по умолчанию False
                 )
 
+                # загрузка истории (без изменений)...
                 history_files = [f for f in os.listdir(folder_path)
                                  if f.startswith('history_') and f.endswith('.jsonl')]
                 if history_files:

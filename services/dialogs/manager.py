@@ -140,10 +140,15 @@ class DialogManager:
         )
     
     def add_message(self, dialog_id: str, role: MessageRole, content: str) -> bool:
-        """Добавляет сообщение в диалог с инкрементальным сохранением"""
+        """Добавляет сообщение в диалог с инкрементальным сохранением и делает диалог видимым."""
         if dialog_id in self.dialogs:
             dialog = self.dialogs[dialog_id]
-            message = dialog.add_message(role, content)  # уже обновляет dialog.updated
-            # Сохраняем только что добавленное сообщение (append)
+            message = dialog.add_message(role, content)
+            # Если диалог был невидимым и это первое сообщение (любое), делаем видимым
+            if not dialog.visible:
+                dialog.mark_visible()
+                # Сохраняем обновлённые метаданные (флаг visible)
+                self.storage.save_dialog(dialog)
+            # Сохраняем сообщение (append)
             return self.storage.append_message(dialog, message)
         return False

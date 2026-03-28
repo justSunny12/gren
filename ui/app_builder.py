@@ -21,7 +21,7 @@ def create_app():
 
         create_dialog_btn = sidebar_components["create_dialog_btn"]
         chat_input = sidebar_components["chat_input"]
-        settings_data = sidebar_components["settings_data"]   # ← добавили
+        settings_data = sidebar_components["settings_data"]
         js_trigger = sidebar_components["js_trigger"]
         generation_js_trigger = sidebar_components["generation_js_trigger"]
 
@@ -44,7 +44,7 @@ def create_app():
             "settings_btn": settings_btn,
             "create_dialog_btn": create_dialog_btn,
             "chat_input": chat_input,
-            "settings_data": settings_data,          # ← добавили
+            "settings_data": settings_data,
             "chat_list_data": chat_list_data,
             "js_trigger": js_trigger,
             "generation_js_trigger": generation_js_trigger,

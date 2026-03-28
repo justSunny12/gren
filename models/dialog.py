@@ -1,11 +1,11 @@
-# models/dialog.py
+# models/dialog.py (изменения в модели Dialog)
 from pydantic import BaseModel, Field, ConfigDict, PrivateAttr, model_serializer
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 
 from .enums import MessageRole
 from .message import Message
-from services.model.thinking_handler import ThinkingHandler  # добавлен импорт
+from services.model.thinking_handler import ThinkingHandler
 
 
 class Dialog(BaseModel):
@@ -26,6 +26,7 @@ class Dialog(BaseModel):
     status: str = "active"
     pinned: bool = False
     pinned_position: Optional[int] = None
+    visible: bool = Field(default=False)   # <-- новое поле
 
     # Приватные поля для кэширования UI-формата
     _ui_cache: Optional[List[Dict[str, str]]] = PrivateAttr(default=None)
@@ -40,15 +41,20 @@ class Dialog(BaseModel):
 
     def model_post_init(self, __context):
         """Инициализация после создания модели (в т.ч. при загрузке из json)."""
-        # Устанавливаем начальную версию равной длине истории
         self._history_version = len(self.history)
-        # Сбрасываем кэши (хотя они и так None)
         self._invalidate_caches()
 
     def _invalidate_caches(self):
         """Сбрасывает все кэши."""
         self._ui_cache = None
         self._model_cache = None
+
+    def mark_visible(self):
+        """Делает диалог видимым в списке (после первого сообщения)."""
+        if not self.visible:
+            self.visible = True
+            self.updated = datetime.now()
+            self._invalidate_caches()
 
     # ========== КОНТЕКСТНЫЕ МЕТОДЫ ==========
 
@@ -69,10 +75,6 @@ class Dialog(BaseModel):
     # ========== МЕТОДЫ ДЛЯ ПОЛУЧЕНИЯ ФОРМАТОВ С КЭШИРОВАНИЕМ ==========
 
     def to_ui_format(self) -> List[Dict[str, str]]:
-        """
-        Возвращает историю в формате для UI с использованием кэша.
-        Для сообщений ассистента применяется форматирование тегов размышлений.
-        """
         if self._ui_cache is not None and self._ui_cache_version == self._history_version:
             return self._ui_cache
 
@@ -80,7 +82,6 @@ class Dialog(BaseModel):
         for msg in self.history:
             content = msg.content
             if msg.role == MessageRole.ASSISTANT:
-                # Форматируем теги размышлений для отображения
                 content = ThinkingHandler.format_for_ui(content)
             formatted.append({"role": msg.role.value, "content": content})
 
@@ -89,10 +90,6 @@ class Dialog(BaseModel):
         return formatted
 
     def to_model_format(self) -> List[Dict[str, str]]:
-        """
-        Возвращает историю в формате для передачи модели (только role/content).
-        Использует отдельный кэш, синхронизированный с версией истории.
-        """
         if self._model_cache is not None and self._model_cache_version == self._history_version:
             return self._model_cache
 
@@ -115,7 +112,6 @@ class Dialog(BaseModel):
         return message
 
     def clear_history(self):
-        """Очищает историю, сбрасывая кэши и увеличивая версию."""
         self.history.clear()
         self.updated = datetime.now()
         self._history_version += 1
@@ -126,7 +122,6 @@ class Dialog(BaseModel):
     def rename(self, new_name: str):
         self.name = new_name
         self.updated = datetime.now()
-        # история не меняется — версию не трогаем, кэши остаются валидными
 
     def pin(self, position: int):
         self.pinned = True
@@ -148,8 +143,8 @@ class Dialog(BaseModel):
             "updated": self.updated.isoformat(),
             "status": self.status,
             "pinned": self.pinned,
-            "pinned_position": self.pinned_position
+            "pinned_position": self.pinned_position,
+            "visible": self.visible,           # <-- сохраняем поле
         }
 
-    # Для обратной совместимости
     json_serialize = to_dict

@@ -12,9 +12,11 @@ class DialogGrouper:
     @staticmethod
     def get_dialog_list(dialogs: Dict[str, Dialog], 
                        current_dialog_id: str) -> List[Dict[str, Any]]:
-        """Получает список всех диалогов"""
+        """Получает список всех видимых диалогов."""
         dialogs_list = []
         for dialog_id, dialog in dialogs.items():
+            if not dialog.visible:   # <-- пропускаем невидимые
+                continue
             dialog_info = {
                 "id": dialog_id,
                 "name": dialog.name,

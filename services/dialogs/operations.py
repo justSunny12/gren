@@ -9,14 +9,13 @@ from models.enums import MessageRole
 from .storage import DialogStorage
 from services.context.factory import ContextManagerFactory
 
-
 class DialogOperations:
     """Базовые операции с диалогами"""
     
     @staticmethod
     def create_dialog(dialogs: Dict[str, Dialog], next_dialog_id: int, 
                      name: Optional[str] = None, config: dict = None) -> str:
-        """Создает новый диалог"""
+        """Создает новый диалог (невидимый до первого сообщения)."""
         dialog_id = str(next_dialog_id)
         
         if not name:
@@ -28,7 +27,8 @@ class DialogOperations:
             name=name,
             history=[],
             created=datetime.now(),
-            updated=datetime.now()
+            updated=datetime.now(),
+            visible=False   # <-- новый диалог не отображается в списке
         )
         
         dialogs[dialog_id] = dialog

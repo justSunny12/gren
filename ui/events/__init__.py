@@ -24,7 +24,8 @@ class EventBinder:
             components["user_input"],
             current_dialog_id,
             components["js_trigger"],
-            components["chat_list_data"]
+            components["chat_list_data"],
+            components["chat_input"]  # добавлен седьмой аргумент
         )
         self.chat_events.bind_settings_button_events(
             components["settings_btn"],

@@ -19,11 +19,12 @@ class ChatEvents:
 
     @staticmethod
     def bind_chat_creation_events(create_dialog_btn, chatbot, user_input,
-                                  current_dialog_id, js_trigger, chat_list_data):
+                                  current_dialog_id, js_trigger, chat_list_data, chat_input):
+        """Привязывает создание чата с обновлением chat_input."""
         create_dialog_btn.click(
             fn=ui_handlers.create_chat_with_js_handler,
             inputs=[],
-            outputs=[chatbot, user_input, current_dialog_id, js_trigger, chat_list_data]
+            outputs=[chatbot, user_input, current_dialog_id, js_trigger, chat_list_data, chat_input]
         )
 
     @staticmethod
