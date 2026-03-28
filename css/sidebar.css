@@ -1,7 +1,7 @@
 /* css/sidebar.css - Стили сайдбара */
 #sidebar_container {
     height: 100vh !important;
-    /* padding: 15px 15px 0 15px !important; */
+    position: relative !important;
     padding: 0 !important;
     background: rgb(249, 250, 251);
     border-right: 1px solid rgb(239, 241, 241);
@@ -34,10 +34,9 @@
 /* Контейнер списка чатов – точная высота */
 .chat-list-container {
     width: 100% !important;
-    height: 100% !important;    /* calc() больше не нужен */
+    height: 100% !important;
     min-height: 0 !important;
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
+    overflow: visible !important; /* скролл теперь на родителе */
     margin: 0 !important;
     padding: 0 !important;
 }
@@ -91,6 +90,19 @@
 .chat-item.active {
     background: rgb(230, 237, 252);
     border: none;
+}
+
+.chat-item.hover {
+    background: rgb(241, 243, 245);
+}
+
+.chat-item.active.hover {
+    background: rgb(230, 237, 252);
+}
+
+/* Троеточие появляется и от программного hover */
+.chat-item.hover .chat-control {
+    display: flex;
 }
 
 .chat-item .chat-name-wrapper {
@@ -272,63 +284,46 @@
 }
 
 /* Скроллбар для сайдбара */
-#sidebar_container::-webkit-scrollbar {
-    width: 6px !important;
+/* Скрываем нативный скроллбар полностью */
+#sidebar_container > div:has(.chat-list-container) {
+    scrollbar-width: none !important;
+}
+#sidebar_container > div:has(.chat-list-container)::-webkit-scrollbar {
+    display: none !important;
 }
 
-#sidebar_container::-webkit-scrollbar-track {
-    background: rgb(243, 244, 246) !important;
-    border-radius: 3px !important;
-}
-
-#sidebar_container::-webkit-scrollbar-thumb {
-    background: rgb(209, 213, 219) !important;
-    border-radius: 3px !important;
-}
-
-#sidebar_container::-webkit-scrollbar-thumb:hover {
-    background: rgb(156, 163, 175) !important;
-}
-
-/* Скроллбар для списка чатов - СКРЫВАЕТСЯ КОГДА НЕ ИСПОЛЬЗУЕТСЯ */
-.chat-list::-webkit-scrollbar {
-    width: 4px !important;
+/* Фейковый скроллбар */
+.custom-scroll-track {
+    position: absolute;
+    left: auto;
+    top: 0;
+    width: 10px;
+    pointer-events: none;
+    z-index: 100;
     opacity: 0;
-    transition: opacity 0.3s ease;
+    transition: opacity 0.2s ease;
 }
 
-.chat-list:hover::-webkit-scrollbar {
+.custom-scroll-track.visible {
     opacity: 1;
 }
 
-.chat-list::-webkit-scrollbar-track {
-    background: transparent !important;
-    border-radius: 2px !important;
+.custom-scroll-thumb {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 10px;
+    background: rgb(229, 229, 229);
+    border-radius: 5px;
+    transition: width 0.15s ease, background 0.15s ease, left 0.15s ease;
+    pointer-events: auto;
+    cursor: pointer;
 }
 
-.chat-list::-webkit-scrollbar-thumb {
-    background: transparent !important;
-    border-radius: 2px !important;
-    transition: background 0.3s ease;
-}
-
-.chat-list:hover::-webkit-scrollbar-thumb {
-    background: rgb(209, 213, 219) !important;
-}
-
-.chat-list::-webkit-scrollbar-thumb:hover {
-    background: rgb(156, 163, 175) !important;
-}
-
-/* Для Firefox - скрываем скроллбар когда не используется */
-.chat-list {
-    scrollbar-width: thin;
-    scrollbar-color: transparent transparent;
-    transition: scrollbar-color 0.3s ease;
-}
-
-.chat-list:hover {
-    scrollbar-color: rgb(209, 213, 219) transparent;
+.custom-scroll-thumb.hovered {
+    width: 12px;
+    left: -2px; /* компенсируем расширение вправо */
+    background: rgb(212, 212, 212);
 }
 
 .hidden-input {
@@ -350,4 +345,14 @@
     width: 50%;           /* или конкретную ширину, например 100px */
     height: auto;         /* сохраняет пропорции */
     max-width: 100%;     /* ограничиваем максимальную ширину */
+}
+
+/* Скрываем кнопку управления во время скролла */
+.is-scrolling .chat-item .chat-control {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.is-scrolling .chat-item.active .chat-control {
+    opacity: 1;
 }
