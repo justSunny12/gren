@@ -71,7 +71,7 @@ window.renderChatList = function(chats, scrollTarget = 'none') {
         }
     });
 
-    // Скролл
+    // Скролл списка чатов
     let target = scrollTarget;
     if (chats && typeof chats === 'object' && chats._scroll_target !== undefined) {
         target = chats._scroll_target;
@@ -117,6 +117,11 @@ window.renderChatList = function(chats, scrollTarget = 'none') {
                 if (inputField && !inputField.disabled) inputField.focus();
             }, 10);
         }
+    }
+
+    // Принудительная прокрутка чата вниз после обновления
+    if (window.scrollChatToBottom) {
+        setTimeout(window.scrollChatToBottom, 50);
     }
 };
 

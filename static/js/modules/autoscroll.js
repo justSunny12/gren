@@ -37,6 +37,7 @@
     }
 
     function start() {
+        if (container) return;
         container = document.querySelector(SELECTOR);
         if (!container) { setTimeout(start, 100); return; }
         pinned = true;
@@ -55,9 +56,28 @@
         isProgrammaticScroll = false;
     }
 
+    // Глобальная функция для принудительной прокрутки чата вниз
+    window.scrollChatToBottom = function() {
+        if (container) {
+            isProgrammaticScroll = true;
+            container.scrollTop = container.scrollHeight;
+            lastScrollTop = container.scrollTop;
+            isProgrammaticScroll = false;
+        } else {
+            var tempContainer = document.querySelector(SELECTOR);
+            if (tempContainer) {
+                tempContainer.scrollTop = tempContainer.scrollHeight;
+            }
+        }
+    };
+
     var _orig = window.toggleGenerationButtons;
     window.toggleGenerationButtons = function (generating) {
-        generating ? start() : stop();
+        if (generating) {
+            if (container && pinned) scrollToBottom();
+        }
         if (_orig) _orig(generating);
     };
+
+    start();
 })();
