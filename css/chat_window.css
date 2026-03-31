@@ -229,3 +229,64 @@
 .progress-text {
     display: none !important;
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   БЛОКИ РАЗМЫШЛЕНИЙ — СВОРАЧИВАНИЕ
+   Добавить в конец css/chat_window.css
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Обёртка: заголовок всегда над телом */
+.chatbot .prose .thinking-block {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    margin: 0.5em 0 !important;
+}
+
+/* Убираем дублирующий margin у тела (он уже задан у thinking-block) */
+.chatbot .prose .thinking-block .thinking,
+.chatbot .prose .thinking-block .thinking-in-progress {
+    margin: 0 !important;
+}
+
+/* ── Заголовок кликабелен ── */
+.chatbot .prose .thinking-header,
+.chatbot .prose .thinking-header-processing,
+.chatbot .prose .thinking-header-stopped {
+    cursor: pointer !important;
+}
+
+/* ── Chevron ── */
+.chatbot .prose .thinking-chevron {
+    display: inline-flex !important;
+    align-items: center !important;
+    flex-shrink: 0 !important;
+    /* opacity: 0.6 !important; */
+    stroke: rgb(98, 102, 106) !important;
+}
+
+.chatbot .prose .thinking-chevron svg {
+    display: block !important;
+    transition: transform 0.2s ease !important;
+    transform: rotate(0deg) !important;   /* chevron-down = развёрнут */
+    stroke: rgb(98, 102, 106) !important;
+}
+
+/* ── Свёрнутое состояние: CSS класс thinking-done + нет thinking-expanded ── */
+
+/* Прячем тело */
+.chatbot .prose .thinking-block.thinking-done:not(.thinking-expanded) .thinking,
+.chatbot .prose .thinking-block.thinking-done:not(.thinking-expanded) .thinking-in-progress {
+    display: none !important;
+}
+
+/* Поворачиваем стрелку */
+.chatbot .prose .thinking-block.thinking-done:not(.thinking-expanded) .thinking-chevron svg {
+    transform: rotate(-90deg) !important;
+}
+
+/* Ховер на заголовке */
+.chatbot .prose .thinking-block.thinking-done .thinking-header:hover,
+.chatbot .prose .thinking-block.thinking-done .thinking-header-stopped:hover {
+    opacity: 0.8 !important;
+}

@@ -1,14 +1,8 @@
 # services/model/thinking_handler.py
 import re
 
-# Заголовок, который модель вставляет в начало блока размышлений
 _HEADER_RE = re.compile(r'^Thinking process:\s*\n+', re.IGNORECASE)
-# Нижний регистр для быстрой проверки префикса (без regex)
 _HEADER_BASE = "thinking process:"
-
-# Хранимый формат. Атрибуты:
-#   t="12.3"  — время генерации блока (опционально)
-#   stopped   — генерация прервана до закрывающего </think> (опционально)
 _STORED_RE = re.compile(r'<think((?:\s+t="[\d.]+")?)(\s+stopped)?>(.*?)</think>', re.DOTALL)
 
 
@@ -18,27 +12,16 @@ class ThinkingHandler:
 
     Форматы данных:
       raw      — сырой вывод модели: «Thinking process:\\n\\n...\\n</think>\\n\\nОтвет»
-                 (открывающий <think> не включён — он является частью промпта)
-      stored   — нормализованный формат для хранения:
-                   завершён:  «<think t="12.3">...</think>\\n\\nОтвет»
-                   остановлен: «<think stopped>...</think>»
-      ui       — HTML для отображения: заголовок + <div class="thinking">...</div>
+      stored   — нормализованный формат для хранения: «<think t="12.3">...</think>\\n\\nОтвет»
+      ui       — HTML для отображения
     """
 
     @staticmethod
     def _remove_header(text: str) -> str:
-        """Удаляет заголовок 'Thinking process:' + переносы."""
         return _HEADER_RE.sub('', text)
 
     @staticmethod
     def _strip_header_buffered(text: str) -> str:
-        """
-        Удаляет заголовок без визуального мигания (чисто функционально, без состояния).
-
-          1. Регекс совпал → заголовок полностью получен, возвращаем текст после него.
-          2. text — префикс заголовка → ещё стримится, возвращаем '' (буферизация).
-          3. Иначе → обычный текст, возвращаем как есть.
-        """
         stripped = _HEADER_RE.sub('', text)
         if stripped != text:
             return stripped
@@ -59,14 +42,27 @@ class ThinkingHandler:
         '</svg>'
     )
 
+    # Chevron-иконка без <button> — span допускается DOMPurify, button нет
+    _CHEVRON = (
+        '<span class="thinking-chevron">'
+        '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" '
+        'fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" '
+        'stroke-linejoin="round">'
+        '<path d="m6 9 6 6 6-6"/>'
+        '</svg>'
+        '</span>'
+    )
+
     @classmethod
     def _render_label(cls, seconds: float = None, stopped: bool = False) -> str:
         icon = cls._ICON
+        chevron = cls._CHEVRON
         if stopped:
-            return f'<p class="thinking-header-stopped">{icon}Остановлено</p>'
+            return f'<p class="thinking-header-stopped">{icon}Остановлено{chevron}</p>'
         if seconds is not None:
-            return f'<p class="thinking-header">{icon}Думал {seconds:.1f} сек</p>'
-        return f'<p class="thinking-header-processing">{icon}Глубокое мышление</p>'
+            return f'<p class="thinking-header">{icon}Думал {seconds:.1f} сек{chevron}</p>'
+        # Во время стриминга chevron тоже есть — пользователь может свернуть вручную
+        return f'<p class="thinking-header-processing">{icon}Глубокое мышление{chevron}</p>'
 
     # ──────────────────────────────────────────────
     # Streaming
@@ -78,22 +74,32 @@ class ThinkingHandler:
         """
         Форматирует накопленный текст во время стрима (raw → ui).
 
-        thinking_seconds:
-          None  → блок ещё генерируется (или остановлен — см. stopped)
-          float → блок завершён нормально
-        stopped:
-          True  → генерация прервана до получения </think>
+        В-процессе (no </think>):
+          → <div class="thinking-block">  (без thinking-done, CSS не прячет тело)
+        Завершён / остановлен:
+          → <div class="thinking-block thinking-done">  (CSS прячет тело)
         """
         label = cls._render_label(thinking_seconds, stopped)
 
         if '</think>' not in acc_text:
             body = cls._strip_header_buffered(acc_text)
             css = 'thinking' if stopped else 'thinking-in-progress'
-            return f'{label}\n<div class="{css}">{body}</div>'
+            # Остановлен без </think> → тоже done
+            extra = ' thinking-done' if stopped else ''
+            return (
+                f'<div class="thinking-block{extra}">'
+                f'{label}\n<div class="{css}">{body}</div>'
+                f'</div>'
+            )
 
         thinking_raw, final = acc_text.split('</think>', 1)
         thinking = cls._remove_header(thinking_raw).strip('\n')
-        return f'{label}\n<div class="thinking">{thinking}</div>\n\n{final.lstrip(chr(10))}'
+        # thinking-done → CSS немедленно скрывает тело блока
+        return (
+            f'<div class="thinking-block thinking-done">'
+            f'{label}\n<div class="thinking">{thinking}</div>'
+            f'</div>\n\n{final.lstrip(chr(10))}'
+        )
 
     # ──────────────────────────────────────────────
     # Storage
@@ -102,17 +108,6 @@ class ThinkingHandler:
     @classmethod
     def normalize_for_storage(cls, raw: str, thinking_seconds: float = None,
                                stopped: bool = False) -> str:
-        """
-        Нормализует сырой вывод модели для хранения (raw → stored).
-
-        Нормальное завершение:
-          «Thinking process:\\n\\n...\\n</think>\\n\\nОтвет»
-              → «<think t="12.3">...</think>\\n\\nОтвет»
-
-        Остановка до </think>:
-          «Thinking process:\\n\\n...» (без </think>)
-              → «<think stopped>...</think>»
-        """
         if not raw:
             return raw
 
@@ -135,34 +130,35 @@ class ThinkingHandler:
     @classmethod
     def format_for_ui(cls, text: str) -> str:
         """
-        Конвертирует хранимый текст в HTML для отображения.
-
-        Поддерживает четыре формата:
-          <think t="12.3">  → «Думал 12.3 сек»
-          <think>           → «Глубокое мышление»
-          <think stopped>   → «Остановлено»
-          legacy raw        → «Глубокое мышление»
+        Конвертирует хранимый текст в HTML.
+        Все блоки получают класс thinking-done → CSS скрывает тело при холодном открытии.
         """
         if not text:
             return text
 
-        # stored-формат
         if '<think' in text:
             def _replacer(m: re.Match) -> str:
-                t_group   = m.group(1)   # ' t="12.3"' или ''
-                stopped   = m.group(2)   # ' stopped'  или None
-                body      = m.group(3).strip('\n')
-                t_match   = re.search(r'[\d.]+', t_group) if t_group else None
-                seconds   = float(t_match.group()) if t_match else None
-                label     = cls._render_label(seconds, stopped=bool(stopped))
-                return f'{label}\n<div class="thinking">{body}</div>'
+                t_group = m.group(1)
+                stopped = m.group(2)
+                body    = m.group(3).strip('\n')
+                t_match = re.search(r'[\d.]+', t_group) if t_group else None
+                seconds = float(t_match.group()) if t_match else None
+                label   = cls._render_label(seconds, stopped=bool(stopped))
+                return (
+                    f'<div class="thinking-block thinking-done">'
+                    f'{label}\n<div class="thinking">{body}</div>'
+                    f'</div>'
+                )
             return _STORED_RE.sub(_replacer, text)
 
-        # legacy raw-формат: есть </think>, но нет <think>
         if '</think>' in text:
             thinking_raw, final = text.split('</think>', 1)
             thinking = cls._remove_header(thinking_raw).strip('\n')
             label = cls._render_label(None)
-            return f'{label}\n<div class="thinking">{thinking}</div>\n\n{final.lstrip(chr(10))}'
+            return (
+                f'<div class="thinking-block thinking-done">'
+                f'{label}\n<div class="thinking">{thinking}</div>'
+                f'</div>\n\n{final.lstrip(chr(10))}'
+            )
 
         return text

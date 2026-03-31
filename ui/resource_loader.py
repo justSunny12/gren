@@ -51,6 +51,7 @@ class ResourceLoader:
             'static/js/modules/generation-control.js',
             'static/js/modules/autoscroll.js',
             'static/js/modules/custom-scrollbar.js',
+            'static/js/modules/thinking-collapse.js',
             'static/js/main.js'
         ]
 
