@@ -160,7 +160,7 @@
 .chatbot .prose .thinking-in-progress {
     display: block !important;
     width: 100% !important;
-    margin: 0.5em 0 !important;
+    margin: 0 0 0 10px !important;
     padding: 0.5em 1em !important;
     background-color: #ffffff;
     border-left: 1px solid rgb(226, 229, 233) !important;
@@ -241,12 +241,6 @@
     flex-direction: column !important;
     align-items: stretch !important;
     margin: 0.5em 0 !important;
-}
-
-/* Убираем дублирующий margin у тела (он уже задан у thinking-block) */
-.chatbot .prose .thinking-block .thinking,
-.chatbot .prose .thinking-block .thinking-in-progress {
-    margin: 0 !important;
 }
 
 /* ── Заголовок кликабелен ── */
