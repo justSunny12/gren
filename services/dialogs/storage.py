@@ -54,10 +54,6 @@ class DialogStorage:
     # ========== Сохранение метаданных ==========
 
     def save_dialog(self, dialog: Dialog) -> bool:
-        """
-        Сохраняет метаданные диалога в meta_*.json.
-        Если папка ещё не существует – создаёт её и пустой history_*.jsonl.
-        """
         try:
             folder_path = self._get_chat_folder_path(dialog)
             os.makedirs(folder_path, exist_ok=True)
@@ -71,6 +67,7 @@ class DialogStorage:
                 "status": dialog.status,
                 "pinned": dialog.pinned,
                 "pinned_position": dialog.pinned_position,
+                "visible": dialog.visible,   # <-- добавить
             }
 
             with open(meta_file, 'w', encoding='utf-8') as f:
@@ -81,7 +78,6 @@ class DialogStorage:
                 open(history_file, 'w', encoding='utf-8').close()
 
             return True
-
         except Exception as e:
             self.logger.error("Ошибка сохранения метаданных диалога %s: %s", dialog.id, e)
             return False
@@ -89,9 +85,6 @@ class DialogStorage:
     # ========== Добавление сообщения (append) ==========
 
     def append_message(self, dialog: Dialog, message: Message) -> bool:
-        """
-        Добавляет одно сообщение в history_*.jsonl (append) и обновляет updated в meta.json.
-        """
         try:
             history_file = self._get_history_file_path(dialog)
             if not os.path.exists(history_file):
@@ -105,6 +98,7 @@ class DialogStorage:
                 with open(meta_file, 'r+', encoding='utf-8') as f:
                     meta = json.load(f)
                     meta['updated'] = dialog.updated.isoformat()
+                    meta['visible'] = dialog.visible   # <-- добавить
                     f.seek(0)
                     json.dump(meta, f, ensure_ascii=False, indent=2)
                     f.truncate()
@@ -112,7 +106,6 @@ class DialogStorage:
                 self.save_dialog(dialog)
 
             return True
-
         except Exception as e:
             self.logger.error("Ошибка добавления сообщения в диалог %s: %s", dialog.id, e)
             return False
