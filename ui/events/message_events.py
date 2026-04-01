@@ -156,8 +156,12 @@ class MessageEvents:
             final_dialog = dialog_service.get_dialog(chat_id)
             final_history = final_dialog.to_ui_format() if final_dialog else []
             final_chat_list = ui_handlers.get_chat_list_data()
-            js_stop = STOP_GENERATION_JS
-            yield final_history, chat_id, final_chat_list, js_stop, ""
+            # Сначала отправляем стоп-сигнал — JS успевает снять pinned
+            # до того как Gradio обновит chatbot и попытается проскроллить
+            yield gr.update(), chat_id, gr.update(), STOP_GENERATION_JS, ""
+            await asyncio.sleep(0.05)
+            # Теперь обновляем историю — pinned уже false, скролла не будет
+            yield final_history, chat_id, final_chat_list, gr.update(), ""
 
     @staticmethod
     def stop_generation() -> str:
@@ -175,27 +179,34 @@ class MessageEvents:
         chat_list_data,
         generation_js_trigger,
     ):
+        # Один общий saved_prompt — не допускаем два независимых State,
+        # которые при двойном срабатывании (submit + click) гонятся за current_dialog_id
         saved_prompt = gr.State()
 
-        def start_chain(trigger):
-            trigger(
-                fn=MessageEvents.clear_input_and_save_prompt,
-                inputs=[user_input],
-                outputs=[user_input, saved_prompt]
-            ).then(
-                fn=MessageEvents.process_message,
-                inputs=[saved_prompt, current_dialog_id],
-                outputs=[
-                    chatbot,
-                    current_dialog_id,
-                    chat_list_data,
-                    generation_js_trigger,
-                    saved_prompt,   # ← добавили выход для saved_prompt
-                ]
-            )
+        chain = user_input.submit(
+            fn=MessageEvents.clear_input_and_save_prompt,
+            inputs=[user_input],
+            outputs=[user_input, saved_prompt]
+        ).then(
+            fn=MessageEvents.process_message,
+            inputs=[saved_prompt, current_dialog_id],
+            outputs=[
+                chatbot,
+                current_dialog_id,
+                chat_list_data,
+                generation_js_trigger,
+                saved_prompt,
+            ]
+        )
 
-        start_chain(submit_btn.click)
-        start_chain(user_input.submit)
+        # Кнопка отправки триггерит тот же submit-эвент через JS,
+        # а не запускает вторую независимую Python-цепочку
+        submit_btn.click(
+            fn=None,
+            inputs=[],
+            outputs=[],
+            js="() => { const ta = document.querySelector('.chat-input-wrapper textarea'); if (ta) ta.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true})); return []; }"
+        )
 
         stop_btn.click(
             fn=MessageEvents.stop_generation,
