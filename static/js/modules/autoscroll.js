@@ -56,8 +56,10 @@
         isProgrammaticScroll = false;
     }
 
-    // Глобальная функция для принудительной прокрутки чата вниз
+    // Глобальная функция для принудительной прокрутки чата вниз.
+    // Уважает pinned — если пользователь отмотал вверх, не скроллим.
     window.scrollChatToBottom = function() {
+        if (!pinned) return;
         if (container) {
             isProgrammaticScroll = true;
             container.scrollTop = container.scrollHeight;

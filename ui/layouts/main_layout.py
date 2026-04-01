@@ -18,7 +18,8 @@ def create_main_layout():
                         show_label=False,
                         height=None,
                         avatar_images=(None, None),
-                        elem_classes="chatbot"
+                        elem_classes="chatbot",
+                        autoscroll=False
                     )
 
                 # Область ввода
