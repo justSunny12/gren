@@ -153,19 +153,26 @@ class MessageStreamProcessor:
 
             # Генерация названия чата (если нужно)
             if is_default_name(updated_dialog.name, self.config) and len(updated_dialog.history) == 2:
-                new_name = await self.naming_service.generate_name(prompt, final_text)
-                if new_name:
-                    updated_dialog.rename(new_name)
-                    self.operations.dialog_service.storage.save_dialog(updated_dialog)
-                    renamed_chat_list = self._get_chat_list_data('today')
-                    update_js = f"""
-                    <script>
-                    if (window.renderChatList) {{
-                        window.renderChatList({renamed_chat_list}, 'today');
-                    }}
-                    </script>
-                    """
-                    yield final_history, "", dialog_id, renamed_chat_list, update_js
+                try:
+                    new_name = await self.naming_service.generate_name(prompt, final_text)
+                    if new_name:
+                        updated_dialog.rename(new_name)
+                        self.operations.dialog_service.storage.save_dialog(updated_dialog)
+                        renamed_chat_list = self._get_chat_list_data('today')
+                        update_js = f"""
+                        <script>
+                        if (window.renderChatList) {{
+                            window.renderChatList({renamed_chat_list}, 'today');
+                        }}
+                        </script>
+                        """
+                        yield final_history, "", dialog_id, renamed_chat_list, update_js
+                        return
+                except Exception as e:
+                    self.logger.error("Ошибка при генерации названия чата: %s", e, exc_info=True)
+
+            # Если переименование не произошло или была ошибка – отдаём обычный финальный результат
+            yield final_history, final_text, dialog_id, final_chat_list, js_stop
 
             self.cache.clear(cache_key)
 
