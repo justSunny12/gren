@@ -4,7 +4,7 @@ from typing import Optional, Dict, Any
 import copy
 
 class UserGenerationConfig(BaseModel):
-    max_tokens: Optional[int] = Field(None, ge=1, le=4096)
+    max_tokens: Optional[int] = Field(None, ge=1, le=32768)
     temperature: Optional[float] = Field(None, ge=0.1, le=2.0)
     enable_thinking: Optional[bool] = None
     

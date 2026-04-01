@@ -10,8 +10,8 @@ def validate_message(prompt: str) -> Tuple[bool, str]:
     """Валидация входящего сообщения"""
     if not prompt or not prompt.strip():
         return False, "⚠️ Введите сообщение"
-    if len(prompt.strip()) > 5000:
-        return False, "Сообщение слишком длинное (максимум 5000 символов)"
+    if len(prompt.strip()) > 30000:
+        return False, "Запрос слишком длинный. Для обработки текстов длиннее 30.000 символов воспользуйтесь вложениями"
     return True, ""
 
 

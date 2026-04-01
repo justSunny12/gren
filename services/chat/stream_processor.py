@@ -55,7 +55,11 @@ class MessageStreamProcessor:
 
         is_valid, error = validate_message(prompt)
         if not is_valid:
-            yield [], error, dialog_id or "", self._get_chat_list_data('today'), ""
+            # Не очищаем историю, а возвращаем текущий диалог + сообщение об ошибке
+            dialog = self.operations.dialog_service.get_dialog(dialog_id)
+            base_history = dialog.to_ui_format() if dialog else []
+            error_history = base_history + [{"role": MessageRole.ASSISTANT.value, "content": error}]
+            yield error_history, error, dialog_id or "", self._get_chat_list_data('today'), ""
             return
 
         prompt = sanitize_user_input(prompt)
