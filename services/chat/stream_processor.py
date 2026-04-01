@@ -1,7 +1,5 @@
 # services/chat/stream_processor.py
-"""
-Обработчик потока генерации ответа модели с кэшированием списка диалогов.
-"""
+
 import threading
 from typing import AsyncGenerator, List, Dict, Optional, Tuple
 
@@ -38,7 +36,6 @@ class MessageStreamProcessor:
         return self._chat_list_handler.get_chat_list_data(scroll_target=scroll_target)
 
     def _make_status_history(self, base_history: List[Dict], text: str) -> List[Dict]:
-        """Добавляет временное сообщение-статус ассистента в историю для UI."""
         return list(base_history) + [{"role": MessageRole.ASSISTANT.value, "content": text}]
 
     async def process(
@@ -51,15 +48,9 @@ class MessageStreamProcessor:
         stop_event: Optional[threading.Event],
         search_enabled: bool = False,
     ) -> AsyncGenerator[Tuple[List[Dict], str, str, str, str], None]:
-        """Основной метод обработки потока с поддержкой поиска."""
-
         is_valid, error = validate_message(prompt)
         if not is_valid:
-            # Не очищаем историю, а возвращаем текущий диалог + сообщение об ошибке
-            dialog = self.operations.dialog_service.get_dialog(dialog_id)
-            base_history = dialog.to_ui_format() if dialog else []
-            error_history = base_history + [{"role": MessageRole.ASSISTANT.value, "content": error}]
-            yield error_history, error, dialog_id or "", self._get_chat_list_data('today'), ""
+            yield [], error, dialog_id or "", self._get_chat_list_data('today'), ""
             return
 
         prompt = sanitize_user_input(prompt)
@@ -76,12 +67,13 @@ class MessageStreamProcessor:
             messages.append({"role": "system", "content": context_str})
         messages.append({"role": "user", "content": prompt})
 
+        # base_history и cache_key остаются для кэша, но начальный yield убран
         base_history = dialog.to_ui_format()
         cache_key = f"{dialog_id}_{len(base_history)}"
         initial_chat_list = self._get_chat_list_data('today')
 
-        js_start = "if (window.toggleGenerationButtons) { window.toggleGenerationButtons(true); }"
-        yield base_history, "", dialog_id, initial_chat_list, js_start
+        # ⚠️ Убраны строки js_start и yield base_history, "", dialog_id, initial_chat_list, js_start
+        # Потому что сообщение пользователя уже отображено в message_events
 
         accumulated_response = ""
         suffix_on_stop = "...<генерация прервана пользователем>"
@@ -91,7 +83,6 @@ class MessageStreamProcessor:
             search_cfg = self.config.get("search", {})
             status_cfg = search_cfg.get("status_messages", {})
 
-            # Этап 1: анализ необходимости поиска (Pass 1)
             if search_enabled and search_cfg.get("enabled", False):
                 deciding_text = status_cfg.get("deciding", "🔍 Анализирую запрос...")
                 if deciding_text:
@@ -122,7 +113,6 @@ class MessageStreamProcessor:
                     search_enabled, search_cfg.get("enabled")
                 )
 
-            # Этап 2: стриминг ответа модели
             async for batch in self.operations.stream_response(
                 messages=messages_to_use,
                 max_tokens=max_tokens,
@@ -155,7 +145,6 @@ class MessageStreamProcessor:
             js_stop = "if (window.toggleGenerationButtons) { window.toggleGenerationButtons(false); }"
             yield final_history, final_text, dialog_id, final_chat_list, js_stop
 
-            # Генерация названия чата (если нужно)
             if is_default_name(updated_dialog.name, self.config) and len(updated_dialog.history) == 2:
                 try:
                     new_name = await self.naming_service.generate_name(prompt, final_text)
@@ -174,9 +163,6 @@ class MessageStreamProcessor:
                         return
                 except Exception as e:
                     self.logger.error("Ошибка при генерации названия чата: %s", e, exc_info=True)
-
-            # Если переименование не произошло или была ошибка – отдаём обычный финальный результат
-            yield final_history, final_text, dialog_id, final_chat_list, js_stop
 
             self.cache.clear(cache_key)
 
@@ -199,7 +185,6 @@ class MessageStreamProcessor:
         prompt: str,
         formatted_history: List[Dict],
     ) -> Tuple[List[Dict], bool, str]:
-        """Pass 1 + Tavily. Возвращает (augmented_messages, searched, query)."""
         try:
             search_manager = container.get("search_service")
         except Exception as e:
