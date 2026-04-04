@@ -1,4 +1,5 @@
 # handlers/message_handler.py
+import asyncio
 import threading
 import time
 from typing import AsyncGenerator, List, Optional, Tuple
@@ -61,8 +62,8 @@ class MessageHandler(BaseHandler):
         self.dialog_service.storage.rewrite_last_message(dialog)
         return dialog.to_ui_format()
 
-    def _log_generation_speed(self, dialog_id: str, start_time: float) -> None:
-        """Логирует скорость генерации (токенов/сек) по завершении стрима."""
+    async def _log_generation_speed_async(self, dialog_id: str, start_time: float) -> None:
+        """Логирует скорость генерации асинхронно (tokenizer.encode в thread pool)."""
         dialog = self.dialog_service.get_dialog(dialog_id)
         if not (dialog and dialog.history and dialog.history[-1].role == MessageRole.ASSISTANT):
             return
@@ -74,7 +75,11 @@ class MessageHandler(BaseHandler):
 
         try:
             if self.tokenizer:
-                num_tokens = len(self.tokenizer.encode(final_text))
+                # tokenizer.encode — CPU-bound; запускаем в thread pool чтобы
+                # не блокировать event loop и дать asyncio отправить последний
+                # SSE-батч в браузер до начала тяжёлых вычислений.
+                num_tokens = await asyncio.to_thread(self.tokenizer.encode, final_text)
+                num_tokens = len(num_tokens)
                 self.logger.stats(
                     "⚡ Скорость генерации: %.2f токенов/сек (%d токенов за %.2f сек)",
                     num_tokens / elapsed, num_tokens, elapsed,
@@ -144,18 +149,15 @@ class MessageHandler(BaseHandler):
                 if enable_thinking and acc_text and history and \
                         history[-1].get('role') == MessageRole.ASSISTANT.value:
 
-                    # Запускаем таймер при первом токене мышления
                     if thinking_start_time is None:
                         thinking_start_time = time.time()
 
-                    # Фиксируем время завершения блока при первом появлении </think>
                     if thinking_seconds is None and '</think>' in acc_text:
                         thinking_seconds = time.time() - thinking_start_time
                         self.logger.stats(
                             "💭 Блок размышлений завершен за %.2f секунд", thinking_seconds
                         )
 
-                    # Остановка до </think> — детектируем прямо в цикле для мгновенного UI
                     if not thinking_stopped and stop_event.is_set() and thinking_seconds is None:
                         thinking_stopped = True
 
@@ -163,7 +165,6 @@ class MessageHandler(BaseHandler):
                         acc_text, thinking_seconds, stopped=thinking_stopped
                     )
 
-                # Фиксируем время первого токена
                 if not first_token_received and history:
                     last = history[-1]
                     if last.get('role') == MessageRole.ASSISTANT.value \
@@ -177,9 +178,18 @@ class MessageHandler(BaseHandler):
                 final_dialog_id, final_chat_list_data = dialog_id_out, chat_list_data
                 yield history, "", dialog_id_out, chat_list_data, js_code
 
-            # После завершения стрима
+            # ── После завершения стрима ────────────────────────────────────────
+            # КРИТИЧНО: сначала даём event loop отправить последний SSE-батч
+            # в браузер, и только потом запускаем тяжёлые операции.
+            # Без этого sleep(0) tokenizer.encode() блокирует event loop и браузер
+            # получает последний батч с задержкой (буфер asyncio не флашится пока
+            # event loop занят).
+            await asyncio.sleep(0)
+
             if final_dialog_id:
-                self._log_generation_speed(final_dialog_id, start_time)
+                # Логируем скорость асинхронно (tokenizer в thread pool)
+                await self._log_generation_speed_async(final_dialog_id, start_time)
+                # _normalize_and_save — no-op для non-thinking, disk IO для thinking
                 updated = self._normalize_and_save(final_dialog_id, thinking_seconds, thinking_stopped)
                 if updated:
                     yield updated, "", final_dialog_id, final_chat_list_data, ""

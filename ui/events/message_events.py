@@ -37,7 +37,6 @@ class MessageEvents:
     def save_and_show_user_message(prompt: str, chat_id: Optional[str]):
         """
         Сохраняет сообщение пользователя в диалог и возвращает обновлённую историю.
-        При ошибке валидации возвращает тост и очищает saved_prompt.
         Возвращает 5 значений: (history, chat_id, chat_list_data, js_code, saved_prompt)
         """
         if not prompt or not prompt.strip():
@@ -81,10 +80,8 @@ class MessageEvents:
             //{timestamp}
             </script>
             """
-            # Возвращаем пустую строку для saved_prompt, чтобы следующий шаг не получил длинный промпт
             return history, chat_id or "", chat_list_data, js_toast, ""
 
-        # Валидация пройдена
         dialog_service = container.get_dialog_service()
         if not chat_id:
             chat_id = dialog_service.create_dialog()
@@ -102,24 +99,18 @@ class MessageEvents:
             }
         </script>
         """
-        # В успешном случае возвращаем исходный prompt в saved_prompt
         return history, chat_id, chat_list_data, js_start, prompt
 
     @staticmethod
     async def stream_and_save_context(saved_prompt: str, chat_id: str):
         """
         Стримит ответ модели. Предполагает, что сообщение пользователя уже сохранено.
-        Если saved_prompt пуст (ошибка валидации), ничего не делает.
+        Если saved_prompt пуст — ничего не делает.
 
-        После нормального завершения стрима финальный yield с js_stop уже был
-        отправлен внутри stream_processor, поэтому здесь мы его НЕ дублируем.
-        Обновление контекста и генерация названия чата выполняются в фоновой
-        задаче (asyncio.create_task) внутри stream_processor, поэтому здесь
-        мы их тоже НЕ дублируем.
-
-        Блок finally срабатывает только при нештатном завершении (CancelledError
-        или необработанное исключение) — тогда нужно явно отправить js_stop
-        и сохранить накопленный ответ в контекст.
+        При нормальном завершении финальный yield с js_stop уже отправлен из
+        stream_processor, поэтому здесь не дублируем.
+        Контекст и диск (non-thinking) — в background_tasks внутри stream_processor.
+        Нейминг — в refresh_chat_name (следующий .then() шаг).
         """
         if not saved_prompt or not chat_id:
             dialog_service = container.get_dialog_service()
@@ -139,7 +130,7 @@ class MessageEvents:
         temperature = user_config.generation.temperature or gen_config.get("default_temperature", 0.7)
 
         accumulated_response = ""
-        last_chat_list_data = ""   # последний известный снапшот для cancel-случая
+        last_chat_list_data = ""
         stream_completed_normally = False
 
         try:
@@ -151,14 +142,9 @@ class MessageEvents:
                 last_chat_list_data = chat_list_data
                 yield history, dialog_id, chat_list_data, js_code
 
-            # Стрим завершился штатно: stream_processor уже отправил финальный
-            # yield с js_stop и запустил background_tasks (контекст + имя чата).
-            # Здесь ничего дополнительного делать не нужно.
             stream_completed_normally = True
 
         except asyncio.CancelledError:
-            # Градио отменил генерацию (например, пользователь закрыл вкладку).
-            # stream_processor был прерван и не успел выполнить background_tasks.
             ui_handlers.stop_active_generation()
 
         except Exception as error:
@@ -167,16 +153,13 @@ class MessageEvents:
 
         finally:
             if not stream_completed_normally:
-                # ── Нештатное завершение: нужно явно остановить кнопки ──────
-                #
-                # Используем последний полученный снапшот списка чатов, чтобы
-                # не делать синхронное чтение диска в критическом пути.
+                # Нештатное завершение: явно останавливаем кнопки
                 final_dialog = dialog_service.get_dialog(chat_id)
                 final_history = final_dialog.to_ui_format() if final_dialog else []
                 fallback_chat_list = last_chat_list_data or ui_handlers.get_chat_list_data()
                 yield final_history, chat_id, fallback_chat_list, STOP_GENERATION_JS
 
-                # ── Сохраняем контекст в фоне (не блокируем yield выше) ──────
+                # Контекст в фоне (не блокируем yield выше)
                 if accumulated_response:
                     _prompt = saved_prompt
                     _response = accumulated_response
@@ -192,6 +175,45 @@ class MessageEvents:
                             logger.warning("Ошибка обновления контекста при отмене: %s", ctx_err)
 
                     asyncio.create_task(_save_cancelled_context())
+
+    @staticmethod
+    async def refresh_chat_name(chat_id: str):
+        """
+        Генерирует имя чата и обновляет сайдбар — выполняется как следующий .then()
+        шаг после stream_and_save_context.
+
+        Нейминг делается здесь (а не в background_tasks stream_processor), потому что:
+        - Gradio гарантированно ждёт завершения .then()-хэндлера перед следующим шагом
+        - background_tasks может не запуститься, если Gradio закрыл генератор через
+          aclose() вместо __anext__() (в этом случае код после yield не выполняется)
+        - Никаких Event/Future/thread синхронизаций не нужно
+
+        Если нейминг не нужен (не первый обмен) — возвращает gr.update() мгновенно.
+        """
+        from services.chat.stream_processor import _pending_name_tasks
+
+        task_data = _pending_name_tasks.pop(chat_id, None)
+        if task_data is None:
+            # Нейминг не нужен для этого диалога — ничего не обновляем.
+            return gr.update(), gr.update()
+
+        logger = container.get_logger()
+        naming_service = task_data["naming_service"]
+        dialog_service = task_data["dialog_service"]
+        dialog_obj = task_data["dialog_obj"]
+        prompt = task_data["prompt"]
+        final_text = task_data["final_text"]
+
+        try:
+            new_name = await naming_service.generate_name(prompt, final_text)
+            if new_name:
+                dialog_obj.rename(new_name)
+                dialog_service.storage.save_dialog(dialog_obj)
+                logger.info("Название чата изменено на: %s", new_name)
+        except Exception as e:
+            logger.error("Ошибка при генерации названия чата: %s", e, exc_info=True)
+
+        return gr.update(), ui_handlers.get_chat_list_data(scroll_target='today')
 
     @staticmethod
     def stop_generation() -> str:
@@ -223,6 +245,10 @@ class MessageEvents:
                 fn=MessageEvents.stream_and_save_context,
                 inputs=[saved_prompt, current_dialog_id],
                 outputs=[chatbot, current_dialog_id, chat_list_data, generation_js_trigger]
+            ).then(
+                fn=MessageEvents.refresh_chat_name,
+                inputs=[current_dialog_id],
+                outputs=[chatbot, chat_list_data]
             )
 
         start_chain(submit_btn.click)

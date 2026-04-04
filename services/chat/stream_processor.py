@@ -2,7 +2,7 @@
 
 import threading
 import asyncio
-from typing import AsyncGenerator, List, Dict, Optional, Tuple
+from typing import AsyncGenerator, List, Dict, Optional, Tuple, Any
 
 from models.enums import MessageRole
 from services.chat.operations import ChatOperations
@@ -11,6 +11,18 @@ from services.chat.naming import is_default_name
 from services.chat.partial_cache import PartialUpdateCache
 from services.chat.core import validate_message, sanitize_user_input
 from container import container
+
+# ─── Реестр задач именования ─────────────────────────────────────────────────
+# Ключ: dialog_id
+# Значение: dict с данными, необходимыми refresh_chat_name для генерации имени.
+#
+# Запись создаётся ДО финального yield, чтобы refresh_chat_name гарантированно
+# нашла её сразу после закрытия генератора.
+#
+# Нейминг выполняется НЕ в background_tasks (которая может не запуститься, если
+# Gradio закроет генератор через aclose() вместо __anext__()), а напрямую
+# в refresh_chat_name — Gradio ждёт завершения .then()-хэндлера.
+_pending_name_tasks: Dict[str, Dict[str, Any]] = {}
 
 
 class MessageStreamProcessor:
@@ -70,9 +82,6 @@ class MessageStreamProcessor:
 
         base_history = dialog.to_ui_format()
         cache_key = f"{dialog_id}_{len(base_history)}"
-        # Снапшот списка чатов делается один раз — до начала генерации.
-        # После финального yield повторная выборка не нужна: обновление сайдбара
-        # (в т.ч. новое имя чата) произойдёт через background_tasks.
         initial_chat_list = self._get_chat_list_data('today')
 
         accumulated_response = ""
@@ -131,22 +140,66 @@ class MessageStreamProcessor:
             was_stopped = stop_event and stop_event.is_set()
             final_text = accumulated_response + (suffix_on_stop if was_stopped else "")
 
-            # Сохраняем сообщение ассистента в историю (быстрая операция: append в jsonl)
-            self.operations.dialog_service.add_message(dialog_id, MessageRole.ASSISTANT, final_text)
-
+            # ─── Обновление диалога: in-memory до yield, disk — в фоне ────────
+            #
+            # В режиме thinking выполняем полное сохранение до yield, потому что
+            # send_message_stream_handler._normalize_and_save вызовет
+            # rewrite_last_message и должен найти строку в файле.
+            # Без thinking диск не нужен до yield (normalize — no-op), откладываем.
             updated_dialog = self.operations.dialog_service.get_dialog(dialog_id)
+
+            if enable_thinking:
+                self.operations.dialog_service.add_message(
+                    dialog_id, MessageRole.ASSISTANT, final_text
+                )
+                assistant_message_obj = None
+                was_not_visible = False
+            else:
+                was_not_visible = not updated_dialog.visible
+                if was_not_visible:
+                    updated_dialog.mark_visible()
+                assistant_message_obj = updated_dialog.add_message(
+                    MessageRole.ASSISTANT, final_text
+                )
+
             final_history = updated_dialog.to_ui_format()
+
+            # ─── Задача именования регистрируется ДО yield ───────────────────
+            # refresh_chat_name вызывается Gradio сразу после завершения стрима.
+            # Нейминг делается там (не здесь), чтобы не зависеть от того,
+            # вызовет ли Gradio __anext__() или aclose() после последнего батча.
+            naming_needed = (
+                is_default_name(updated_dialog.name, self.config)
+                and len(updated_dialog.history) == 2
+            )
+            if naming_needed:
+                _pending_name_tasks[dialog_id] = {
+                    "naming_service": self.naming_service,
+                    "dialog_service": self.operations.dialog_service,
+                    "dialog_obj": updated_dialog,
+                    "prompt": prompt,
+                    "final_text": final_text,
+                }
+
             js_stop = "if (window.toggleGenerationButtons) { window.toggleGenerationButtons(false); }"
 
             # ─── НЕМЕДЛЕННО отправляем финальный ответ клиенту ───────────────
-            # initial_chat_list уже актуален: диалог стал видимым на шаге
-            # save_and_show_user_message, поэтому повторная выборка с диска не нужна
-            # и не должна блокировать доставку последнего батча.
             yield final_history, final_text, dialog_id, initial_chat_list, js_stop
 
-            # ─── Все тяжёлые IO-операции идут в фон ──────────────────────────
+            # ─── Disk-IO в фоне (контекст + диск для non-thinking) ───────────
+            # Этот блок может не выполниться если Gradio закрыл генератор через
+            # aclose(). Это нормально: контекст некритичен для текущего ответа,
+            # нейминг уже делегирован refresh_chat_name.
             async def background_tasks():
-                # 1. Обновление контекста
+                if assistant_message_obj is not None:
+                    try:
+                        storage = self.operations.dialog_service.storage
+                        if was_not_visible:
+                            storage.save_dialog(updated_dialog)
+                        storage.append_message(updated_dialog, assistant_message_obj)
+                    except Exception as e:
+                        self.logger.error("Ошибка сохранения сообщения: %s", e)
+
                 try:
                     dialog = self.operations.dialog_service.get_dialog(dialog_id)
                     if dialog:
@@ -155,19 +208,7 @@ class MessageStreamProcessor:
                 except Exception as e:
                     self.logger.warning("Ошибка при работе с контекстом: %s", e)
 
-                # 2. Генерация названия чата (только для первого обмена)
-                if is_default_name(updated_dialog.name, self.config) and len(updated_dialog.history) == 2:
-                    try:
-                        new_name = await self.naming_service.generate_name(prompt, final_text)
-                        if new_name:
-                            updated_dialog.rename(new_name)
-                            self.operations.dialog_service.storage.save_dialog(updated_dialog)
-                            self.logger.info("Название чата изменено на: %s", new_name)
-                    except Exception as e:
-                        self.logger.error("Ошибка при генерации названия чата: %s", e, exc_info=True)
-
             asyncio.create_task(background_tasks())
-
             self.cache.clear(cache_key)
 
         except Exception as e:
