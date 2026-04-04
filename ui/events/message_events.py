@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import time
 import traceback
 from typing import Optional, Tuple
 
@@ -36,25 +37,58 @@ class MessageEvents:
     def save_and_show_user_message(prompt: str, chat_id: Optional[str]):
         """
         Сохраняет сообщение пользователя в диалог и возвращает обновлённую историю.
-        При ошибке валидации возвращает сообщение об ошибке и не сохраняет пользовательское.
+        При ошибке валидации возвращает тост и очищает saved_prompt.
+        Возвращает 5 значений: (history, chat_id, chat_list_data, js_code, saved_prompt)
         """
         if not prompt or not prompt.strip():
-            return [], chat_id or "", "[]", ""
+            return [], chat_id or "", "[]", "", ""
 
         is_valid, error = validate_message(prompt)
         if not is_valid:
             dialog_service = container.get_dialog_service()
             current_dialog = dialog_service.get_current_dialog()
             history = current_dialog.to_ui_format() if current_dialog else []
-            history.append({"role": "assistant", "content": error})
             chat_list_data = ui_handlers.get_chat_list_data(scroll_target="today")
-            return history, chat_id or "", chat_list_data, ""
 
+            timestamp = int(time.time() * 1000)
+            error_escaped = json.dumps(error)
+            js_toast = f"""
+            <script>
+            (function() {{
+                var existing = document.getElementById('validation-toast');
+                if (existing) existing.remove();
+
+                var chat_container = document.querySelector('.chat-window-container');
+                if (!chat_container) chat_container = document.body;
+
+                var toast = document.createElement('div');
+                toast.id = 'validation-toast';
+                toast.className = 'validation-toast';
+                toast.textContent = {error_escaped};
+                chat_container.appendChild(toast);
+                setTimeout(function() {{
+                    if (toast.parentNode) toast.remove();
+                }}, 5000);
+
+                var ta = document.querySelector('.chat-input-wrapper textarea');
+                if (ta) {{
+                    ta.style.height = 'auto';
+                    if (window.forceResizeTextarea) {{
+                        setTimeout(window.forceResizeTextarea, 50);
+                    }}
+                }}
+            }})();
+            //{timestamp}
+            </script>
+            """
+            # Возвращаем пустую строку для saved_prompt, чтобы следующий шаг не получил длинный промпт
+            return history, chat_id or "", chat_list_data, js_toast, ""
+
+        # Валидация пройдена
         dialog_service = container.get_dialog_service()
         if not chat_id:
             chat_id = dialog_service.create_dialog()
 
-        # Сохраняем сообщение пользователя в историю (без вызова add_interaction_to_context)
         dialog_service.add_message(chat_id, MessageRole.USER, prompt)
 
         dialog = dialog_service.get_dialog(chat_id)
@@ -68,16 +102,22 @@ class MessageEvents:
             }
         </script>
         """
-        return history, chat_id, chat_list_data, js_start
+        # В успешном случае возвращаем исходный prompt в saved_prompt
+        return history, chat_id, chat_list_data, js_start, prompt
 
     @staticmethod
     async def stream_and_save_context(saved_prompt: str, chat_id: str):
         """
         Стримит ответ модели. Предполагает, что сообщение пользователя уже сохранено.
-        После успешного стриминга добавляет взаимодействие в контекст.
+        Если saved_prompt пуст (ошибка валидации), ничего не делает.
         """
         if not saved_prompt or not chat_id:
-            yield [], chat_id or "", "[]", ""
+            # Просто возвращаем текущую историю без изменений
+            dialog_service = container.get_dialog_service()
+            current_dialog = dialog_service.get_current_dialog()
+            history = current_dialog.to_ui_format() if current_dialog else []
+            chat_list_data = ui_handlers.get_chat_list_data()
+            yield history, chat_id, chat_list_data, STOP_GENERATION_JS
             return
 
         logger = container.get_logger()
@@ -103,8 +143,6 @@ class MessageEvents:
             traceback.print_exc()
             logger.error(f"Error in stream: {error}")
         finally:
-            # После стриминга (успех, отмена или ошибка) добавляем взаимодействие в контекст
-            # Только если есть ответ (на случай, если генерация не дала ни одного токена)
             if accumulated_response:
                 dialog = dialog_service.get_dialog(chat_id)
                 if dialog:
@@ -114,7 +152,6 @@ class MessageEvents:
                     except Exception as ctx_err:
                         logger.warning(f"Ошибка обновления контекста: {ctx_err}")
 
-            # Финальное обновление истории (может совпадать с последним yield)
             final_dialog = dialog_service.get_dialog(chat_id)
             final_history = final_dialog.to_ui_format() if final_dialog else []
             final_chat_list = ui_handlers.get_chat_list_data()
@@ -146,7 +183,7 @@ class MessageEvents:
             ).then(
                 fn=MessageEvents.save_and_show_user_message,
                 inputs=[saved_prompt, current_dialog_id],
-                outputs=[chatbot, current_dialog_id, chat_list_data, generation_js_trigger]
+                outputs=[chatbot, current_dialog_id, chat_list_data, generation_js_trigger, saved_prompt]
             ).then(
                 fn=MessageEvents.stream_and_save_context,
                 inputs=[saved_prompt, current_dialog_id],
