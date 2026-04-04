@@ -114,7 +114,12 @@ window.renderChatList = function(chats, scrollTarget = 'none') {
         if (!window.isGenerating) {
             setTimeout(() => {
                 const inputField = document.querySelector('.chat-input-wrapper textarea');
-                if (inputField && !inputField.disabled) inputField.focus();
+                if (inputField && !inputField.disabled) {
+                    if (document.activeElement && document.activeElement !== inputField) {
+                        document.activeElement.blur();
+                    }
+                    inputField.focus();
+                }
             }, 10);
         }
     }

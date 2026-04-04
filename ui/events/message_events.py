@@ -209,7 +209,7 @@ class MessageEvents:
             if new_name:
                 dialog_obj.rename(new_name)
                 dialog_service.storage.save_dialog(dialog_obj)
-                logger.info("Название чата изменено на: %s", new_name)
+                logger.debug("Название текущего нового чата автоматически изменено на: %s", new_name)
         except Exception as e:
             logger.error("Ошибка при генерации названия чата: %s", e, exc_info=True)
 

@@ -106,6 +106,7 @@ class RenameChatModal {
             document.body.style.overflow = 'hidden';
 
             setTimeout(() => {
+                if (document.activeElement && document.activeElement !== this.input) document.activeElement.blur();
                 this.input.focus();
                 this.input.select();
             }, 30);
@@ -129,6 +130,7 @@ class RenameChatModal {
         const newName = this.input.value.trim();
         if (!newName) {
             this.showError('Введите название чата');
+            if (document.activeElement && document.activeElement !== this.input) document.activeElement.blur();
             this.input.focus();
             return;
         }

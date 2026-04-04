@@ -2,6 +2,20 @@
 import gradio as gr
 from handlers import ui_handlers
 
+_FOCUS_INPUT_JS = """
+() => {
+    if (document.activeElement) {
+        document.activeElement.blur();
+    }
+    const ta = document.querySelector('.chat-input-wrapper textarea');
+    if (ta) {
+        ta.focus();
+    }
+    return [];
+}
+"""
+
+
 class ChatEvents:
 
     @staticmethod
@@ -10,12 +24,13 @@ class ChatEvents:
             fn=ui_handlers.handle_chat_selection,
             inputs=[chat_input],
             outputs=[chatbot, current_dialog_id, chat_list_data]
-        )
+        ).then(fn=None, inputs=[], outputs=[], js=_FOCUS_INPUT_JS)
+
         chat_input.change(
             fn=ui_handlers.handle_chat_selection,
             inputs=[chat_input],
             outputs=[chatbot, current_dialog_id, chat_list_data]
-        )
+        ).then(fn=None, inputs=[], outputs=[], js=_FOCUS_INPUT_JS)
 
     @staticmethod
     def bind_chat_creation_events(create_dialog_btn, chatbot, user_input,
@@ -25,13 +40,12 @@ class ChatEvents:
             fn=ui_handlers.create_chat_with_js_handler,
             inputs=[],
             outputs=[chatbot, user_input, current_dialog_id, js_trigger, chat_list_data, chat_input]
-        )
+        ).then(fn=None, inputs=[], outputs=[], js=_FOCUS_INPUT_JS)
 
     @staticmethod
     def bind_settings_button_events(settings_btn, settings_data):
-        """При нажатии на кнопку настроек – читаем данные из settings_data и показываем модалку.
-           НИКАКОГО ВЫЗОВА PYTHON!"""
-        # Сначала сохраняем настройки в глобальную переменную при их обновлении
+        """При нажатии на кнопку настроек - читаем данные из settings_data и показываем модалку."""
+        # Сохраняем настройки в глобальную переменную при их обновлении
         settings_data.change(
             fn=None,
             inputs=[settings_data],
@@ -40,7 +54,6 @@ class ChatEvents:
             (data) => {
                 try {
                     window.appSettings = data;
-                    console.log('✅ Настройки кэшированы:', data);
                 } catch (e) {
                     console.error('Ошибка кэширования настроек:', e);
                 }
@@ -49,9 +62,9 @@ class ChatEvents:
             """
         )
 
-        # Клик по кнопке – используем window.appSettings
+        # Клик по кнопке - используем window.appSettings
         settings_btn.click(
-            fn=None,  # БЕЗ Python-функции!
+            fn=None,
             inputs=[],
             outputs=[],
             js="""

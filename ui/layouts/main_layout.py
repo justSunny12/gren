@@ -31,7 +31,7 @@ def create_main_layout():
                                 show_label=False,
                                 elem_classes="chat-input",
                                 max_lines=20,
-                                autofocus=True,
+                                autofocus=False,
                                 scale=9
                             )
                             # Контейнер для кнопок
