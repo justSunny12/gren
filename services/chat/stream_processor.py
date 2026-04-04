@@ -1,6 +1,7 @@
 # services/chat/stream_processor.py
 
 import threading
+import asyncio
 from typing import AsyncGenerator, List, Dict, Optional, Tuple
 
 from models.enums import MessageRole
@@ -67,13 +68,12 @@ class MessageStreamProcessor:
             messages.append({"role": "system", "content": context_str})
         messages.append({"role": "user", "content": prompt})
 
-        # base_history и cache_key остаются для кэша, но начальный yield убран
         base_history = dialog.to_ui_format()
         cache_key = f"{dialog_id}_{len(base_history)}"
+        # Снапшот списка чатов делается один раз — до начала генерации.
+        # После финального yield повторная выборка не нужна: обновление сайдбара
+        # (в т.ч. новое имя чата) произойдёт через background_tasks.
         initial_chat_list = self._get_chat_list_data('today')
-
-        # ⚠️ Убраны строки js_start и yield base_history, "", dialog_id, initial_chat_list, js_start
-        # Потому что сообщение пользователя уже отображено в message_events
 
         accumulated_response = ""
         suffix_on_stop = "...<генерация прервана пользователем>"
@@ -131,38 +131,42 @@ class MessageStreamProcessor:
             was_stopped = stop_event and stop_event.is_set()
             final_text = accumulated_response + (suffix_on_stop if was_stopped else "")
 
+            # Сохраняем сообщение ассистента в историю (быстрая операция: append в jsonl)
             self.operations.dialog_service.add_message(dialog_id, MessageRole.ASSISTANT, final_text)
-
-            try:
-                dialog.add_interaction_to_context(prompt, final_text)
-                dialog.save_context_state()
-            except Exception as e:
-                self.logger.warning("Ошибка при работе с контекстом: %s", e)
 
             updated_dialog = self.operations.dialog_service.get_dialog(dialog_id)
             final_history = updated_dialog.to_ui_format()
-            final_chat_list = self._get_chat_list_data('today')
             js_stop = "if (window.toggleGenerationButtons) { window.toggleGenerationButtons(false); }"
-            yield final_history, final_text, dialog_id, final_chat_list, js_stop
 
-            if is_default_name(updated_dialog.name, self.config) and len(updated_dialog.history) == 2:
+            # ─── НЕМЕДЛЕННО отправляем финальный ответ клиенту ───────────────
+            # initial_chat_list уже актуален: диалог стал видимым на шаге
+            # save_and_show_user_message, поэтому повторная выборка с диска не нужна
+            # и не должна блокировать доставку последнего батча.
+            yield final_history, final_text, dialog_id, initial_chat_list, js_stop
+
+            # ─── Все тяжёлые IO-операции идут в фон ──────────────────────────
+            async def background_tasks():
+                # 1. Обновление контекста
                 try:
-                    new_name = await self.naming_service.generate_name(prompt, final_text)
-                    if new_name:
-                        updated_dialog.rename(new_name)
-                        self.operations.dialog_service.storage.save_dialog(updated_dialog)
-                        renamed_chat_list = self._get_chat_list_data('today')
-                        update_js = f"""
-                        <script>
-                        if (window.renderChatList) {{
-                            window.renderChatList({renamed_chat_list}, 'today');
-                        }}
-                        </script>
-                        """
-                        yield final_history, "", dialog_id, renamed_chat_list, update_js
-                        return
+                    dialog = self.operations.dialog_service.get_dialog(dialog_id)
+                    if dialog:
+                        dialog.add_interaction_to_context(prompt, final_text)
+                        dialog.save_context_state()
                 except Exception as e:
-                    self.logger.error("Ошибка при генерации названия чата: %s", e, exc_info=True)
+                    self.logger.warning("Ошибка при работе с контекстом: %s", e)
+
+                # 2. Генерация названия чата (только для первого обмена)
+                if is_default_name(updated_dialog.name, self.config) and len(updated_dialog.history) == 2:
+                    try:
+                        new_name = await self.naming_service.generate_name(prompt, final_text)
+                        if new_name:
+                            updated_dialog.rename(new_name)
+                            self.operations.dialog_service.storage.save_dialog(updated_dialog)
+                            self.logger.info("Название чата изменено на: %s", new_name)
+                    except Exception as e:
+                        self.logger.error("Ошибка при генерации названия чата: %s", e, exc_info=True)
+
+            asyncio.create_task(background_tasks())
 
             self.cache.clear(cache_key)
 

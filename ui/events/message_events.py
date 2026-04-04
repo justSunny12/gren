@@ -110,9 +110,18 @@ class MessageEvents:
         """
         Стримит ответ модели. Предполагает, что сообщение пользователя уже сохранено.
         Если saved_prompt пуст (ошибка валидации), ничего не делает.
+
+        После нормального завершения стрима финальный yield с js_stop уже был
+        отправлен внутри stream_processor, поэтому здесь мы его НЕ дублируем.
+        Обновление контекста и генерация названия чата выполняются в фоновой
+        задаче (asyncio.create_task) внутри stream_processor, поэтому здесь
+        мы их тоже НЕ дублируем.
+
+        Блок finally срабатывает только при нештатном завершении (CancelledError
+        или необработанное исключение) — тогда нужно явно отправить js_stop
+        и сохранить накопленный ответ в контекст.
         """
         if not saved_prompt or not chat_id:
-            # Просто возвращаем текущую историю без изменений
             dialog_service = container.get_dialog_service()
             current_dialog = dialog_service.get_current_dialog()
             history = current_dialog.to_ui_format() if current_dialog else []
@@ -130,33 +139,59 @@ class MessageEvents:
         temperature = user_config.generation.temperature or gen_config.get("default_temperature", 0.7)
 
         accumulated_response = ""
+        last_chat_list_data = ""   # последний известный снапшот для cancel-случая
+        stream_completed_normally = False
+
         try:
             async for history, _, dialog_id, chat_list_data, js_code in ui_handlers.send_message_stream_handler(
                 saved_prompt, chat_id, max_tokens, temperature
             ):
-                if history:
-                    accumulated_response = history[-1]["content"] if history[-1]["role"] == "assistant" else ""
+                if history and history[-1]["role"] == "assistant":
+                    accumulated_response = history[-1]["content"]
+                last_chat_list_data = chat_list_data
                 yield history, dialog_id, chat_list_data, js_code
+
+            # Стрим завершился штатно: stream_processor уже отправил финальный
+            # yield с js_stop и запустил background_tasks (контекст + имя чата).
+            # Здесь ничего дополнительного делать не нужно.
+            stream_completed_normally = True
+
         except asyncio.CancelledError:
+            # Градио отменил генерацию (например, пользователь закрыл вкладку).
+            # stream_processor был прерван и не успел выполнить background_tasks.
             ui_handlers.stop_active_generation()
+
         except Exception as error:
             traceback.print_exc()
-            logger.error(f"Error in stream: {error}")
-        finally:
-            if accumulated_response:
-                dialog = dialog_service.get_dialog(chat_id)
-                if dialog:
-                    try:
-                        dialog.add_interaction_to_context(saved_prompt, accumulated_response)
-                        dialog.save_context_state()
-                    except Exception as ctx_err:
-                        logger.warning(f"Ошибка обновления контекста: {ctx_err}")
+            logger.error("Error in stream: %s", error)
 
-            final_dialog = dialog_service.get_dialog(chat_id)
-            final_history = final_dialog.to_ui_format() if final_dialog else []
-            final_chat_list = ui_handlers.get_chat_list_data()
-            js_stop = STOP_GENERATION_JS
-            yield final_history, chat_id, final_chat_list, js_stop
+        finally:
+            if not stream_completed_normally:
+                # ── Нештатное завершение: нужно явно остановить кнопки ──────
+                #
+                # Используем последний полученный снапшот списка чатов, чтобы
+                # не делать синхронное чтение диска в критическом пути.
+                final_dialog = dialog_service.get_dialog(chat_id)
+                final_history = final_dialog.to_ui_format() if final_dialog else []
+                fallback_chat_list = last_chat_list_data or ui_handlers.get_chat_list_data()
+                yield final_history, chat_id, fallback_chat_list, STOP_GENERATION_JS
+
+                # ── Сохраняем контекст в фоне (не блокируем yield выше) ──────
+                if accumulated_response:
+                    _prompt = saved_prompt
+                    _response = accumulated_response
+                    _chat_id = chat_id
+
+                    async def _save_cancelled_context():
+                        try:
+                            dialog = dialog_service.get_dialog(_chat_id)
+                            if dialog:
+                                dialog.add_interaction_to_context(_prompt, _response)
+                                dialog.save_context_state()
+                        except Exception as ctx_err:
+                            logger.warning("Ошибка обновления контекста при отмене: %s", ctx_err)
+
+                    asyncio.create_task(_save_cancelled_context())
 
     @staticmethod
     def stop_generation() -> str:
