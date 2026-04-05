@@ -1,9 +1,14 @@
 # services/model/thinking_handler.py
 import re
 
+from markdown_it import MarkdownIt
+
 _HEADER_RE = re.compile(r'^Thinking process:\s*\n+', re.IGNORECASE)
 _HEADER_BASE = "thinking process:"
 _STORED_RE = re.compile(r'<think((?:\s+t="[\d.]+")?)(\s+stopped)?>(.*?)</think>', re.DOTALL)
+
+# Один экземпляр на модуль — потокобезопасен для чтения
+_MD = MarkdownIt()
 
 
 class ThinkingHandler:
@@ -42,7 +47,6 @@ class ThinkingHandler:
         '</svg>'
     )
 
-    # Chevron-иконка без <button> — span допускается DOMPurify, button нет
     _CHEVRON = (
         '<span class="thinking-chevron">'
         '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" '
@@ -53,6 +57,35 @@ class ThinkingHandler:
         '</span>'
     )
 
+    @staticmethod
+    def _normalize_thinking_body(body: str) -> str:
+        """Сворачивает 2+ подряд идущих \\n в один перед рендерингом.
+
+        Пустые строки между пунктами создают loose list → каждый <li>
+        оборачивается в <p> с CSS margin → лишние визуальные отступы.
+        Tight список (один \\n между пунктами) сохраняет bold и вложенные списки.
+        """
+        return re.sub(r'\n{2,}', '\n', body).lstrip('\n')
+
+    @staticmethod
+    def _render_body(body: str) -> str:
+        """Конвертирует markdown тела thinking-блока в HTML через markdown_it.
+
+        Пре-рендеринг в Python позволяет вставлять готовый HTML напрямую в div
+        без \\n\\n перед контентом (трюк с HTML-блоком типа 6 больше не нужен).
+        Текстовые узлы с лишними переносами внутри div не образуются.
+        markdown_it является зависимостью Gradio и гарантированно доступна.
+
+        После рендеринга применяется та же нормализация переносов, что и для
+        основной части сообщения: три и более \\n подряд сворачиваются в два.
+        """
+        rendered = _MD.render(body)
+        # markdown_it ставит \n между каждым тегом для читаемости HTML.
+        # В div с white-space:pre-wrap эти \n — видимые текстовые узлы.
+        # Убираем \n между закрывающим и открывающим тегами (браузеру они не нужны),
+        # и стрипаем ведущие/хвостовые \n у всего блока.
+        return re.sub(r'>\n+<', '><', rendered).strip('\n')
+
     @classmethod
     def _render_label(cls, seconds: float = None, stopped: bool = False) -> str:
         icon = cls._ICON
@@ -61,7 +94,6 @@ class ThinkingHandler:
             return f'<p class="thinking-header-stopped">{icon}Остановлено{chevron}</p>'
         if seconds is not None:
             return f'<p class="thinking-header">{icon}Думал {seconds:.1f} сек{chevron}</p>'
-        # Во время стриминга chevron тоже есть — пользователь может свернуть вручную
         return f'<p class="thinking-header-processing">{icon}Глубокое мышление{chevron}</p>'
 
     # ──────────────────────────────────────────────
@@ -71,30 +103,26 @@ class ThinkingHandler:
     @classmethod
     def format_stream_chunk(cls, acc_text: str, thinking_seconds: float = None,
                             stopped: bool = False) -> str:
-        """
-        Форматирует накопленный текст во время стрима (raw → ui).
-
-        В-процессе (no </think>):
-          → <div class="thinking-block">  (без thinking-done, CSS не прячет тело)
-        Завершён / остановлен:
-          → <div class="thinking-block thinking-done">  (CSS прячет тело)
-        """
         label = cls._render_label(thinking_seconds, stopped)
 
         if '</think>' not in acc_text:
-            body = cls._strip_header_buffered(acc_text)
+            body = cls._render_body(
+                cls._normalize_thinking_body(cls._strip_header_buffered(acc_text))
+            )
             css = 'thinking' if stopped else 'thinking-in-progress'
-            # Остановлен без </think> → тоже done
             extra = ' thinking-done' if stopped else ''
             return (
                 f'<div class="thinking-block{extra}">'
                 f'{label}\n<div class="{css}">{body}</div>'
-                f'</div>'
+                f'</div>\n\n'
             )
 
         thinking_raw, final = acc_text.split('</think>', 1)
-        thinking = cls._remove_header(thinking_raw).strip('\n')
-        # thinking-done → CSS немедленно скрывает тело блока
+        thinking = cls._render_body(
+            cls._normalize_thinking_body(
+                cls._remove_header(thinking_raw).strip('\n')
+            )
+        )
         return (
             f'<div class="thinking-block thinking-done">'
             f'{label}\n<div class="thinking">{thinking}</div>'
@@ -140,20 +168,26 @@ class ThinkingHandler:
             def _replacer(m: re.Match) -> str:
                 t_group = m.group(1)
                 stopped = m.group(2)
-                body    = m.group(3).strip('\n')
+                body    = cls._render_body(
+                    cls._normalize_thinking_body(m.group(3).strip('\n'))
+                )
                 t_match = re.search(r'[\d.]+', t_group) if t_group else None
                 seconds = float(t_match.group()) if t_match else None
                 label   = cls._render_label(seconds, stopped=bool(stopped))
                 return (
                     f'<div class="thinking-block thinking-done">'
                     f'{label}\n<div class="thinking">{body}</div>'
-                    f'</div>'
+                    f'</div>\n\n'
                 )
             return _STORED_RE.sub(_replacer, text)
 
         if '</think>' in text:
             thinking_raw, final = text.split('</think>', 1)
-            thinking = cls._remove_header(thinking_raw).strip('\n')
+            thinking = cls._render_body(
+                cls._normalize_thinking_body(
+                    cls._remove_header(thinking_raw).strip('\n')
+                )
+            )
             label = cls._render_label(None)
             return (
                 f'<div class="thinking-block thinking-done">'

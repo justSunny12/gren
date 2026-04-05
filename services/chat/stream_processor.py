@@ -11,6 +11,7 @@ from services.chat.naming import is_default_name
 from services.chat.partial_cache import PartialUpdateCache
 from services.chat.core import validate_message, sanitize_user_input
 from container import container
+import re
 
 # ─── Реестр задач именования ─────────────────────────────────────────────────
 # Ключ: dialog_id
@@ -23,6 +24,17 @@ from container import container
 # Gradio закроет генератор через aclose() вместо __anext__()), а напрямую
 # в refresh_chat_name — Gradio ждёт завершения .then()-хэндлера.
 _pending_name_tasks: Dict[str, Dict[str, Any]] = {}
+
+
+def _collapse_blank_lines(text: str) -> str:
+    """Сворачивает три и более подряд идущих newline в два (один пустой параграф).
+
+    Три+ newline никогда не несут смысла в Markdown — параграфы, заголовки,
+    списки и блоки кода разделяются одной пустой строкой (двумя newline).
+    Фильтрация безопасна для любого markdown-контента.
+    Применяется на лету во время стриминга, чтобы не накапливать лишние отступы.
+    """
+    return re.sub(r'\n{3,}', '\n\n', text)
 
 
 class MessageStreamProcessor:
@@ -130,15 +142,16 @@ class MessageStreamProcessor:
                 stop_event=stop_event
             ):
                 accumulated_response += batch
+                display_text = _collapse_blank_lines(accumulated_response)
                 history_for_ui = self.cache.get(cache_key, base_history)
                 history_for_ui.append({
                     "role": MessageRole.ASSISTANT.value,
-                    "content": accumulated_response
+                    "content": display_text
                 })
-                yield history_for_ui, accumulated_response, dialog_id, initial_chat_list, ""
+                yield history_for_ui, display_text, dialog_id, initial_chat_list, ""
 
             was_stopped = stop_event and stop_event.is_set()
-            final_text = accumulated_response + (suffix_on_stop if was_stopped else "")
+            final_text = _collapse_blank_lines(accumulated_response) + (suffix_on_stop if was_stopped else "")
 
             # ─── Обновление диалога: in-memory до yield, disk — в фоне ────────
             #
