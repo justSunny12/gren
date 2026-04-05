@@ -84,7 +84,9 @@ class ThinkingHandler:
         # В div с white-space:pre-wrap эти \n — видимые текстовые узлы.
         # Убираем \n между закрывающим и открывающим тегами (браузеру они не нужны),
         # и стрипаем ведущие/хвостовые \n у всего блока.
-        return re.sub(r'>\n+<', '><', rendered).strip('\n')
+        # markdown_it ставит одиночный \n между тегами для читаемости — убираем только их.
+        # \n\n между тегами markdown_it не генерирует, так что параграфы не пострадают.
+        return re.sub(r'>\n<', '><', rendered).strip('\n')
 
     @classmethod
     def _render_label(cls, seconds: float = None, stopped: bool = False) -> str:

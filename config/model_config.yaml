@@ -6,10 +6,10 @@ model:
 generation:
   # Основные параметры (всегда используются)
   default_max_tokens: 2048
-  default_temperature: 0.7
-  default_top_p: 0.8
-  repetition_penalty: 1.1
-  top_k: 40
+  default_temperature: 1.0
+  default_top_p: 0.95
+  repetition_penalty: 1.0
+  top_k: 20
   
   # Тоггл мышления (не влияет на другие параметры!)
   default_enable_thinking: false

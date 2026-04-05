@@ -165,20 +165,58 @@
     padding: 0.5em 1em !important;
     background-color: #ffffff;
     border-left: 1px solid rgb(226, 229, 233) !important;
-    white-space: pre-wrap;
+    /* white-space убран: контент — готовый HTML из markdown_it,
+       pre-wrap мешал нормальному рендерингу блочных элементов */
     word-wrap: break-word;
     color: rgb(98, 102, 106) !important;
 }
 
-.chatbot .prose .thinking > *,
-.chatbot .prose .thinking-in-progress > * {
-    display: block !important;
-    margin: 0.2em 0 !important;
+/* ── Типографика внутри thinking — повторяет основную часть сообщения ── */
+.chatbot .prose .message .thinking p,
+.chatbot .prose .message .thinking-in-progress p {
+    margin: 0 0 1em 0 !important;
+    line-height: 1.4 !important;
+    word-break: break-word !important;
+    color: rgb(98, 102, 106) !important;
 }
 
-.chatbot .prose .thinking *,
-.chatbot .prose .thinking-in-progress * {
-    margin: 0.2em 0 !important;
+.chatbot .prose .message .thinking p:last-child,
+.chatbot .prose .message .thinking-in-progress p:last-child {
+    margin-bottom: 0 !important;
+}
+
+.chatbot .prose .thinking ol,
+.chatbot .prose .thinking ul,
+.chatbot .prose .thinking-in-progress ol,
+.chatbot .prose .thinking-in-progress ul {
+    margin: 1em 0 !important;
+    padding-left: 1.5em !important;
+    color: rgb(98, 102, 106) !important;
+}
+
+.chatbot .prose .thinking ol:first-child,
+.chatbot .prose .thinking ul:first-child,
+.chatbot .prose .thinking-in-progress ol:first-child,
+.chatbot .prose .thinking-in-progress ul:first-child {
+    margin-top: 0 !important;
+    padding-left: 1.5em !important;
+    color: rgb(98, 102, 106) !important;
+}
+
+.chatbot .prose .thinking li,
+.chatbot .prose .thinking-in-progress li {
+    margin-bottom: 1em !important;
+    line-height: 1.4 !important;
+    color: rgb(98, 102, 106) !important;
+}
+
+.chatbot .prose .thinking li:last-child,
+.chatbot .prose .thinking-in-progress li:last-child {
+    margin-bottom: 0 !important;
+}
+
+.chatbot .prose .thinking strong,
+.chatbot .prose .thinking-in-progress strong {
     color: rgb(98, 102, 106) !important;
 }
 
@@ -233,7 +271,6 @@
 
 /* ═══════════════════════════════════════════════════════════════
    БЛОКИ РАЗМЫШЛЕНИЙ — СВОРАЧИВАНИЕ
-   Добавить в конец css/chat_window.css
    ═══════════════════════════════════════════════════════════════ */
 
 /* Обёртка: заголовок всегда над телом */
@@ -256,26 +293,22 @@
     display: inline-flex !important;
     align-items: center !important;
     flex-shrink: 0 !important;
-    /* opacity: 0.6 !important; */
     stroke: rgb(98, 102, 106) !important;
 }
 
 .chatbot .prose .thinking-chevron svg {
     display: block !important;
     transition: transform 0.2s ease !important;
-    transform: rotate(0deg) !important;   /* chevron-down = развёрнут */
+    transform: rotate(0deg) !important;
     stroke: rgb(98, 102, 106) !important;
 }
 
-/* ── Свёрнутое состояние: CSS класс thinking-done + нет thinking-expanded ── */
-
-/* Прячем тело */
+/* ── Свёрнутое состояние ── */
 .chatbot .prose .thinking-block.thinking-done:not(.thinking-expanded) .thinking,
 .chatbot .prose .thinking-block.thinking-done:not(.thinking-expanded) .thinking-in-progress {
     display: none !important;
 }
 
-/* Поворачиваем стрелку */
 .chatbot .prose .thinking-block.thinking-done:not(.thinking-expanded) .thinking-chevron svg {
     transform: rotate(-90deg) !important;
 }
