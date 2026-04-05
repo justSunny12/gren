@@ -59,13 +59,21 @@ class ThinkingHandler:
 
     @staticmethod
     def _normalize_thinking_body(body: str) -> str:
-        """Сворачивает 2+ подряд идущих \\n в один перед рендерингом.
+        """Нормализует переносы строк тела thinking-блока перед рендерингом.
 
-        Пустые строки между пунктами создают loose list → каждый <li>
-        оборачивается в <p> с CSS margin → лишние визуальные отступы.
-        Tight список (один \\n между пунктами) сохраняет bold и вложенные списки.
+        Схлопываем только 3+ идущих \\n в два: это убирает избыточные пустые
+        строки, но сохраняет \\n\\n, которые нужны markdown_it для создания
+        параграфов и loose-списков (текст внутри <li> оборачивается в <p>).
+        Без \\n\\n markdown_it создаёт tight-список — текстовые блоки идут
+        без разделения при white-space: normal.
+        Стрипаем ведущие \\n: блок не должен начинаться с пустой строки.
         """
-        return re.sub(r'\n{2,}', '\n', body).lstrip('\n')
+        body = re.sub(r'\n{3,}', '\n\n', body).lstrip('\n')
+        # Расширяем одиночный \n → \n\n: в CommonMark одиночный перенос —
+        # продолжение того же параграфа, поэтому весь текст в одном <li> сливается
+        # в стену. Gradio's JS-рендерер трактует \n как конец параграфа → <p>текст</p>.
+        # Расширение до \n\n воспроизводит то же поведение через markdown_it.
+        return re.sub(r'(?<!\n)\n(?!\n)', '\n\n', body)
 
     @staticmethod
     def _render_body(body: str) -> str:
@@ -86,7 +94,21 @@ class ThinkingHandler:
         # и стрипаем ведущие/хвостовые \n у всего блока.
         # markdown_it ставит одиночный \n между тегами для читаемости — убираем только их.
         # \n\n между тегами markdown_it не генерирует, так что параграфы не пострадают.
-        return re.sub(r'>\n<', '><', rendered).strip('\n')
+        # Убираем <p> внутри <li>: markdown_it с \n\n между items создаёт
+        # loose list (<p> внутри <li>), Gradio рендерит tight (без <p>).
+        # Regex захватывает только <p> сразу после <li>\n — не трогает
+        # standalone <p> между секциями (они не внутри <li>).
+        # Убираем одиночные \n между тегами (артефакт форматирования markdown_it).
+        html = re.sub(r'>\n<', '><', rendered).strip('\n')
+        # Оборачиваем содержимое <li> в <p> — Gradio's JS-рендерер делает это для всех
+        # списков (tight и loose), наш markdown_it — только для loose.
+        # Без <p> внутри <li> CSS-маргины между пунктами не применяются.
+        html = re.sub(r'<li>(?!<(?:p|ul|ol|div|blockquote|pre))', '<li><p>', html)
+        html = html.replace('</li>', '</p></li>')
+        html = html.replace('</p></p></li>', '</p></li>')    # уже был <p> в loose list
+        html = html.replace('</ul></p></li>', '</ul></li>')  # вложенный список закрывает item
+        html = html.replace('</ol></p></li>', '</ol></li>')
+        return html
 
     @classmethod
     def _render_label(cls, seconds: float = None, stopped: bool = False) -> str:

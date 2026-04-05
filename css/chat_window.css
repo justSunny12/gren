@@ -165,58 +165,78 @@
     padding: 0.5em 1em !important;
     background-color: #ffffff;
     border-left: 1px solid rgb(226, 229, 233) !important;
-    /* white-space убран: контент — готовый HTML из markdown_it,
-       pre-wrap мешал нормальному рендерингу блочных элементов */
     word-wrap: break-word;
     color: rgb(98, 102, 106) !important;
 }
 
-/* ── Типографика внутри thinking — повторяет основную часть сообщения ── */
-.chatbot .prose .message .thinking p,
-.chatbot .prose .message .thinking-in-progress p {
+/* ── Типографика внутри thinking ─────────────────────────────────────────────
+   Используем #chat_window (ID-селектор) — наивысшая специфичность (1,0,0,x).
+   Перебивает Svelte-scoped white-space: pre-wrap и display: inline на <p>
+   от Gradio's layout CSS, которые невозможно победить class-based правилами. */
+#chat_window .thinking,
+#chat_window .thinking-in-progress {
+    white-space: normal !important;
+}
+
+#chat_window .thinking *,
+#chat_window .thinking-in-progress * {
+    white-space: normal !important;
+}
+
+#chat_window .thinking p,
+#chat_window .thinking-in-progress p {
+    display: block !important;
     margin: 0 0 1em 0 !important;
     line-height: 1.4 !important;
     word-break: break-word !important;
     color: rgb(98, 102, 106) !important;
 }
 
-.chatbot .prose .message .thinking p:last-child,
-.chatbot .prose .message .thinking-in-progress p:last-child {
+#chat_window .thinking p:last-child,
+#chat_window .thinking-in-progress p:last-child {
     margin-bottom: 0 !important;
 }
 
-.chatbot .prose .thinking ol,
-.chatbot .prose .thinking ul,
-.chatbot .prose .thinking-in-progress ol,
-.chatbot .prose .thinking-in-progress ul {
-    margin: 1em 0 !important;
+#chat_window .thinking li > p,
+#chat_window .thinking-in-progress li > p {
+    display: block !important;
+    margin: 0 0 0.75em 0 !important;
+}
+
+#chat_window .thinking li > p:last-child,
+#chat_window .thinking-in-progress li > p:last-child {
+    margin-bottom: 0 !important;
+}
+
+#chat_window .thinking ol,
+#chat_window .thinking ul,
+#chat_window .thinking-in-progress ol,
+#chat_window .thinking-in-progress ul {
+    display: block !important;
+    list-style-position: outside !important;
+    margin: 0.5em 0 !important;
     padding-left: 1.5em !important;
     color: rgb(98, 102, 106) !important;
 }
 
-.chatbot .prose .thinking ol:first-child,
-.chatbot .prose .thinking ul:first-child,
-.chatbot .prose .thinking-in-progress ol:first-child,
-.chatbot .prose .thinking-in-progress ul:first-child {
-    margin-top: 0 !important;
-    padding-left: 1.5em !important;
-    color: rgb(98, 102, 106) !important;
-}
-
-.chatbot .prose .thinking li,
-.chatbot .prose .thinking-in-progress li {
+#chat_window .thinking li,
+#chat_window .thinking-in-progress li {
+    display: list-item !important;
+    list-style-position: outside !important;
     margin-bottom: 1em !important;
     line-height: 1.4 !important;
     color: rgb(98, 102, 106) !important;
 }
 
-.chatbot .prose .thinking li:last-child,
-.chatbot .prose .thinking-in-progress li:last-child {
+#chat_window .thinking li:last-child,
+#chat_window .thinking-in-progress li:last-child {
     margin-bottom: 0 !important;
 }
 
-.chatbot .prose .thinking strong,
-.chatbot .prose .thinking-in-progress strong {
+#chat_window .thinking strong,
+#chat_window .thinking em,
+#chat_window .thinking-in-progress strong,
+#chat_window .thinking-in-progress em {
     color: rgb(98, 102, 106) !important;
 }
 
